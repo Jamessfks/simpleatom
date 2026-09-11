@@ -5,12 +5,14 @@
     {
       "id": "D1",
       "severity": "CRITICAL",
-      "status": "open",
+      "status": "fixed",
       "what": "The foundation-model comparison picks its baseline by substring-matching the uploaded FILENAME for 'off'/'organic', so a periodic crystal named e.g. offcut.cif is compared against MACE-OFF. That crosses two incompatible energy conventions (-1..-15 vs -100..-600 eV/atom) and the delta it prints is meaningless.",
       "where": "app/calculate/page.tsx ~259",
       "verify": false,
-      "howToVerify": "Load a periodic structure from a file whose name contains 'off' and read which baseline the comparison chose.",
-      "source": "audit finding 8"
+      "howToVerify": "Parse a periodic structure from a file whose name contains 'off' (e.g. public/demo/silicon.cif renamed offcut.cif) and check foundationModelFor() in lib/model-domain.ts returns MACE-MP-0. Also check an isolated molecule carrying an element outside MACE_OFF_ELEMENTS (e.g. a C10Fe cluster) returns MACE-MP-0, and that c-diamond.xyz (periodic, C only) returns MACE-MP-0.",
+      "source": "audit finding 8",
+      "fixedIn": "2698662",
+      "fixedOn": "2026-09-11"
     },
     {
       "id": "D2",
