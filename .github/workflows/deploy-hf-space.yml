@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mace-api/**"
+      - "test_scripts/validate_calculation.py"
 
 jobs:
   deploy:
@@ -32,6 +33,10 @@ jobs:
           cp mace-api/calculate_local.py /tmp/hf-space/
           cp mace-api/main.py /tmp/hf-space/
           cp mace-api/requirements.txt /tmp/hf-space/
+          # calculate.py's _load_validator() looks for this next to itself
+          # (mace-api/ is not a valid build context for ../test_scripts/, so
+          # the validator has to travel here instead — see D2 in defects.json)
+          cp test_scripts/validate_calculation.py /tmp/hf-space/
 
           # Commit and push
           cd /tmp/hf-space
