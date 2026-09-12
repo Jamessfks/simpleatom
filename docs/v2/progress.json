@@ -1,7 +1,7 @@
 {
   "version": "2.0.0-dev",
   "branch": "v2.1",
-  "updated": "2026-09-11T00:00:00.000Z",
+  "updated": "2026-09-12T00:00:00.000Z",
   "bars": [
     {
       "name": "Rowan",
@@ -14,37 +14,37 @@
       "name": "Materials Project",
       "url": "https://next-gen.materialsproject.org/materials/mp-149",
       "role": "Data density, scientific numbers",
-      "fetchable": "Property data public but returns HTTP 403 to a plain fetch (Cloudflare) as of 2026-09-11 — reachable in the browser pane only. Interactive crystal viewer requires login."
+      "fetchable": "Property data public but returns HTTP 403 to a plain fetch (Cloudflare) as of 2026-09-11 \u2014 reachable in the browser pane only. Interactive crystal viewer requires login."
     },
     {
       "name": "ACEsuit/mace",
       "url": "https://github.com/ACEsuit/mace",
-      "role": "Scientific correctness — the reference implementation",
+      "role": "Scientific correctness \u2014 the reference implementation",
       "fetchable": "Fully public. Audit in progress; where SimpleAtom disagrees with upstream, SimpleAtom is wrong by definition."
     },
     {
       "name": "Mol*",
       "url": "https://molstar.org/viewer/",
-      "role": "Viewer controls, settings menu, measurement — the harder viewer bar",
+      "role": "Viewer controls, settings menu, measurement \u2014 the harder viewer bar",
       "fetchable": "Fully public AND interactive, no login. Closes the hole left by Rowan's login-gated app screens: Rowan's public embed is one preconfigured calculation, Mol* exposes a full control surface."
     },
     {
       "name": "Matbench Discovery",
       "url": "https://matbench-discovery.materialsproject.org/",
-      "role": "The numeric half — what MACE-MP-0 actually scores, and the honesty bar for accuracy claims",
+      "role": "The numeric half \u2014 what MACE-MP-0 actually scores, and the honesty bar for accuracy claims",
       "fetchable": "Fully public leaderboard. MACE-MP-0 ranks 34: F1 0.669, MAE 0.057 eV, RMSD 0.091 A, kappa-SRME 0.682, CPS 0.637. MACE-MPA-0 ranks 21 and beats it on every published metric; SimpleAtom offers it nowhere."
     },
     {
       "name": "NOMAD",
       "url": "https://nomad-lab.eu/prod/v1/gui/search/entries",
-      "role": "Provenance and result metadata — the only public production system showing full lineage",
+      "role": "Provenance and result metadata \u2014 the only public production system showing full lineage",
       "fetchable": "Public GUI and public REST API (/api/v1/entries). Entry metadata carries nomad_version, nomad_commit, parser_name, license, authors, references, processing_errors. SimpleAtom matches this locally but ships gitCommit null in the deployed container."
     }
   ],
   "pieces": [
     {
       "id": "viewer-render",
-      "name": "3D viewer — render quality",
+      "name": "3D viewer \u2014 render quality",
       "bar": "Rowan viewer embed",
       "judge": "Side-by-side render of the same molecule. Sharpness at retina, atom shading, bond geometry, CPK colours.",
       "files": [
@@ -52,12 +52,12 @@
       ],
       "status": "won",
       "rounds": 5,
-      "verdict": "WON — critic picked ours over Rowan",
+      "verdict": "WON \u2014 critic picked ours over Rowan",
       "gap": "Arrows ON vs OFF give an identical bbox to the pixel, centroid moving 0.02px. Fill 0.8106, tighter than the bar ~0.74. Reset view restores byte-identically. Remaining: the arrow scale silently differs between models (0.82 vs 1.0 A per eV/A on the same geometry), so two results of one molecule have non-comparable arrow lengths."
     },
     {
       "id": "viewer-interact",
-      "name": "3D viewer — selection & measurement",
+      "name": "3D viewer \u2014 selection & measurement",
       "bar": "Rowan viewer embed",
       "judge": "Click an atom, then two/three/four. Does a highlight appear and a bond length / angle / dihedral read out?",
       "files": [
@@ -65,20 +65,20 @@
       ],
       "status": "won",
       "rounds": 1,
-      "verdict": "WON — critic picked ours over Rowan",
-      "gap": "Every value hand-checked against the raw xyz and correct to displayed precision. The honesty path works: a non-bonded pair reads Distance with 3Dmol perceived no bond here. The bar makes no bonded/non-bonded distinction and does not name the angle vertex. Remaining: the green selection shell is nearly invisible — delta-G of only +2 while R and B drop 13."
+      "verdict": "WON \u2014 critic picked ours over Rowan",
+      "gap": "Every value hand-checked against the raw xyz and correct to displayed precision. The honesty path works: a non-bonded pair reads Distance with 3Dmol perceived no bond here. The bar makes no bonded/non-bonded distinction and does not name the angle vertex. Remaining: the green selection shell is nearly invisible \u2014 delta-G of only +2 while R and B drop 13."
     },
     {
       "id": "viewer-chrome",
-      "name": "3D viewer — controls & settings menu",
+      "name": "3D viewer \u2014 controls & settings menu",
       "bar": "Rowan viewer embed",
-      "judge": "Gear / fullscreen / reset controls. Auto-rotate, hide C–H bonds, download PNG.",
+      "judge": "Gear / fullscreen / reset controls. Auto-rotate, hide C\u2013H bonds, download PNG.",
       "files": [
         "components/calculate/molecule-viewer-3d.tsx"
       ],
       "status": "building",
       "rounds": 3,
-      "verdict": "Round 2: LOST to Rowan — and Hide C-H regressed",
+      "verdict": "Round 2: LOST to Rowan \u2014 and Hide C-H regressed",
       "gap": "REGRESSION I shipped: Hide C-H now scales the molecule UP 1.44x and CLIPS at both canvas edges (bbox 0 to 1327 on a 1328px canvas). It previously shrank 0.806 to 0.591. Spin no longer clips at any angle, but apparent size is NOT constant: 843px static vs 593-663px spinning, so toggling rotate resizes 27-30%."
     },
     {
@@ -106,7 +106,7 @@
       "status": "judging",
       "rounds": 1,
       "verdict": null,
-      "gap": "Built and now wired — guardrails were inert until app/calculate/page.tsx passed the parsed structure down."
+      "gap": "Built and now wired \u2014 guardrails were inert until app/calculate/page.tsx passed the parsed structure down."
     },
     {
       "id": "results",
@@ -119,13 +119,13 @@
       ],
       "status": "won",
       "rounds": 1,
-      "verdict": "WON — critic picked ours over the Materials Project",
+      "verdict": "WON \u2014 critic picked ours over the Materials Project",
       "gap": "Run Configuration verified truthful: a single-point renders exactly five fields, no MD parameters. Timing separated and honest (0.135s compute vs 5.13s round trip, matching the JSON). RMS force independently confirmed to use sqrt(sum|Fi|^2/N), not the buggy variant. Remaining: one long scroll where MP pins its property card in a rail."
     },
     {
       "id": "honesty",
       "name": "Scientific honesty & input validation",
-      "bar": "The code itself — every claim must survive inspection",
+      "bar": "The code itself \u2014 every claim must survive inspection",
       "judge": "Does any user-facing claim describe a capability the backend does not have? Does an unsupported calculationType fail loudly instead of silently returning a single-point?",
       "files": [
         "mace-api/calculate.py",
@@ -150,7 +150,7 @@
       "status": "building",
       "rounds": 2,
       "verdict": "Round 1: LOST to the Materials Project",
-      "gap": "Content verified real — the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCTURE: the bar makes provenance a peer section; ours is the last block of one tab at y1269 of a 2262px page, labelled with a DIV not a heading, with no id, no anchor and no TOC entry. And the hashes are not resolvable: no checkpoint download URL, no repo permalink for the commit."
+      "gap": "Content verified real \u2014 the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCTURE: the bar makes provenance a peer section; ours is the last block of one tab at y1269 of a 2262px page, labelled with a DIV not a heading, with no id, no anchor and no TOC entry. And the hashes are not resolvable: no checkpoint download URL, no repo permalink for the commit."
     },
     {
       "id": "share",
@@ -176,8 +176,8 @@
       ],
       "status": "won",
       "rounds": 2,
-      "verdict": "WON — critic picked ours over Rowan",
-      "gap": "Wordmark pinned at x=24 on every route, matching the bar to within half a pixel (our 121px chrome-to-content offset vs their 120.5px). Plus aria-current on the active route, which Rowan sets on none of its five top links. Remaining: /support uses max-w-3xl, giving a 225px offset — the only route exceeding the bar."
+      "verdict": "WON \u2014 critic picked ours over Rowan",
+      "gap": "Wordmark pinned at x=24 on every route, matching the bar to within half a pixel (our 121px chrome-to-content offset vs their 120.5px). Plus aria-current on the active route, which Rowan sets on none of its five top links. Remaining: /support uses max-w-3xl, giving a 225px offset \u2014 the only route exceeding the bar."
     },
     {
       "id": "benchmark",
@@ -224,17 +224,17 @@
   ],
   "notes": [
     "Daily routine as of 2026-09-11: run `python3 test_scripts/daily_gate.py` first, take the top queue item, record the verdict back here. Criteria in docs/v2/SUCCESS-CRITERIA.md, open defects in docs/v2/defects.json.",
-    "Scope is MACE-only. No orbitals, partial charges, Fukui indices, pKa, docking, or DFT — MACE is an interatomic potential with no electron density.",
+    "Scope is MACE-only. No orbitals, partial charges, Fukui indices, pKa, docking, or DFT \u2014 MACE is an interatomic potential with no electron density.",
     "Rowan's typeface Matter is commercially licensed and is not used. SimpleAtom keeps Fraunces + Inter.",
     "Viewer pieces share one file and are serialised, not run in parallel.",
     "Audit found results-display.tsx is dead code; metrics-dashboard.tsx is the live results component.",
     "Audit found FIRE optimizer advertised in docs and landing copy, but BFGS is hardcoded in mace-api/calculate.py. Being corrected.",
     "Of Rowan's ~30 workflows: 2 already shipped, 18 buildable on MACE, 13 blocked by the absence of any electron-density model.",
-    "Measured: both our viewer and Rowan render at exactly devicePixelRatio 2.00. The original DPR-1 premise was wrong — 3Dmol upscales by default when antialias is on.",
+    "Measured: both our viewer and Rowan render at exactly devicePixelRatio 2.00. The original DPR-1 premise was wrong \u2014 3Dmol upscales by default when antialias is on.",
     "Blind label-stripping was not achievable for the qualitative comparison; critics run with fresh context and an adversarial brief instead. Stated rather than claimed otherwise.",
     "Critic measured Rowan as having NO specular term either (brightest pixel 242/255, zero >=245). The 3Dmol fork is rejected on measurement, not deferred.",
     "Critic found our shading objectively beats the bar (117 luminance levels on carbon vs 34; we run SSAO, Rowan has none). We lost purely on scale.",
-    "CIF fractional coordinates were never converted through the unit cell. Silicon loaded with nearest-neighbour 0.433 A instead of 2.3516 A — a factor of 5.4. Fixed and covered by public/demo/silicon.cif.",
+    "CIF fractional coordinates were never converted through the unit cell. Silicon loaded with nearest-neighbour 0.433 A instead of 2.3516 A \u2014 a factor of 5.4. Fixed and covered by public/demo/silicon.cif.",
     "Four separate defects in this branch were code that reviews as correct and does nothing at runtime: the validator dead bounds, the phonon fallthrough, the no-op D3 toggle, and the inert structure guardrails.",
     "Two agents (viewer round-2 critic, guardrail wiring) died on a session limit. The wiring was completed directly; the critic re-run is still outstanding.",
     "ACEsuit/mace audit: the float64-for-Hessians rule in CLAUDE.md is not sourced from upstream and targets phonon, which SimpleAtom rejects, so it guards nothing. Upstream says use float64 for geometry optimisation, a feature SimpleAtom has.",
@@ -242,34 +242,34 @@
     "CORRECTION: the claim that our shading beats the bar does not replicate. AO was never enabled (renderer._AOEnabled === false) and carbon tonality measures 237 distinct luminance levels for both viewers, not 117 vs 34.",
     "Round-2 critic verdicts: viewer ROWAN, landing ROWAN, nav ROWAN. Three losses, all with specific measured causes.",
     "v2.1 continues the loop from main. Viewer, landing and nav all have their round-N fixes shipped and are awaiting re-judgment.",
-    "FIRST WIN: nav. Critic measured Rowan uses the same mx-auto max-w-7xl px-6 with logo at x=24 and h1 at x=144.5 — a 120.5px offset against our 121px. Full-bleed chrome over a narrower column is the bar own pattern, not a defect.",
-    "SETTLED by ablation: ambient occlusion is genuinely active. Disabling it changes 14,024 of 103,106 pixels, all strictly interior to the silhouette. The 117-vs-34 luminance claim is dead — 241 with AO on, 241 with AO off; that metric never measured shading.",
+    "FIRST WIN: nav. Critic measured Rowan uses the same mx-auto max-w-7xl px-6 with logo at x=24 and h1 at x=144.5 \u2014 a 120.5px offset against our 121px. Full-bleed chrome over a narrower column is the bar own pattern, not a defect.",
+    "SETTLED by ablation: ambient occlusion is genuinely active. Disabling it changes 14,024 of 103,106 pixels, all strictly interior to the silhouette. The 117-vs-34 luminance claim is dead \u2014 241 with AO on, 241 with AO off; that metric never measured shading.",
     "The transparency fix alone was a pixel-level no-op: the well behind the canvas painted the identical white the opaque canvas had painted. Removing the well is what makes it mean anything.",
     "Provenance: the checkpoint is identified by watching torch.load rather than re-deriving upstream cache paths, which would go stale silently. e3nn loads its own constants.pt in the same window, so selection is by explicit rule and the rule that fired is recorded.",
     "validate_calculation.py called logging.disable(CRITICAL) at MODULE scope. Importing it would have silently re-broken MACE warning capture process-wide and permanently in the FastAPI server. Moved into a CLI-only helper, with a regression test.",
-    "Framing root cause: maxDrawnRadius() added the largest radius of ANY element present to the extreme projected coordinate, estimating max|x-c| + max r where the truth is max(|x-c| + r). The error scales with radii, so bulkier representations over-padded and under-zoomed more — that was the spacefill inversion.",
+    "Framing root cause: maxDrawnRadius() added the largest radius of ANY element present to the extreme projected coordinate, estimating max|x-c| + max r where the truth is max(|x-c| + r). The error scales with radii, so bulkier representations over-padded and under-zoomed more \u2014 that was the spacefill inversion.",
     "SECOND WIN: selection and measurement. Bond length, named-vertex angle and signed dihedral all hand-verified; the non-bonded case refuses to claim a bond.",
-    "SETTLED: ambient occlusion is running — 3.92% of canvas, 21.6% of molecule pixels, ablation round-trip diff exactly 0. The earlier 0.00% report was the broken guard.",
+    "SETTLED: ambient occlusion is running \u2014 3.92% of canvas, 21.6% of molecule pixels, ablation round-trip diff exactly 0. The earlier 0.00% report was the broken guard.",
     "REFUTED my own doubt: PNG export works. 227KB, 1328x1040, 100% opaque, 13.67% non-white.",
     "MY MEASUREMENT ERROR: I reported the landing claim list at 675-695. It is 675-721 across two wrapped rows; I measured one row and called it the element.",
     "THIRD AND FOURTH WINS: viewer render and results panel. Arrows ON/OFF now identical to the pixel; Run Configuration verified to show only the parameters that actually ran.",
-    "MY CLAIMS CONTRADICTED: the spin rotation-invariant envelope does NOT hold apparent size constant (843px static vs 593-663px spinning), and Hide C-H did not get fixed — it inverted, now scaling up 1.44x and clipping both edges.",
+    "MY CLAIMS CONTRADICTED: the spin rotation-invariant envelope does NOT hold apparent size constant (843px static vs 593-663px spinning), and Hide C-H did not get fixed \u2014 it inverted, now scaling up 1.44x and clipping both edges.",
     "Harness: Radix triggers (Select, Tabs, DropdownMenu) ignore el.click() and need real computer clicks; plain buttons respond to el.click(). Our canvas has preserveDrawingBuffer so getImageData works; the bar embed does not."
   ],
   "defectsFixed": [
     {
       "sev": "CRITICAL",
-      "what": "modelType had no allow-list — selecting a custom model with no checkpoint returned MACE-MP-0 results labelled custom, shareable and PDF-exportable",
+      "what": "modelType had no allow-list \u2014 selecting a custom model with no checkpoint returned MACE-MP-0 results labelled custom, shareable and PDF-exportable",
       "where": "mace-api/calculate.py"
     },
     {
       "sev": "CRITICAL",
-      "what": "calculationType had no allow-list — any unrecognised type (incl. phonon) silently ran a single-point and returned it as the requested calculation",
+      "what": "calculationType had no allow-list \u2014 any unrecognised type (incl. phonon) silently ran a single-point and returned it as the requested calculation",
       "where": "mace-api/calculate.py"
     },
     {
       "sev": "CRITICAL",
-      "what": "CIF fractional coordinates were never converted through the unit cell — silicon loaded with nearest-neighbour 0.433 A instead of 2.3516 A",
+      "what": "CIF fractional coordinates were never converted through the unit cell \u2014 silicon loaded with nearest-neighbour 0.433 A instead of 2.3516 A",
       "where": "lib/parse-structure.ts"
     },
     {
@@ -279,12 +279,12 @@
     },
     {
       "sev": "HIGH",
-      "what": "BFGS convergence was discarded — an optimisation that exhausted maxOptSteps was reported as completed",
+      "what": "BFGS convergence was discarded \u2014 an optimisation that exhausted maxOptSteps was reported as completed",
       "where": "mace-api/calculate.py"
     },
     {
       "sev": "HIGH",
-      "what": "MD recorded potential energy but called it total energy and told users to check NVE conservation — impossible, KE was never recorded",
+      "what": "MD recorded potential energy but called it total energy and told users to check NVE conservation \u2014 impossible, KE was never recorded",
       "where": "mace-api/calculate.py"
     },
     {
@@ -294,7 +294,7 @@
     },
     {
       "sev": "HIGH",
-      "what": "MD was unreproducible — velocities and thermostat both drew from global np.random",
+      "what": "MD was unreproducible \u2014 velocities and thermostat both drew from global np.random",
       "where": "mace-api/calculate.py"
     },
     {
@@ -322,6 +322,13 @@
       "what": "The foundation-model comparison picked its baseline by substring-matching the uploaded FILENAME for 'off'/'organic', so a periodic crystal named offcut.cif was compared against MACE-OFF across two incompatible energy conventions. Now chosen from the parsed structure (periodicity + MACE-OFF element domain): 3 of 5 test structures picked the wrong baseline before, 0 of 5 after.",
       "where": "app/calculate/page.tsx, lib/model-domain.ts",
       "fixedIn": "2698662"
+    },
+    {
+      "sev": "HIGH",
+      "what": "Hosted API never had the scientific validator: Dockerfile build context is mace-api/ alone, so validate_calculation.py was unreachable and every live result reported validation.status unavailable",
+      "where": ".github/workflows/deploy-hf-space.yml",
+      "fixedIn": "1b279ed",
+      "fixedOn": "2026-09-12"
     }
   ]
 }

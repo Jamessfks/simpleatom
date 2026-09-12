@@ -17,12 +17,15 @@
     {
       "id": "D2",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "The validator is absent from the deployed container: mace-api/Dockerfile's build context is mace-api/, so `COPY . .` cannot reach ../test_scripts/. Hosted results report validation.status 'unavailable' — degrading correctly, but degraded. The live site runs without the scientific gate the repo advertises.",
       "where": "mace-api/Dockerfile",
       "verify": false,
       "howToVerify": "Run a calculation against the hosted API and read result.validation.status.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "1b279ed",
+      "fixedOn": "2026-09-12",
+      "fixNote": "Dockerfile's build context can't be changed without restructuring the whole deploy (HF Space root = mace-api/ contents copied flat by .github/workflows/deploy-hf-space.yml). Fixed at the deploy step instead: that workflow now also copies test_scripts/validate_calculation.py into the Space root, which is exactly the sibling path calculate.py's _load_validator() already checks as its second candidate. Verified locally by simulating the flat HF Space layout (calculate.py + provenance.py + validate_calculation.py in one dir): _load_validator() goes from (None, 'not found') to a loaded module. Not verified against the live hosted API since that requires a push to main, which this routine does not do."
     },
     {
       "id": "D3",
