@@ -106,12 +106,15 @@
     {
       "id": "D9",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The force-arrow scale silently differs between models — 0.82 vs 1.0 A per eV/A on the same geometry — so two results for one molecule render non-comparable arrow lengths with no indication of the change.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Render the same structure under MACE-MP-0 and MACE-OFF and measure arrow length per unit force.",
-      "source": "progress.json viewer-render gap"
+      "source": "progress.json viewer-render gap",
+      "fixedIn": "5985bee",
+      "fixedOn": "2026-10-21",
+      "fixNote": "The scale divided by |F|max, so it belonged to the model: on the demo ethanol MP-0 and OFF (|F|max 1.62 / 2.04 eV/A) printed 1.0 vs 0.50 A per eV/A at 766x520, and the larger force drew the shorter arrow (1.62 vs 1.02 A). It is now set by the geometry alone (1 eV/A drawn at 0.45 of the span, rung-rounded, cap 5): both models print 1.0, longest arrows 1.62 vs 2.04 A, legend tick 131.9 px for both. The screen-space tip ceiling still applies, and when it cuts the scale the legend says so — at 291x291 both models read '0.50 A per eV/A (cut from 1.0 to fit the frame)'. Measured with a Playwright script on /calculate?demo=true, Structure tab; numbers in the 5985bee commit message."
     },
     {
       "id": "D10",
@@ -129,12 +132,15 @@
     {
       "id": "D11",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Force arrows are drawn for hidden C-H hydrogens, leaving arrows with no visible atom at their base.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": true,
       "howToVerify": "Toggle Hide C-H with force vectors on and look for orphaned arrows. Commit 9e1dca0 touched exactly this area — check it first.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "9e1dca0",
+      "fixedOn": "2026-08-10",
+      "fixNote": "Fixed by 9e1dca0 (no arrow for an atom that is not drawn) but never run in a browser; verified by execution on 2026-10-21 for 5985bee: with Hide C–H on, MP-0 and OFF each draw 4 arrows, and every arrow starts on an atom that is still styled (0 orphaned), at 766x520 and 291x291. 5985bee also makes hidden atoms' forces still bound the arrow scale, so hiding no longer rescales the remaining arrows (MP-0 at 766x520: 1.0 -> 0.50 before, 1.0 -> 1.0 after)."
     },
     {
       "id": "D12",
@@ -152,12 +158,15 @@
     {
       "id": "D13",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "The green selection shell in the viewer is nearly invisible — delta-G of only +2 while R and B drop 13.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Select an atom, screenshot, and sample the shell pixel against the unselected atom.",
-      "source": "progress.json viewer-interact gap"
+      "source": "progress.json viewer-interact gap",
+      "fixedIn": "5985bee",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Not a tuning problem: with a transparent canvas, 3Dmol blends translucent shapes against its own white clear colour, not against the page, so the 0.62-opacity halo measured an effective alpha of about 0.04 (about 0.5 at 0.9); disabling AO or the outline changed nothing. The halo ring over the page measured (243,240,232) -> (235,235,228), so green fell 5. The shell is gone. The selected atom itself is drawn opaque in the accent green, 0.10 A larger (stick rep gets a 0.30 A ball). Same ring of pixels after: (29,56,31); atom centre (138,138,138) -> (76,148,81). Checked in ball-and-stick, stick and spacefill."
     },
     {
       "id": "D14",
