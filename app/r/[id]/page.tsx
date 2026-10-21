@@ -14,7 +14,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadResult } from "@/lib/share";
+import { loadResult } from "@/lib/server/share-store";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";

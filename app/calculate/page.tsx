@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -28,6 +28,7 @@ import {
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { foundationModelFor } from "@/lib/model-domain";
+import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
 import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
@@ -75,51 +76,41 @@ const KetcherEditor = dynamic(
 );
 
 // ---------------------------------------------------------------------------
-// Progress phase definitions per calculation type
+// Real progress (docs/adr/0023)
 // ---------------------------------------------------------------------------
 
-const PHASE_MAP: Record<string, string[]> = {
-  "single-point": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Computing energy & forces",
-    "Formatting results",
-  ],
-  "geometry-opt": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Optimizing geometry",
-    "Formatting results",
-  ],
-  "molecular-dynamics": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Running MD simulation",
-    "Collecting trajectory",
-  ],
-};
+/**
+ * The stages a job reports, in order. The progress bar used to be a guess
+ * from elapsed time (capped at 95%, phases advanced on a timer); every value
+ * shown now comes from the backend: its phase, and the BFGS or MD step.
+ */
+const STAGES: { key: string; label: string }[] = [
+  { key: "queued", label: "Queued" },
+  { key: "reading-structure", label: "Reading structure" },
+  { key: "loading-model", label: "Loading model" },
+  { key: "computing", label: "Computing" },
+];
 
-/** Rough estimated total time (seconds) by calculation type. */
-function getEstimatedTime(calcType: string, mdSteps?: number): number {
-  switch (calcType) {
-    case "single-point":
-      return 12;
-    case "geometry-opt":
-      return 50;
-    case "molecular-dynamics":
-      return Math.max(30, (mdSteps || 100) * 0.3);
-    default:
-      return 15;
-  }
+function stageIndex(job: JobView | null): number {
+  if (!job || job.status === "queued") return 0;
+  const phase = job.progress.phase;
+  if (phase === "reading-structure") return 1;
+  if (phase === "loading-model") return 2;
+  return 3;
 }
 
-/** Estimate which phase (0-indexed) based on elapsed time ratio. */
-function estimatePhase(elapsed: number, estimated: number): number {
-  const ratio = elapsed / estimated;
-  if (ratio < 0.08) return 0;
-  if (ratio < 0.3) return 1;
-  if (ratio < 0.85) return 2;
-  return 3;
+function stepSummary(job: JobView | null): string | null {
+  const p = job?.progress;
+  if (!p || p.step == null) return null;
+  if (p.phase === "geometry-opt") {
+    const fmax = typeof p.fmax === "number" ? ` · max force ${p.fmax.toFixed(3)} eV/Å` : "";
+    return `BFGS step ${p.step} of at most ${p.totalSteps}${fmax}`;
+  }
+  if (p.phase === "molecular-dynamics") {
+    const t = typeof p.temperature === "number" ? ` · ${p.temperature.toFixed(0)} K` : "";
+    return `MD step ${p.step} of ${p.totalSteps}${t}`;
+  }
+  return `Step ${p.step}${p.totalSteps ? ` of ${p.totalSteps}` : ""}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +257,8 @@ function CalculatePageInner() {
   const [customModelFile, setCustomModelFile] = useState<File | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [job, setJob] = useState<JobView | null>(null);
+  const runAbort = useRef<AbortController | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -396,17 +389,7 @@ function CalculatePageInner() {
       uploadedFiles.forEach((file) => formData.append("files", file));
       formData.append("params", JSON.stringify(foundationParams));
 
-      const response = await fetch("/api/calculate", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Foundation model calculation failed");
-      }
-
-      return response.json();
+      return runCalculationJob(formData);
     }, [uploadedFiles, params, parsedStructure]);
 
   const handleCalculate = async () => {
@@ -420,8 +403,11 @@ function CalculatePageInner() {
     setError(null);
     setResult(null);
     setShareUrl(null);
+    setJob(null);
 
     const startTime = Date.now();
+    const abort = new AbortController();
+    runAbort.current = abort;
 
     try {
       const formData = new FormData();
@@ -431,17 +417,10 @@ function CalculatePageInner() {
         formData.append("model", customModelFile);
       }
 
-      const response = await fetch("/api/calculate", {
-        method: "POST",
-        body: formData,
+      const data: CalculationResult = await runCalculationJob(formData, {
+        signal: abort.signal,
+        onUpdate: setJob,
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Calculation failed");
-      }
-
-      const data: CalculationResult = await response.json();
 
       // Browser wall-clock: HTTP both ways, any model download, and the
       // compute. It is NOT the compute time — `data.timeTaken` is, measured by
@@ -473,11 +452,17 @@ function CalculatePageInner() {
         setLastHistoryId(entries[0]?.id ?? null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Calculation failed");
+      const cancelled =
+        abort.signal.aborted || (err instanceof ApiRequestError && err.code === "cancelled");
+      if (!cancelled) setError(err instanceof Error ? err.message : "Calculation failed");
     } finally {
+      runAbort.current = null;
       setIsCalculating(false);
+      setJob(null);
     }
   };
+
+  const handleCancel = () => runAbort.current?.abort();
 
   const handleShare = async () => {
     if (!result || result.status !== "success") return;
@@ -485,15 +470,11 @@ function CalculatePageInner() {
     try {
       // Share the effective params off the result, not the request — a shared
       // result should describe the run that happened.
-      const { url } = await saveResult(
-        result,
-        result.params ?? params,
-        uploadedFiles[0]?.name,
-      );
+      const { url } = await saveResult(result, uploadedFiles[0]?.name);
       setShareUrl(url);
       if (lastHistoryId) updateHistoryShareUrl(lastHistoryId, url);
-    } catch {
-      setError("Failed to share result. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? `Could not share: ${err.message}` : "Failed to share result. Please try again.");
     } finally {
       setIsSharing(false);
     }
@@ -506,17 +487,12 @@ function CalculatePageInner() {
     setTimeout(() => setShareCopied(false), 2000);
   };
 
-  const phases = PHASE_MAP[params.calculationType] || PHASE_MAP["single-point"];
-  const estimatedTotal = getEstimatedTime(
-    params.calculationType,
-    params.mdSteps,
-  );
-  const currentPhase = estimatePhase(elapsedSeconds, estimatedTotal);
-  const progressPct = Math.min(
-    95,
-    Math.round((elapsedSeconds / estimatedTotal) * 100),
-  );
-  const estRemaining = Math.max(0, estimatedTotal - elapsedSeconds);
+  const currentStage = stageIndex(job);
+  const stepText = stepSummary(job);
+  const stepPct =
+    job?.progress.step != null && job.progress.totalSteps
+      ? Math.min(100, Math.round((job.progress.step / job.progress.totalSteps) * 100))
+      : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -602,65 +578,69 @@ function CalculatePageInner() {
                     </p>
                   )}
 
-                  {/* Progress feedback */}
+                  {/* Progress feedback — every value here is reported by the backend */}
                   {isCalculating && (
-                    <div className="mt-5 space-y-4">
-                      {elapsedSeconds >= 3 && (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                          {phases.map((phase, i) => (
-                            <div key={phase} className="flex items-center gap-1.5">
-                              {i < currentPhase ? (
-                                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)]" />
-                              ) : i === currentPhase ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-primary)]" />
-                              ) : (
-                                <Circle className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-                              )}
-                              <span
-                                className={`font-mono text-xs ${
-                                  i < currentPhase
-                                    ? "text-[var(--color-text-muted)] line-through"
-                                    : i === currentPhase
-                                      ? "font-semibold text-[var(--color-accent-strong)]"
-                                      : "text-[var(--color-text-muted)]"
-                                }`}
-                              >
-                                {phase}
-                              </span>
-                              {i < phases.length - 1 && (
-                                <span className="text-[var(--color-text-muted)]">
-                                  →
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div className="mt-5 space-y-4" aria-live="polite">
+                      <ol className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        {STAGES.map((stage, i) => (
+                          <li key={stage.key} className="flex items-center gap-1.5">
+                            {i < currentStage ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)]" />
+                            ) : i === currentStage ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-primary)] motion-reduce:animate-none" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                            )}
+                            <span
+                              className={`text-xs ${
+                                i === currentStage
+                                  ? "font-semibold text-[var(--color-accent-strong)]"
+                                  : "text-[var(--color-text-muted)]"
+                              }`}
+                            >
+                              {stage.label}
+                              {stage.key === "queued" && job?.queuePosition
+                                ? ` (position ${job.queuePosition + 1})`
+                                : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
 
                       <div className="space-y-1.5">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]">
-                          {elapsedSeconds >= 10 ? (
+                        <div
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]"
+                          role="progressbar"
+                          aria-label="Calculation progress"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={stepPct ?? undefined}
+                        >
+                          {stepPct != null ? (
                             <div
-                              className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-700"
-                              style={{ width: `${progressPct}%` }}
+                              className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-500 motion-reduce:transition-none"
+                              style={{ width: `${stepPct}%` }}
                             />
                           ) : (
                             <div
-                              className="h-full w-1/3 rounded-full bg-[var(--color-accent-primary)]"
+                              className="h-full w-1/3 rounded-full bg-[var(--color-accent-primary)] motion-reduce:w-full motion-reduce:opacity-40"
                               style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
                             />
                           )}
                         </div>
-                        <div className="flex items-center justify-between font-mono text-xs text-[var(--color-text-muted)]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-[var(--color-text-muted)]">
                           <span className="flex items-center gap-1.5">
                             <Clock className="h-3 w-3" />
                             Elapsed: {elapsedSeconds}s
                           </span>
-                          {elapsedSeconds >= 10 && (
-                            <span>
-                              ~{estRemaining}s remaining · {progressPct}%
-                            </span>
-                          )}
+                          {stepText && <span>{stepText}</span>}
+                          <button
+                            type="button"
+                            onClick={handleCancel}
+                            className="inline-flex min-h-11 items-center rounded-full border border-[var(--color-border-emphasis)] px-4 text-xs font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-error)] hover:text-[var(--color-error)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-strong)]"
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
                     </div>

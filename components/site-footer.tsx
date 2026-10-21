@@ -12,8 +12,7 @@ import Link from "next/link";
 import { Atom } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CHROME_WIDTH_CLASS } from "@/components/site-header";
-
-const APP_VERSION = "1.3.0";
+import { APP_VERSION } from "@/lib/contract";
 
 const PRODUCT_LINKS = [
   { href: "/calculate", label: "Calculator" },
@@ -48,7 +47,7 @@ export function SiteFooter() {
             </div>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--color-text-secondary)]">
               A free, browser-based interface to MACE machine-learning
-              interatomic potentials. Quantum-accurate simulation without the
+              interatomic potentials. DFT-trained simulation without the
               installation, command line, or supercomputer.
             </p>
           </div>

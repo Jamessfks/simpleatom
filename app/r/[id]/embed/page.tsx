@@ -39,7 +39,7 @@
  */
 
 import type { Metadata } from "next";
-import { loadResult } from "@/lib/share";
+import { loadResult } from "@/lib/server/share-store";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { MoleculeViewer3D } from "@/components/calculate/molecule-viewer-3d";
 import { hasStructure, summarizeShared } from "../result-context";

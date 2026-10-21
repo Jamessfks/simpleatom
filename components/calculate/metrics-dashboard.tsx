@@ -41,8 +41,7 @@ import {
   Table2,
 } from "lucide-react";
 import { computeRmsForce } from "@/lib/utils";
-import { MoleculeViewer3D } from "./molecule-viewer-3d";
-import { TrajectoryViewer } from "./trajectory/trajectory-viewer";
+import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
@@ -59,6 +58,28 @@ import type {
   CalculationResult,
   CalculationValidation,
 } from "@/types/mace";
+
+// The 3D viewer and the trajectory player are loaded when the Structure tab
+// first renders them, not with the dashboard: together they were the largest
+// part of every results page's initial JavaScript (A4). The placeholder keeps
+// the viewer's footprint so nothing shifts when it arrives.
+function ViewerPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="flex aspect-square max-h-[560px] w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
+const MoleculeViewer3D = dynamic(
+  () => import("./molecule-viewer-3d").then((m) => m.MoleculeViewer3D),
+  { ssr: false, loading: () => <ViewerPlaceholder label="Loading 3D viewer…" /> },
+);
+
+const TrajectoryViewer = dynamic(
+  () => import("./trajectory/trajectory-viewer").then((m) => m.TrajectoryViewer),
+  { ssr: false, loading: () => <ViewerPlaceholder label="Loading trajectory player…" /> },
+);
 
 // ---------------------------------------------------------------------------
 // Types

@@ -1,10 +1,18 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
 // Always re-read the manifest from disk so the page reflects the live run.
 export const dynamic = "force-dynamic";
+
+// An internal process dashboard (defect backlog, competitor bars): reachable
+// by URL, but it should not be indexed as if it were product documentation.
+export const metadata: Metadata = {
+  title: "Gauntlet progress",
+  robots: { index: false, follow: false },
+};
 
 type Piece = {
   id: string;

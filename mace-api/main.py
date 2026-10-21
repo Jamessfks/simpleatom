@@ -37,7 +37,8 @@ from pydantic import BaseModel
 
 import contract
 import provenance
-from calculate import run_calculation
+from calculate import RunHooks, run_calculation, validate_request
+from jobs import Job, JobStore
 
 try:
     from smiles_to_xyz import smiles_to_xyz as _smiles_to_xyz
@@ -61,13 +62,12 @@ app = FastAPI(
 # invited every website to drive this Space from its visitors' browsers.
 
 # ── admission control ──────────────────────────────────────────────────────
-# This Space is a free shared CPU, open to anyone. One calculation at a time:
+# This Space is a free shared CPU, open to anyone. Every calculation — a job
+# or a synchronous /calculate — goes through ONE worker thread (jobs.py):
 # torch already uses both cores for one MACE forward pass, so a second
-# concurrent job halves both instead of doubling throughput. It is also a
-# correctness requirement: torch's default dtype and the scoped torch.load
-# wrapper are process-global (calculate.py).
-MAX_QUEUE_WAIT_SECONDS = 20.0
-_CALC_SLOTS = asyncio.Semaphore(1)
+# concurrent job halves both instead of doubling throughput, and torch's
+# default dtype and the scoped torch.load guard are process-global.
+JOBS = JobStore()
 
 try:
     torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "2")))
@@ -134,18 +134,27 @@ async def _save_capped(upload: UploadFile, directory: str, stored_name: str, lim
     return path
 
 
-@app.post("/calculate")
-async def calculate(
-    files: list[UploadFile] = File(...),
-    params: str = Form(...),
-    model: UploadFile | None = None,
-    x_simpleatom_proxy_key: str | None = Header(default=None),
-):
+def _client_key(request: Request, forwarded_ip: str | None) -> str:
     """
-    Run a MACE calculation on one uploaded structure (XYZ, extXYZ, CIF,
-    POSCAR/VASP, PDB). Custom .model uploads are refused on the hosted profile.
+    Who a request is from, for per-visitor limits. Requests normally come from
+    the Vercel proxy, which forwards the visitor's IP in X-SimpleAtom-Client-IP;
+    with MACE_API_TOKEN set, only proxy-authenticated requests get this far.
     """
-    _require_proxy_key(x_simpleatom_proxy_key)
+    if forwarded_ip:
+        return forwarded_ip.split(",")[0].strip()[:64]
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()[:64]
+    return request.client.host if request.client else "unknown"
+
+
+async def _intake(files: list[UploadFile], params: str, model: UploadFile | None):
+    """
+    Validate a calculation request and stage its files, or refuse it.
+
+    Every request-level check runs here, before anything waits in line — so a
+    bad request is a 4xx at once, never a failed job a minute later.
+    """
     try:
         params_obj = json.loads(params)
     except json.JSONDecodeError as e:
@@ -154,12 +163,11 @@ async def calculate(
         raise _error(400, "invalid_params", "params must be a JSON object.", field="params")
     if not files:
         raise _error(400, "no_files", "No structure file provided.", field="files")
-    if model is not None and not contract.custom_models_allowed(PROFILE):
-        raise _error(403, "custom_models_disabled",
-                     "Custom model checkpoints are disabled on this deployment: loading "
-                     "a MACE .model file executes code from the file. Run SimpleAtom "
-                     "locally to use your own checkpoint. Nothing was computed.",
-                     field="model")
+    try:
+        validate_request(params_obj, model is not None, PROFILE)
+    except ValueError as e:
+        raise _error(getattr(e, "status", 400), getattr(e, "code", "invalid_request"),
+                     str(e), field=getattr(e, "field", None))
 
     workdir = tempfile.mkdtemp(prefix="mace-")
     try:
@@ -172,39 +180,98 @@ async def calculate(
         if model is not None:
             model_path = await _save_capped(model, workdir, "custom.model",
                                             LIMITS["maxModelUploadBytes"])
-
-        # Admission control. Waiting briefly is better than a 429 for a visitor
-        # who arrived a second after someone else; waiting a minute is not.
-        try:
-            await asyncio.wait_for(_CALC_SLOTS.acquire(), timeout=MAX_QUEUE_WAIT_SECONDS)
-        except asyncio.TimeoutError:
-            raise _error(429, "busy",
-                         "This free CPU backend runs one calculation at a time and is "
-                         "busy. Nothing was computed. Try again in a moment, or run "
-                         "SimpleAtom locally for unqueued access.",
-                         headers={"Retry-After": "30"})
-        try:
-            # CPU-bound and synchronous: run it off the event loop, so /health
-            # and the 429 above stay responsive while it computes.
-            result = await asyncio.to_thread(
-                run_calculation, tmp_path, params_obj, model_path=model_path,
-                profile=PROFILE, display_name=display_name,
-            )
-        finally:
-            _CALC_SLOTS.release()
-        return result
-    except HTTPException:
-        raise
-    except ValueError as e:
-        # ContractError / UntrustedCheckpointError: a refusal, not a server
-        # fault (D4). Nothing was computed.
-        raise _error(getattr(e, "status", 400), getattr(e, "code", "invalid_request"),
-                     str(e), field=getattr(e, "field", None))
-    except Exception as e:  # noqa: BLE001
-        _logger.exception("calculation failed")
-        raise _error(500, "calculation_failed", f"{type(e).__name__}: {e}")
-    finally:
+    except BaseException:
         shutil.rmtree(workdir, ignore_errors=True)
+        raise
+
+    def run(job: Job) -> dict:
+        hooks = RunHooks(
+            # Replaced, not mutated: a poll reading it from another thread
+            # always sees one complete progress event.
+            on_progress=lambda event: setattr(job, "progress", dict(event)),
+            is_cancelled=job.cancel_requested.is_set,
+        )
+        return run_calculation(tmp_path, params_obj, model_path=model_path,
+                               profile=PROFILE, display_name=display_name, hooks=hooks)
+
+    return run, workdir
+
+
+def _submit(request: Request, forwarded_ip: str | None, run, workdir) -> Job:
+    try:
+        return JOBS.submit(_client_key(request, forwarded_ip), run, workdir=workdir)
+    except ValueError as e:
+        shutil.rmtree(workdir, ignore_errors=True)
+        headers = {"Retry-After": "30"} if getattr(e, "status", 400) == 429 else None
+        raise _error(getattr(e, "status", 429), getattr(e, "code", "busy"), str(e), headers=headers)
+
+
+@app.post("/v1/jobs", status_code=202)
+async def submit_job(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    params: str = Form(...),
+    model: UploadFile | None = None,
+    x_simpleatom_proxy_key: str | None = Header(default=None),
+    x_simpleatom_client_ip: str | None = Header(default=None),
+):
+    """Queue a calculation. Returns 202 with a job id to poll."""
+    _require_proxy_key(x_simpleatom_proxy_key)
+    run, workdir = await _intake(files, params, model)
+    job = _submit(request, x_simpleatom_client_ip, run, workdir)
+    return JOBS.describe(job)
+
+
+def _job_or_404(job_id: str) -> Job:
+    job = JOBS.get(job_id)
+    if job is None:
+        raise _error(404, "job_not_found",
+                     "No such job. It may have expired (results are kept for 15 minutes) "
+                     "or the backend restarted; submit the calculation again.")
+    return job
+
+
+@app.get("/v1/jobs/{job_id}")
+async def get_job(job_id: str, x_simpleatom_proxy_key: str | None = Header(default=None)):
+    """Status, real progress (phase and step) and, once finished, the result."""
+    _require_proxy_key(x_simpleatom_proxy_key)
+    return JOBS.describe(_job_or_404(job_id))
+
+
+@app.delete("/v1/jobs/{job_id}")
+async def cancel_job(job_id: str, x_simpleatom_proxy_key: str | None = Header(default=None)):
+    """Cancel a job. A queued job is dropped; a running one stops at its next step."""
+    _require_proxy_key(x_simpleatom_proxy_key)
+    _job_or_404(job_id)
+    return JOBS.describe(JOBS.cancel(job_id))
+
+
+@app.post("/calculate")
+async def calculate(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    params: str = Form(...),
+    model: UploadFile | None = None,
+    x_simpleatom_proxy_key: str | None = Header(default=None),
+    x_simpleatom_client_ip: str | None = Header(default=None),
+):
+    """
+    Run one calculation and wait for it — the original synchronous API, kept
+    for existing callers. It goes through the same single worker as /v1/jobs.
+    """
+    _require_proxy_key(x_simpleatom_proxy_key)
+    run, workdir = await _intake(files, params, model)
+    job = _submit(request, x_simpleatom_client_ip, run, workdir)
+    wait = LIMITS["timeBudgetSeconds"] + 120
+    finished = await asyncio.to_thread(job.done.wait, wait)
+    if not finished:
+        JOBS.cancel(job.id)
+        raise _error(504, "timeout", "The calculation did not finish in time and was cancelled.")
+    if job.status == "succeeded":
+        return job.result
+    err = job.error or {"code": "cancelled", "message": "The calculation was cancelled.", "status": 499}
+    raise _error(err.get("status", 500), err.get("code", "calculation_failed"),
+                 err.get("message", "Calculation failed"), field=err.get("field"))
 
 
 class SmilesRequest(BaseModel):
@@ -262,7 +329,10 @@ async def root():
         "name": "SimpleAtom MACE API",
         "version": APP_VERSION,
         "endpoints": {
-            "POST /calculate": "Run a MACE calculation on an uploaded structure",
+            "POST /v1/jobs": "Queue a calculation; returns a job id (202)",
+            "GET /v1/jobs/{id}": "Job status, real progress, and the result",
+            "DELETE /v1/jobs/{id}": "Cancel a job",
+            "POST /calculate": "Run a calculation and wait for the result",
             "POST /smiles-to-xyz": "Convert SMILES to a 3D XYZ structure",
             "GET /capabilities": "Models and limits this deployment accepts",
             "GET /health": "Health check (includes the deployed git SHA)",

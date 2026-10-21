@@ -93,6 +93,13 @@ class RunHooks:
     is_cancelled: Callable[[], bool] | None = None
     _last_emit: float = field(default=0.0, repr=False)
 
+    def phase(self, name: str) -> None:
+        """A stage boundary (reading, loading the model, computing): always reported."""
+        if self.is_cancelled is not None and self.is_cancelled():
+            raise RunCancelled()
+        if self.on_progress is not None:
+            self.on_progress({"phase": name, "step": None, "totalSteps": None})
+
     def tick(self, phase: str, step: int, total: int | None, **extra) -> None:
         if self.is_cancelled is not None and self.is_cancelled():
             raise RunCancelled()
@@ -746,6 +753,44 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
     return atoms, fmt
 
 
+def validate_request(params: dict, has_model_path: bool, profile_name: str) -> dict:
+    """
+    Every check that needs only the request, never the structure or a model.
+
+    Raises ContractError for anything contract.json refuses. Used by
+    run_calculation() and by the job queue (jobs.py), which refuses a bad
+    request with a 4xx before it ever waits in line.
+    """
+    if has_model_path and not contract.custom_models_allowed(profile_name):
+        raise ContractError(
+            "Custom model checkpoints are disabled on this deployment. Loading a "
+            "MACE .model file executes code from the file, so the public "
+            "instance only runs pinned foundation models. Run SimpleAtom "
+            "locally (or self-host with ALLOW_CUSTOM_MODELS=1) to use your own "
+            "checkpoint. Nothing was computed.",
+            code="custom_models_disabled", field="model", status=403,
+        )
+    calc_type = validate_calculation_type(params.get("calculationType"))
+    requested_model = validate_model_type(params.get("modelType"), has_model_path)
+    model_type = "custom" if has_model_path else requested_model
+    model = contract.find_model(model_type)
+    resolved = {
+        "calc_type": calc_type,
+        "requested_model": requested_model,
+        "model_type": model_type,
+        "model": model,
+        "model_size": contract.resolve_model_size(model, params.get("modelSize")),
+        "seed": resolve_seed(params.get("seed")),
+        "run_params": _resolve_run_params(calc_type, params, profile_name),
+        "device": resolve_device(params.get("device")),
+        "dispersion_requested": contract.resolve_bool(params.get("dispersion"), "dispersion"),
+    }
+    resolved["precision"], resolved["precision_requested"] = resolve_precision(
+        params.get("precision"), model_type, calc_type
+    )
+    return resolved
+
+
 def run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
                     profile: str | None = None, display_name: str | None = None,
                     hooks: RunHooks | None = None) -> dict:
@@ -782,39 +827,23 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
 
     # Validate first, before any expensive work (file I/O, model download and
     # load), so an unsupported request fails immediately and unambiguously.
-    if model_path and not contract.custom_models_allowed(profile_name):
-        raise ContractError(
-            "Custom model checkpoints are disabled on this deployment. Loading a "
-            "MACE .model file executes code from the file, so the public "
-            "instance only runs pinned foundation models. Run SimpleAtom "
-            "locally (or self-host with ALLOW_CUSTOM_MODELS=1) to use your own "
-            "checkpoint. Nothing was computed.",
-            code="custom_models_disabled", field="model", status=403,
-        )
-    calc_type = validate_calculation_type(params.get("calculationType"))
-    model_type = validate_model_type(params.get("modelType"), bool(model_path))
-    seed = resolve_seed(params.get("seed"))
-    run_params = _resolve_run_params(calc_type, params, profile_name)
+    req = validate_request(params, bool(model_path), profile_name)
+    calc_type, model_type, model = req["calc_type"], req["model_type"], req["model"]
+    model_size, seed, run_params = req["model_size"], req["seed"], req["run_params"]
+    device, dispersion_requested = req["device"], req["dispersion_requested"]
+    precision, precision_requested = req["precision"], req["precision_requested"]
 
     # Declared before the structure is read: the extended-XYZ fallback below is
     # the first thing that can need to warn.
     warnings: list[str] = []
 
-    if model_path and model_type != "custom":
+    if model_path and req["requested_model"] != "custom":
         warnings.append(
             f"A custom .model checkpoint was uploaded, so it was used instead of "
-            f"the requested modelType '{model_type}'."
+            f"the requested modelType '{req['requested_model']}'."
         )
-        model_type = "custom"
-    model = contract.find_model(model_type)
-    model_size = contract.resolve_model_size(model, params.get("modelSize"))
 
-    device = resolve_device(params.get("device"))
-    dispersion_requested = contract.resolve_bool(params.get("dispersion"), "dispersion")
-    precision, precision_requested = resolve_precision(
-        params.get("precision"), model_type, calc_type
-    )
-
+    hooks.phase("reading-structure")
     filename = _display_name(display_name, filepath)
     atoms, fmt = _read_structure(filepath, filename, warnings)
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
@@ -829,6 +858,7 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
 
     ref_data = extract_reference_data(atoms)
 
+    hooks.phase("loading-model")
     # The only files this process will unpickle: pinned foundation
     # checkpoints, plus the uploaded one when this deployment allows it.
     trusted = safe_load.trusted_checkpoints(
@@ -956,6 +986,7 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
     except Exception as exc:  # noqa: BLE001 — provenance must never break a run
         manifest = provenance.unavailable_manifest(f"{type(exc).__name__}: {exc}")
 
+    hooks.phase("computing")
     calc_start = time.time()
     context = _RunContext(atoms=atoms, filename=filename, calc_start=calc_start,
                           ref_data=ref_data, effective_params=effective_params,

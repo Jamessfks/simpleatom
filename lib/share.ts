@@ -1,49 +1,43 @@
 /**
- * MACE Link — persist and retrieve shared calculation results.
+ * MACE Link — what both the browser and the server need to know about a
+ * shared result: its id format, its embed path, how a stored payload is
+ * normalised for display, and how the calculator publishes one.
  *
- * Uses Supabase `shared_results` table (jsonb) with nanoid-generated 8-char IDs.
- * Results are publicly readable (RLS policy) so anyone with the URL can view them.
- *
- * ── Supabase SQL (run once in the Supabase SQL editor) ──────────────────────
- *
- *   create table shared_results (
- *     id text primary key,
- *     result jsonb not null,
- *     params jsonb not null default '{}',
- *     filename text,
- *     created_at timestamptz not null default now()
- *   );
- *   alter table shared_results enable row level security;
- *   create policy "Anyone can read shared results"
- *     on shared_results for select using (true);
- *   create policy "Anyone can insert shared results"
- *     on shared_results for insert with check (true);
- *
- * ────────────────────────────────────────────────────────────────────────────
+ * Storage lives server-side only (lib/server/share-store.ts, behind
+ * POST /api/share and the /r/[id] pages). The browser used to insert rows
+ * straight into Supabase with the public anon key, which let anyone list,
+ * flood or forge the table (docs/adr/0024). This module no longer imports a
+ * database client at all, so none ships to the browser.
  */
 
-import { nanoid } from "nanoid";
-import { getSupabase, SharingUnavailableError } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/site";
-import type { CalculationResult, CalculationParams, SharedResult } from "@/types/mace";
+import { ApiRequestError, readError } from "@/lib/api-client";
+import type { CalculationResult, SharedResult } from "@/types/mace";
 
-/** Save a calculation result and return its shareable URL. */
+/** Shared-result ids: nanoid(8) for older links, 12-char base64url now. */
+export const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/;
+
+/**
+ * Publish a calculation result and return its shareable URL.
+ *
+ * The server validates the payload, stores it, and chooses the id. Only the
+ * result's own `params` (what actually ran) are stored — never a second,
+ * client-supplied copy that could disagree with it.
+ */
 export async function saveResult(
   result: CalculationResult,
-  params: Partial<CalculationParams>,
-  filename?: string
+  filename?: string,
 ): Promise<{ id: string; url: string }> {
-  const id = nanoid(8);
-
-  const { error } = await getSupabase().from("shared_results").insert({
-    id,
-    result,
-    params,
-    filename: filename ?? null,
+  const response = await fetch("/api/share", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ result, filename: filename ?? null, consent: true }),
   });
-
-  if (error) throw new Error(`Failed to save result: ${error.message}`);
-
+  if (!response.ok) throw await readError(response, "Could not create the share link");
+  const { id } = (await response.json()) as { id?: string };
+  if (!id || !SHARE_ID_PATTERN.test(id)) {
+    throw new ApiRequestError("The share service returned no link.", 502, "share_failed");
+  }
   return { id, url: `${getSiteUrl()}/r/${id}` };
 }
 
@@ -56,42 +50,10 @@ export async function saveResult(
  * comment in app/r/[id]/embed/page.tsx). Keep this in step with that route and
  * with the `headers()` sources in next.config.ts — the string is spelled out in
  * all three places because next.config cannot import from here (this module
- * pulls in the Supabase client).
+ * pulls in more than plain constants).
  */
 export function embedPath(id: string): string {
   return `/r/${id}/embed`;
-}
-
-/** Shared-result ids: nanoid(8) today; anything else is not a row we wrote. */
-const SHARE_ID = /^[A-Za-z0-9_-]{6,32}$/;
-
-/**
- * Load a previously shared result by ID.
- *
- * Returns null ONLY when the row does not exist. Any other failure — sharing
- * not configured, the database paused or unreachable — throws
- * SharingUnavailableError. Every error used to map to null, so an outage
- * rendered "this result doesn't exist" for links that were fine (R1).
- *
- * Normalizes the stored payload on the way out — see `normalizeSharedResult()`
- * for exactly what that means and, more importantly, what it does not.
- */
-export async function loadResult(id: string): Promise<SharedResult | null> {
-  if (!SHARE_ID.test(id)) return null;
-  const { data, error } = await getSupabase()
-    .from("shared_results")
-    .select("id, result, params, filename, created_at")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw new SharingUnavailableError(
-      `The MACE Link database could not be reached (${error.message || "unknown error"}).`,
-    );
-  }
-  if (!data) return null;
-
-  return normalizeSharedResult(data as SharedResult);
 }
 
 /**
