@@ -44,7 +44,7 @@ export function BenchmarkProgress({
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-primary)]" />
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-strong)]" />
             <span className="font-sans text-sm font-semibold text-[var(--color-text-primary)]">
               Running Benchmark
             </span>
@@ -57,7 +57,7 @@ export function BenchmarkProgress({
         <div className="relative h-2 overflow-hidden rounded-full bg-[var(--color-bg-elevated)]">
           <div className="absolute inset-0 h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-[var(--color-accent-primary)]/60 to-transparent" />
         </div>
-        <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
+        <div className="mt-2 flex justify-between font-mono text-xs text-[var(--color-text-muted)]">
           <span>Elapsed: {formatTime(elapsed)}</span>
           <span>Server is processing all calculations in batch...</span>
         </div>
@@ -80,7 +80,7 @@ export function BenchmarkProgress({
                     <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-accent-primary)]/50" />
                     <span className="relative block h-2.5 w-2.5 rounded-full bg-[var(--color-accent-primary)]" />
                   </span>
-                  <span className="font-mono text-[9px] text-[var(--color-text-muted)]">
+                  <span className="font-mono text-xs text-[var(--color-text-muted)]">
                     {m.size[0].toUpperCase()}
                   </span>
                 </div>

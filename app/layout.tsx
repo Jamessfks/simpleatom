@@ -68,6 +68,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
         <Analytics />
         <SpeedInsights />

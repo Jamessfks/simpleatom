@@ -8,7 +8,7 @@ export default function SharedResultNotFound() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
-      <main className="flex flex-1 items-center justify-center px-6 py-20">
+      <main id="main" className="flex flex-1 items-center justify-center px-6 py-20">
         <div className="max-w-md space-y-4 text-center">
           <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
             Result not found

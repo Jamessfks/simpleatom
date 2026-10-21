@@ -62,7 +62,7 @@ export function ModelComparison({
     return (
       <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-5">
         <div className="flex items-center gap-3 mb-3">
-          <GitCompareArrows className="h-5 w-5 text-[var(--color-accent-primary)]" strokeWidth={1.75} />
+          <GitCompareArrows className="h-5 w-5 text-[var(--color-accent-strong)]" strokeWidth={1.75} />
           <h3 className="font-sans text-sm font-bold text-[var(--color-text-primary)]">
             Model Comparison
           </h3>

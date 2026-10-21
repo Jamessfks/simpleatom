@@ -52,7 +52,7 @@ export function DocsSidebar() {
     <nav aria-label="Documentation" className="space-y-6">
       {DOCS_NAV.map((section) => (
         <div key={section.title}>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <p className="mb-2 text-xs font-semibold text-[var(--color-text-muted)]">
             {section.title}
           </p>
           <ul className="space-y-0.5">

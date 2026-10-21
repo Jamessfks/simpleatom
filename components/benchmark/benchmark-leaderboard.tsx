@@ -260,7 +260,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                       className="whitespace-normal border-t border-[var(--color-border-subtle)]/30 bg-[var(--color-bg-primary)] px-4 py-3"
                     >
                       {row.reference?.cohesiveEnergy && (
-                        <p className="mb-2 font-mono text-[10px] text-[var(--color-data-yellow)]">
+                        <p className="mb-2 font-mono text-xs text-[var(--color-data-yellow)]">
                           Ref. cohesive energy: {row.reference.cohesiveEnergy.value.toFixed(2)} eV/atom
                           ({row.reference.cohesiveEnergy.source})
                           {row.reference.latticeConstant && (
@@ -282,7 +282,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
         <TableFooter className="border-t-2 border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]">
           <TableRow className="hover:bg-transparent">
             <TableCell />
-            <TableCell className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <TableCell className="font-sans text-xs font-semibold text-[var(--color-text-muted)]">
               Aggregate
             </TableCell>
             <TableCell />
@@ -293,7 +293,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                 <div className="font-mono text-xs tabular-nums text-[var(--color-text-secondary)]">
                   {agg.avgE != null ? `Avg: ${agg.avgE.toFixed(4)} eV` : "N/A"}
                 </div>
-                <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                <div className="font-mono text-xs text-[var(--color-text-muted)]">
                   Time: {agg.totalTime.toFixed(1)}s
                 </div>
               </TableCell>
@@ -311,7 +311,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
         comparisons, and a caption is the only place a reader will actually see
         it. The valid numeric comparison lives on the "vs Materials Project" tab.
       */}
-      <p className="border-t border-[var(--color-border-subtle)] px-4 py-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+      <p className="border-t border-[var(--color-border-subtle)] px-4 py-3 font-mono text-xs leading-relaxed text-[var(--color-text-muted)]">
         <span style={{ color: DATA_COLORS.yellow }}>Exp. cohesive</span> is an{" "}
         <span className="font-semibold">experimental</span> cohesive energy from the literature
         (Kittel 8th ed., CRC Handbook) — not a DFT total energy, and not comparable to the model
@@ -346,11 +346,11 @@ function ExpandedForceDetails({
 
   return (
     <div>
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+      <p className="mb-2 text-xs text-[var(--color-text-muted)]">
         Per-Atom Force Magnitudes (eV/Å)
       </p>
       <div className="max-h-48 overflow-auto rounded border border-[var(--color-border-subtle)]">
-        <Table className="font-mono text-[11px]">
+        <Table className="font-mono text-xs">
           <TableHeader className="sticky top-0 bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]">
             <TableRow className="hover:bg-transparent">
               <TableHead className="h-auto px-2 py-1 text-left text-[var(--color-text-muted)]">#</TableHead>
@@ -387,7 +387,7 @@ function ExpandedForceDetails({
         </Table>
       </div>
       {maxAtoms < Math.max(...row.models.map((m) => m.forces?.length ?? 0)) && (
-        <p className="mt-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="mt-1 font-mono text-xs text-[var(--color-text-muted)]">
           Showing first {maxAtoms} atoms
         </p>
       )}

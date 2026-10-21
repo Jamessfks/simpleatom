@@ -10,7 +10,7 @@
  *
  * HOW IT WORKS:
  *   1. Parent passes uploaded File objects.
- *   2. User clicks "Preview Structure" → first file is parsed client-side
+ *   2. User clicks "Preview structure" → first file is parsed client-side
  *      (via lib/parse-structure.ts) into symbols + positions.
  *   3. A 3Dmol.js viewer renders the structure with ball-and-stick style.
  *   4. Stats (atom count, elements, bounding box) are shown.
@@ -38,6 +38,7 @@ import {
   type ParsedStructure,
 } from "@/lib/parse-structure";
 import { WeasViewer } from "./weas-viewer";
+import { Button } from "@/components/ui/button";
 
 /** Viewer engine for the preview. WEAS is default (ml-peg compatible). */
 type PreviewEngine = "weas" | "3dmol";
@@ -91,7 +92,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
     setError(null);
   }, [files]);
 
-  // Parse the first file when the user clicks "Preview Structure"
+  // Parse the first file when the user clicks "Preview structure"
   const handlePreview = async () => {
     if (files.length === 0) return;
 
@@ -181,16 +182,12 @@ export function StructurePreview({ files }: StructurePreviewProps) {
 
   return (
     <div className="mt-4">
-      {/* ── "Preview Structure" button (click-to-display) ── */}
+      {/* ── "Preview structure" button (click-to-display) ── */}
       {!isOpen && (
-        <button
-          type="button"
-          onClick={handlePreview}
-          className="flex items-center gap-2 rounded border border-[var(--color-border-emphasis)] bg-[var(--color-accent-primary)]/10 px-4 py-2 font-mono text-xs text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/15 hover:border-[var(--color-accent-primary)]"
-        >
+        <Button type="button" variant="outline" onClick={handlePreview}>
           <Eye className="h-4 w-4" strokeWidth={1.75} />
-          Preview Structure
-        </button>
+          Preview structure
+        </Button>
       )}
 
       {/* ── Preview panel (shown after click) ── */}
@@ -199,8 +196,8 @@ export function StructurePreview({ files }: StructurePreviewProps) {
           {/* Header with engine toggle and close button */}
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h3 className="font-sans text-sm font-bold text-[var(--color-accent-primary)]">
-                STRUCTURE PREVIEW
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Structure preview
               </h3>
               {/* Engine toggle (only visible when structure is loaded) */}
               {parsed && (
@@ -209,10 +206,10 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                     type="button"
                     onClick={() => setEngine("weas")}
                     title="WEAS viewer (ml-peg compatible)"
-                    className={`flex h-6 items-center px-2 font-mono text-[10px] transition-colors ${
+                    className={`flex h-6 items-center px-2 font-mono text-xs transition-colors ${
                       engine === "weas"
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
                     }`}
                   >
                     WEAS
@@ -221,10 +218,10 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                     type="button"
                     onClick={() => setEngine("3dmol")}
                     title="3Dmol.js viewer"
-                    className={`flex h-6 items-center px-2 font-mono text-[10px] transition-colors ${
+                    className={`flex h-6 items-center px-2 font-mono text-xs transition-colors ${
                       engine === "3dmol"
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
                     }`}
                   >
                     3Dmol

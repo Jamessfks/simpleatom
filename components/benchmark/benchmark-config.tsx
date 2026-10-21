@@ -369,16 +369,16 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Model Selection */}
         <div className="flex-1">
-          <h3 className="mb-3 font-sans text-sm font-bold text-[var(--color-text-primary)]">
-            Model Selection
-            <span className="ml-2 font-mono text-xs font-normal text-[var(--color-text-muted)]">
-              (pick 2–3)
+          <h3 className="mb-3 text-base font-semibold text-[var(--color-text-primary)]">
+            Models
+            <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
+              pick 2–3
             </span>
           </h3>
 
           {MODEL_GROUPS.map((group) => (
             <div key={group.id} className="mb-3">
-              <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+              <p className="mb-1.5 text-sm text-[var(--color-text-secondary)]">
                 {group.heading}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -392,9 +392,9 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                       aria-checked={checked}
                       aria-label={`Select ${m.label}`}
                       onClick={() => toggleModel(key)}
-                      className={`rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
+                      className={`min-h-9 rounded-full border px-3.5 text-sm transition-colors max-sm:min-h-11 pointer-coarse:min-h-11 ${
                         checked
-                          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)]"
+                          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-strong)]"
                           : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]"
                       }`}
                     >
@@ -411,13 +411,13 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
 
           {/* Custom model upload */}
           <div className="mb-3">
-            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-              Custom Model
+            <p className="mb-1.5 text-sm text-[var(--color-text-secondary)]">
+              Custom model
             </p>
             {customModel ? (
               <div className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/50 bg-[var(--color-accent-primary)]/10 px-3 py-1.5">
                 <Upload className="h-3 w-3 text-[var(--color-accent-strong)]" />
-                <span className="font-mono text-xs text-[var(--color-accent-strong)]">
+                <span className="min-w-0 truncate font-mono text-xs text-[var(--color-accent-strong)]">
                   {customModel.name}
                 </span>
                 <Button
@@ -431,7 +431,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                 </Button>
               </div>
             ) : (
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--color-border-subtle)] px-3 py-1.5 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--color-border-emphasis)] px-3 text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]">
                 <Upload className="h-3 w-3" />
                 Upload .model file
                 <input
@@ -445,7 +445,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           </div>
 
           {totalModels > 3 && (
-            <div className="mt-3 flex items-center gap-2 rounded border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2 font-mono text-xs text-[var(--color-warning)]">
+            <div role="status" className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2 text-sm text-[var(--color-warning)]">
               <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
               Max 3 models. Deselect one to proceed.
             </div>
@@ -453,15 +453,15 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
 
           {/* MACE-OFF incompatibility warning */}
           {hasAnyOFF && incompatibleNames.length > 0 && (
-            <div className="mt-3 rounded border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2">
-              <div className="flex items-start gap-2 font-mono text-xs text-[var(--color-warning)]">
+            <div className="mt-3 rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2">
+              <div className="flex items-start gap-2 text-sm text-[var(--color-warning)]">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                 <div>
                   <p>
                     MACE-OFF does not support {unsupportedElements.join(", ")}.
                     {onlyOFF ? " These structures are excluded:" : " These structures will only run on MACE-MP-0:"}
                   </p>
-                  <p className="mt-1 text-[var(--color-warning)]/70">
+                  <p className="mt-1 text-[var(--color-text-secondary)]">
                     {incompatibleNames.join(", ")}
                   </p>
                 </div>
@@ -470,44 +470,44 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           )}
 
           {/* Precision note */}
-          <div className="mt-3 flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-text-muted)]">
-            <Info className="h-3 w-3 flex-shrink-0" />
+          <div className="mt-4 flex items-start gap-1.5 text-sm text-[var(--color-text-muted)]">
+            <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
             All calculations run at float64 precision on CPU for fair comparison.
           </div>
         </div>
 
         {/* Structure Selection */}
         <div className="flex-1">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-sans text-sm font-bold text-[var(--color-text-primary)]">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
               Structures
-              <span className="ml-2 font-mono text-xs font-normal text-[var(--color-text-muted)]">
-                ({totalStructures} total{userStructures.length > 0 ? ` · ${userStructures.length} uploaded` : ""})
+              <span className="ml-2 text-sm font-normal tabular-nums text-[var(--color-text-muted)]">
+                {totalStructures} selected{userStructures.length > 0 ? ` (${userStructures.length} uploaded)` : ""}
               </span>
             </h3>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 onClick={selectAll}
                 variant="link"
                 size="xs"
-                className="h-auto p-0 font-mono text-[10px] text-[var(--color-accent-primary)]"
+                className="h-auto p-0 text-sm max-sm:min-h-11 pointer-coarse:min-h-11 text-[var(--color-accent-strong)]"
               >
-                Select All
+                Select all
               </Button>
               <Button
                 onClick={selectMpSet}
                 variant="link"
                 size="xs"
-                className="h-auto p-0 font-mono text-[10px] text-[var(--color-accent-primary)]"
+                className="h-auto p-0 text-sm max-sm:min-h-11 pointer-coarse:min-h-11 text-[var(--color-accent-strong)]"
                 title="Compounds plus every elemental reference phase they need"
               >
-                + MP set
+                Add MP set
               </Button>
               <Button
                 onClick={clearAll}
                 variant="link"
                 size="xs"
-                className="h-auto p-0 font-mono text-[10px] text-[var(--color-text-muted)]"
+                className="h-auto p-0 text-sm max-sm:min-h-11 pointer-coarse:min-h-11 text-[var(--color-text-secondary)]"
               >
                 Clear
               </Button>
@@ -515,8 +515,8 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           </div>
 
           {mpMissingReferences.length > 0 && (
-            <div className="mb-3 rounded border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2">
-              <div className="flex items-start gap-2 font-mono text-xs text-[var(--color-warning)]">
+            <div className="mb-3 rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2">
+              <div className="flex items-start gap-2 text-sm text-[var(--color-warning)]">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                 <div>
                   <p>
@@ -529,7 +529,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                     onClick={addMissingMpReferences}
                     variant="link"
                     size="xs"
-                    className="mt-1 h-auto p-0 font-mono text-[10px] text-[var(--color-accent-primary)]"
+                    className="mt-1 h-auto p-0 text-sm text-[var(--color-accent-strong)]"
                   >
                     Add the missing reference{mpMissingReferences.length === 1 ? "" : "s"}
                   </Button>
@@ -538,7 +538,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
             </div>
           )}
 
-          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+          <div className="space-y-3">
             {ALL_CATEGORIES.map((cat) => {
               const compatibleEntries = cat.entries.filter(
                 (e) => !incompatibleIds.has(e.id)
@@ -559,12 +559,12 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                     />
                     <Label
                       htmlFor={`cat-${cat.id}`}
-                      className={`flex-1 gap-1.5 font-sans text-xs font-semibold text-[var(--color-text-secondary)] ${
+                      className={`flex-1 gap-1.5 text-sm font-semibold text-[var(--color-text-primary)] max-sm:min-h-11 pointer-coarse:min-h-11 ${
                         catIds.length === 0 ? "opacity-40" : "cursor-pointer"
                       }`}
                     >
                       {cat.name}
-                      <span className="font-mono text-[10px] font-normal text-[var(--color-text-muted)]">
+                      <span className="text-sm font-normal tabular-nums text-[var(--color-text-muted)]">
                         ({incompatibleIds.size > 0
                           ? `${compatibleEntries.length}/${cat.entries.length}`
                           : cat.entries.length})
@@ -595,13 +595,13 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                           />
                           <Label
                             htmlFor={`entry-${entry.id}`}
-                            className={`flex-1 gap-0 font-mono text-xs font-normal text-[var(--color-text-muted)] ${
+                            className={`flex-1 gap-0 text-sm font-normal text-[var(--color-text-secondary)] max-sm:min-h-11 pointer-coarse:min-h-11 ${
                               isDisabled ? "cursor-not-allowed" : "cursor-pointer"
                             }`}
                           >
                             {entry.name}
                           </Label>
-                          <span className="ml-auto font-mono text-[10px] text-[var(--color-text-muted)]/60">
+                          <span className="ml-auto font-mono text-xs text-[var(--color-text-muted)]">
                             {entry.formula}
                           </span>
                         </div>
@@ -615,8 +615,8 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
 
           {/* User-uploaded structures */}
           <div className="mt-3 border-t border-[var(--color-border-subtle)] pt-3">
-            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-              Your Structures
+            <p className="mb-1.5 text-sm text-[var(--color-text-secondary)]">
+              Your structures
             </p>
 
             {userStructures.length > 0 && (
@@ -630,7 +630,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                     <span className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--color-accent-strong)]">
                       {f.name}
                     </span>
-                    <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                    <span className="text-xs tabular-nums text-[var(--color-text-muted)]">
                       {(f.size / 1024).toFixed(1)} KB
                     </span>
                     <Button
@@ -650,7 +650,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
             <div
               onDrop={handleStructureDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="relative rounded-lg border border-dashed border-[var(--color-border-subtle)] px-3 py-2.5 text-center transition-colors hover:border-[var(--color-accent-primary)]/50 hover:bg-[var(--color-accent-primary)]/5"
+              className="relative rounded-lg border border-dashed border-[var(--color-border-emphasis)] px-3 py-3 text-center transition-colors hover:border-[var(--color-accent-primary)]/50 hover:bg-[var(--color-accent-primary)]/5"
             >
               <input
                 type="file"
@@ -661,7 +661,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
               />
               <div className="flex items-center justify-center gap-2">
                 <Upload className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-                <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                <span className="text-sm text-[var(--color-text-secondary)]">
                   Drop or browse .xyz, .cif, .poscar, .pdb
                 </span>
               </div>
@@ -671,17 +671,17 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
       </div>
 
       {/* Run button */}
-      <div className="mt-6 flex items-center gap-4 border-t border-[var(--color-border-subtle)] pt-5">
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--color-border-subtle)] pt-5">
         <Button
           onClick={handleRun}
           disabled={!canRun || isRunning}
           size="lg"
-          className="gap-2.5 font-sans text-sm font-semibold"
+          className="h-11 gap-2.5 rounded-full px-6 text-sm font-semibold"
         >
-          <Play className="h-4 w-4" />
-          Run Benchmark
+          <Play className="h-4 w-4" aria-hidden="true" />
+          Run benchmark
         </Button>
-        <span className="font-mono text-xs text-[var(--color-text-muted)]">
+        <span className="text-sm tabular-nums text-[var(--color-text-muted)]">
           {totalModels} model{totalModels !== 1 ? "s" : ""} × {totalStructures} structure{totalStructures !== 1 ? "s" : ""} ={" "}
           <span className="text-[var(--color-text-secondary)]">{totalCalcs}</span> calculations
         </span>

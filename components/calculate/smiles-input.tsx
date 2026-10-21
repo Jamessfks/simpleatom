@@ -158,7 +158,7 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
               onClick={() => handleExampleClick(mol)}
               disabled={isConverting}
               title={`SMILES: ${mol.smiles}`}
-              className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-xs text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent-primary)]/50 hover:text-[var(--color-accent-primary)] disabled:opacity-50"
+              className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-xs text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent-primary)]/50 hover:text-[var(--color-accent-strong)] disabled:opacity-50"
             >
               <span>{mol.name}</span>
               <span className="ml-1 text-[var(--color-text-muted)]">{mol.formula}</span>

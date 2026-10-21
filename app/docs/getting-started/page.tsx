@@ -130,7 +130,7 @@ npm run dev                    # starts the dev server`}</code>
           <li>Click Calculate and wait for the result.</li>
           <li>
             Explore the five-tab dashboard — Summary, Forces, Energy,
-            Structure, and Raw Data — with an interactive 3D viewer and
+            Structure and Raw data — with an interactive 3D viewer and
             charts.
           </li>
         </ol>

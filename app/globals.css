@@ -8,7 +8,9 @@
  *
  * Palette:
  *   Canvas tiers:  #FBFAF7 (page) → #F3F0E8 (muted) → #FFFFFF (cards)
- *   Ink:           #262521 (primary) → #5C574E (secondary) → #8A8478 (muted)
+ *   Ink:           #262521 (primary) → #5C574E (secondary) → #6B655A (muted)
+ *   Contrast (v2.2.0, ADR-0029): every text token ≥ 4.5:1 on all three canvas
+ *   tiers; control borders and the focus ring ≥ 3:1 (WCAG 2.2 AA 1.4.3/1.4.11).
  *   Accent:        #4F9A54 (green brand), #3A7A40 (interactive/AA-safe)
  *   Data viz:      Paul Tol colorblind-safe palette (7 colors, unchanged)
  *
@@ -20,6 +22,25 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Touch target (D10): grows a small control's hit area to at least 44×44 px
+ * without moving layout. For icon-only controls whose visual size is smaller
+ * (info icons, close buttons, switches); text controls get real min-heights
+ * at phone widths instead (see components/ui/button.tsx).
+ */
+@utility touch-target {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -92,7 +113,7 @@ html {
   /* ── Ink (warm near-black → muted) ── */
   --color-text-primary: #262521;
   --color-text-secondary: #5C574E;
-  --color-text-muted: #8A8478;
+  --color-text-muted: #6B655A;       /* was #8A8478 (3.3–3.7:1); now 5.1–5.8:1 */
 
   /* ── Accent (light green) ── */
   --color-accent-primary: #4F9A54;   /* brand green — icons, tints, borders */
@@ -101,8 +122,8 @@ html {
   --color-accent-soft: #E9F2E4;      /* soft tint background */
 
   /* ── Status (tuned for a light canvas) ── */
-  --color-success: #3F8F5B;
-  --color-warning: #B07A1E;
+  --color-success: #2F7A49;          /* was #3F8F5B (3.5–4.0:1) */
+  --color-warning: #946414;          /* was #B07A1E (3.3–3.7:1) */
   --color-error: #C0392B;
 
   /* ── Paul Tol colorblind-safe data visualization palette (unchanged) ── */
@@ -131,8 +152,8 @@ html {
   --accent-foreground: #2E6533;
   --destructive: #C0392B;
   --border: #EAE6DD;
-  --input: #E4DFD4;
-  --ring: #4F9A54;
+  --input: #918A7D;   /* control boundary ≥ 3:1 on every canvas (was #E4DFD4, 1.3:1) */
+  --ring: #2E6533;    /* focus ring 6.1–6.9:1 (was #4F9A54 at 50% opacity, 1.7:1) */
   --chart-1: #4477AA;
   --chart-2: #228833;
   --chart-3: #CCBB44;
@@ -145,7 +166,7 @@ html {
   --sidebar-accent: #E9F2E4;
   --sidebar-accent-foreground: #2E6533;
   --sidebar-border: #EAE6DD;
-  --sidebar-ring: #4F9A54;
+  --sidebar-ring: #2E6533;
 }
 
 /* ── Preserved dark identity (previous navy theme) — opt-in via .dark ── */
@@ -201,7 +222,14 @@ html {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /* One visible focus treatment for every interactive element, including the
+     ~90 hand-rolled buttons and links that set none of their own. */
+  :where(a, button, [role="button"], [role="tab"], [role="checkbox"], [role="radio"],
+         [role="switch"], [role="option"], summary, input, select, textarea):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   body {
     @apply bg-background text-foreground;
@@ -230,13 +258,13 @@ html {
   opacity: 0.35;
 }
 
-/* Hairline card that lifts gently on hover. */
+/* Hairline result card. It does not lift on hover: it is not a control, and
+   motion on every card is noise (ADR-0029). */
 .result-card {
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: border-color 0.18s ease;
 }
 .result-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(38, 37, 33, 0.06);
+  border-color: var(--color-border-emphasis);
 }
 
 /* Soft elevation for elevated surfaces. */
@@ -260,23 +288,38 @@ html {
 .animate-fade-in-up {
   animation: fadeInUp 0.5s ease-out both;
 }
-.animate-stagger {
-  animation: fadeInUp 0.45s ease-out both;
-}
 
-@keyframes progressFill {
-  from { width: 0%; }
-}
-.animate-progress-fill {
-  animation: progressFill 0.6s ease-out;
-}
-
+/* Reduced motion everywhere — shimmer, ping, spinners and card lifts
+   included, not just the three classes that used to opt in. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in-up,
-  .animate-stagger,
-  .animate-progress-fill {
-    animation: none;
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* Skip link: first focusable element on every page. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  border-radius: 9999px;
+  background: var(--color-accent-strong);
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* The one elevated surface on app screens: the calculator's run ledger. */
+.ledger {
+  box-shadow: 0 1px 2px rgba(38, 37, 33, 0.05), 0 12px 32px rgba(38, 37, 33, 0.07);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

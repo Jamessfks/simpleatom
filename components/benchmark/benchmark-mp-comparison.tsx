@@ -175,7 +175,7 @@ export function BenchmarkMpComparison({ result }: Props) {
       {/* Compounds in the set that were not run */}
       {comparison.hasCompounds && comparison.compoundsNotRun.length > 0 && (
         <section className="rounded-lg border border-[var(--color-border-subtle)] p-4">
-          <h4 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <h4 className="font-sans text-xs font-semibold text-[var(--color-text-muted)]">
             In the reference set but not in this run
           </h4>
           <p className="mt-2 font-mono text-xs text-[var(--color-text-secondary)]">
@@ -190,10 +190,10 @@ export function BenchmarkMpComparison({ result }: Props) {
 
       {/* Provenance */}
       <section className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-4">
-        <h4 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+        <h4 className="font-sans text-xs font-semibold text-[var(--color-text-muted)]">
           Reference data provenance
         </h4>
-        <dl className="mt-2.5 grid gap-x-6 gap-y-1.5 font-mono text-[11px] sm:grid-cols-2">
+        <dl className="mt-2.5 grid gap-x-6 gap-y-1.5 font-mono text-xs sm:grid-cols-2">
           <ProvenanceRow label="Source" value={MP_REFERENCE_PROVENANCE.endpoint} />
           <ProvenanceRow
             label="OPTIMADE version"
@@ -266,7 +266,7 @@ function ModelBlock({ model }: { model: MpModelComparison }) {
         ) : (
           <Badge
             variant="outline"
-            className="rounded border-[var(--color-text-muted)]/30 font-mono text-[10px] text-[var(--color-text-muted)]"
+            className="rounded border-[var(--color-text-muted)]/30 font-mono text-xs text-[var(--color-text-muted)]"
           >
             not scored
           </Badge>
@@ -372,13 +372,13 @@ function ModelBlock({ model }: { model: MpModelComparison }) {
                   <TableCell className="px-4">
                     {scored ? (
                       <span
-                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                        className="rounded px-1.5 py-0.5 text-xs font-semibold"
                         style={{ color: style.color, backgroundColor: `${style.bg}14` }}
                       >
                         {style.label}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[var(--color-text-muted)]">
+                      <span className="text-xs text-[var(--color-text-muted)]">
                         {row.unscoredReason}
                       </span>
                     )}
@@ -392,16 +392,16 @@ function ModelBlock({ model }: { model: MpModelComparison }) {
 
       {/* Sign convention + the references used */}
       <div className="space-y-2 border-t border-[var(--color-border-subtle)] px-5 py-3">
-        <p className="font-mono text-[11px] text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-[var(--color-text-muted)]">
           &Delta; = MACE E_f &minus; MP E_f. Negative means MACE binds the compound more
           strongly than MP&rsquo;s PBE value.
         </p>
         {model.elementReferences.length > 0 && (
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+            <p className="text-xs text-[var(--color-text-muted)]">
               Elemental references used — {model.modelLabel}, this run
             </p>
-            <p className="mt-1 font-mono text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="mt-1 font-mono text-xs leading-relaxed text-[var(--color-text-secondary)]">
               {model.elementReferences
                 .map(
                   (r) =>
@@ -423,7 +423,7 @@ function Exclusions({
 }) {
   return (
     <section className="mt-4 rounded-lg border border-[var(--color-border-subtle)] p-4">
-      <h4 className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+      <h4 className="font-sans text-xs font-semibold text-[var(--color-text-muted)]">
         Excluded from the comparison ({comparison.exclusions.length})
       </h4>
       <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">

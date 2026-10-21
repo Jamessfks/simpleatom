@@ -220,7 +220,7 @@ export function EnergyChart({
           {plotted.map((s) => (
             <span
               key={s.label}
-              className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--color-text-secondary)]"
+              className="flex items-center gap-1.5 font-mono text-xs text-[var(--color-text-secondary)]"
             >
               <svg width="14" height="6" aria-hidden>
                 <line

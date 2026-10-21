@@ -92,7 +92,7 @@ export default async function SharedResultPage({ params }: Props) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <SiteHeader />
-        <main className="flex flex-1 items-center justify-center px-6 py-20">
+        <main id="main" className="flex flex-1 items-center justify-center px-6 py-20">
           <div className="max-w-md space-y-4 text-center">
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
               Sharing is unavailable right now
@@ -103,9 +103,15 @@ export default async function SharedResultPage({ params }: Props) {
               could not be loaded because the MACE Link database is not reachable. The link
               itself is not known to be broken — try again later.
             </p>
-            <Button asChild className="mt-2">
-              <Link href="/calculate">Run a new calculation</Link>
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {/* A full reload, not a client navigation: the lookup runs on the server. */}
+              <Button asChild>
+                <a href={`/r/${encodeURIComponent(id)}`}>Try again</a>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/calculate">Run a new calculation</Link>
+              </Button>
+            </div>
           </div>
         </main>
         <SiteFooter />

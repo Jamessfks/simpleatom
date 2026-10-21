@@ -2084,8 +2084,8 @@ function ToolbarButton({
         coarse ? HIT_SQUARE : HIT_SQUARE_FINE
       } ${
         active
-          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-          : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-primary)]"
+          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+          : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-strong)]"
       }`}
     >
       {children}
@@ -2126,7 +2126,7 @@ function MenuItem({
         coarse ? "min-h-[44px] py-3" : "py-2"
       }`}
     >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--color-accent-primary)]">
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--color-accent-strong)]">
         {checkable ? checked ? <Check className="h-3.5 w-3.5" /> : null : icon}
       </span>
       <span className="flex-1 whitespace-nowrap font-mono">{label}</span>
@@ -2944,8 +2944,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
       {/* ── Header & toolbar ── */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <h3 className="font-mono text-sm font-bold text-[var(--color-accent-primary)]">
-            3D STRUCTURE VIEWER
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            3D structure viewer
           </h3>
           <span className="font-mono text-xs text-[var(--color-text-muted)]">
             {result.symbols?.length || 0} atoms
@@ -2970,12 +2970,12 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               aria-checked={is3Dmol}
               onClick={() => setEngine("3dmol")}
               title="3Dmol.js viewer (force arrows supported)"
-              className={`flex items-center justify-center rounded-l font-mono text-[10px] transition-colors ${
+              className={`flex items-center justify-center rounded-l font-mono text-xs transition-colors ${
                 coarse ? "h-11 px-3" : "h-8 px-2"
               } ${
                 is3Dmol
-                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
               }`}
             >
               3Dmol
@@ -2986,12 +2986,12 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               aria-checked={!is3Dmol}
               onClick={() => setEngine("weas")}
               title="WEAS viewer (ml-peg compatible)"
-              className={`flex items-center justify-center rounded-r font-mono text-[10px] transition-colors ${
+              className={`flex items-center justify-center rounded-r font-mono text-xs transition-colors ${
                 coarse ? "h-11 px-3" : "h-8 px-2"
               } ${
                 !is3Dmol
-                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
               }`}
             >
               WEAS
@@ -3025,8 +3025,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                       coarse ? HIT_SQUARE : HIT_SQUARE_FINE
                     } ${
                       representation === key
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -3244,11 +3244,11 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
           <div className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)]">
             <div className="rounded border border-[var(--color-accent-primary)]/60 bg-[var(--color-bg-elevated)]/95 px-2.5 py-1.5 shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <Ruler className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+                <Ruler className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" />
                 <div className="min-w-0">
                   {measurement ? (
                     <>
-                      <p className="font-mono text-xs font-bold text-[var(--color-accent-primary)]">
+                      <p className="font-mono text-xs font-bold text-[var(--color-accent-strong)]">
                         {measurement.kind}
                         {measurement.value !== "—" && (
                           <span className="text-[var(--color-text-primary)]">
@@ -3257,20 +3257,20 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                           </span>
                         )}
                       </p>
-                      <p className="truncate font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="truncate font-mono text-xs text-[var(--color-text-muted)]">
                         {measurement.path}
                         {measurement.note ? ` · ${measurement.note}` : ""}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="font-mono text-xs font-bold text-[var(--color-accent-primary)]">
+                      <p className="font-mono text-xs font-bold text-[var(--color-accent-strong)]">
                         {selectedAtoms[0]
                           ? atomLabel(selectedAtoms[0])
                           : "1 atom"}{" "}
                         selected
                       </p>
-                      <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="font-mono text-xs text-[var(--color-text-muted)]">
                         add a 2nd atom for a distance in Å
                       </p>
                     </>
@@ -3286,7 +3286,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                   onClick={() => setSelection([])}
                   title={pointerFine ? "Clear selection (Esc)" : "Clear selection"}
                   aria-label="Clear selection"
-                  className="pointer-events-auto relative ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-accent-primary)]/10 hover:text-[var(--color-accent-primary)]"
+                  className="pointer-events-auto relative ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-accent-primary)]/10 hover:text-[var(--color-accent-strong)]"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -3304,10 +3304,10 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               top: Math.max(24, hover.y - 8),
             }}
           >
-            <p className="font-mono text-[11px] font-bold text-[var(--color-text-primary)]">
+            <p className="font-mono text-xs font-bold text-[var(--color-text-primary)]">
               {hover.text}
             </p>
-            <p className="whitespace-nowrap font-mono text-[10px] text-[var(--color-text-muted)]">
+            <p className="whitespace-nowrap font-mono text-xs text-[var(--color-text-muted)]">
               {hover.detail}
             </p>
           </div>
@@ -3328,7 +3328,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
             <button
               type="button"
               onClick={() => setMarqueeArmed(false)}
-              className={`flex items-center gap-1.5 rounded border border-[var(--color-accent-primary)]/60 bg-[var(--color-bg-elevated)]/95 px-2 text-left font-mono text-[10px] text-[var(--color-accent-primary)] shadow-sm ${
+              className={`flex items-center gap-1.5 rounded border border-[var(--color-accent-primary)]/60 bg-[var(--color-bg-elevated)]/95 px-2 text-left font-mono text-xs text-[var(--color-accent-strong)] shadow-sm ${
                 coarse ? "min-h-[44px] py-2" : "py-1"
               }`}
             >
@@ -3369,7 +3369,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                 aria-label="Gestures and controls"
                 className="absolute bottom-full right-0 mb-2 w-[16rem] rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/95 p-2.5 shadow-lg backdrop-blur-sm"
               >
-                <ul className="space-y-1 font-mono text-[11px] leading-snug text-[var(--color-text-muted)]">
+                <ul className="space-y-1 font-mono text-xs leading-snug text-[var(--color-text-muted)]">
                   {(is3Dmol
                     ? pointerFine
                       ? [
@@ -3397,7 +3397,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                     <li key={line} className="flex gap-1.5">
                       <span
                         aria-hidden="true"
-                        className="text-[var(--color-accent-primary)]"
+                        className="text-[var(--color-accent-strong)]"
                       >
                         ·
                       </span>
@@ -3418,8 +3418,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                 coarse ? HIT_SQUARE : "h-7 w-7"
               } ${
                 helpOpen
-                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/90 text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-primary)]"
+                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
+                  : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/90 text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-strong)]"
               }`}
             >
               <HelpCircle className="h-3.5 w-3.5" />

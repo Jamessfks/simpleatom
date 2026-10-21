@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { Atom } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CHROME_WIDTH_CLASS } from "@/components/site-header";
+import { CHROME_WIDTH_CLASS } from "@/lib/chrome";
 import { APP_VERSION } from "@/lib/contract";
 
 const PRODUCT_LINKS = [
@@ -37,7 +37,7 @@ export function SiteFooter() {
           {/* Brand + tagline */}
           <div className="lg:col-span-2">
             <div className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-primary)]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]">
                 <Atom className="h-5 w-5" strokeWidth={1.75} />
               </span>
               <span>
@@ -54,15 +54,15 @@ export function SiteFooter() {
 
           {/* Product */}
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <h2 className="text-xs font-semibold text-[var(--color-text-muted)]">
               Product
             </h2>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
               {PRODUCT_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)]"
+                    className="flex min-h-11 items-center text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)] sm:inline sm:min-h-0"
                   >
                     {link.label}
                   </Link>
@@ -73,17 +73,17 @@ export function SiteFooter() {
 
           {/* Resources */}
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <h2 className="text-xs font-semibold text-[var(--color-text-muted)]">
               Resources
             </h2>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
               {RESOURCE_LINKS.map((link) => (
                 <li key={link.href}>
                   <a
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)]"
+                    className="flex min-h-11 items-center text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)] sm:inline sm:min-h-0"
                   >
                     {link.label}
                   </a>

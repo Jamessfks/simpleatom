@@ -142,7 +142,7 @@ export default function BenchmarkPage() {
       <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent-primary)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]">
               <FlaskConical className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div>
@@ -163,7 +163,7 @@ export default function BenchmarkPage() {
       </div>
 
       {/* Content */}
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main id="main" className="mx-auto max-w-7xl px-6 py-8">
         <div className="space-y-6">
           {phase === "config" && (
             <BenchmarkConfig onRun={handleRun} isRunning={false} />
@@ -200,7 +200,7 @@ export default function BenchmarkPage() {
         </div>
 
         {/* Attribution */}
-        <p className="mt-12 border-t border-[var(--color-border-subtle)] pt-6 text-center font-mono text-[11px] text-[var(--color-text-muted)]">
+        <p className="mt-12 border-t border-[var(--color-border-subtle)] pt-6 text-center text-sm text-[var(--color-text-muted)]">
           Inspired by{" "}
           <a
             href="https://ml-peg.stfc.ac.uk"

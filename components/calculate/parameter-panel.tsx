@@ -20,6 +20,7 @@
  * parent passes `structureElements` / `isPeriodic`, and stay inert otherwise.
  */
 
+import { StepTitle } from "@/components/calculate/step-title";
 import { useEffect, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
@@ -31,7 +32,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -212,7 +212,7 @@ export function ParameterPanel({
       {/* ── Model ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-lg">Model</CardTitle>
+          <StepTitle step={2}>Model</StepTitle>
           <CardDescription>
             Choose a MACE foundation model or upload a fine-tuned checkpoint.
           </CardDescription>
@@ -228,8 +228,12 @@ export function ParameterPanel({
                 updateParam("modelType", v as CalculationParams["modelType"])
               }
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="w-full">
+                {/* The closed select shows the model name only; the option
+                    list carries the domain and element count. */}
+                <SelectValue>
+                  {params.modelType === "custom" ? "Custom checkpoint" : (findModel(params.modelType)?.label ?? params.modelType)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {MODELS.filter((m) => m.loader !== "checkpoint" || caps.customModels).map((m) => (
@@ -246,7 +250,7 @@ export function ParameterPanel({
           {isOFF && (
             <div className="space-y-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
               <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" />
                 <span>
                   Trained only on organic elements:{" "}
                   <strong className="font-mono text-[var(--color-text-primary)]">
@@ -279,7 +283,7 @@ export function ParameterPanel({
           {isCustom && (
             <div className="space-y-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
               <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" />
                 <span>
                   Upload a MACE-compatible <code className="font-mono">.model</code>{" "}
                   checkpoint — a fine-tuned model from{" "}
@@ -308,12 +312,12 @@ export function ParameterPanel({
               ) : (
                 <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-2.5">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[var(--color-accent-primary)]" />
+                    <FileText className="h-4 w-4 text-[var(--color-accent-strong)]" />
                     <div>
                       <p className="font-mono text-xs text-[var(--color-text-primary)]">
                         {customModelFile.name}
                       </p>
-                      <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="font-mono text-xs text-[var(--color-text-muted)]">
                         {(customModelFile.size / 1024 / 1024).toFixed(1)} MB
                       </p>
                     </div>
@@ -373,7 +377,7 @@ export function ParameterPanel({
             )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field
               label="Precision"
               tooltip={
@@ -397,8 +401,8 @@ export function ParameterPanel({
                   )
                 }
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="w-full">
+                  <SelectValue>{params.precision ?? "Auto"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={PRECISION_AUTO}>
@@ -408,7 +412,7 @@ export function ParameterPanel({
                   <SelectItem value="float64">float64 — precise</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
+              <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
                 {isCustom
                   ? "Custom checkpoints run in the dtype they were saved in."
                   : "Auto follows upstream MACE: float64 for MACE-OFF and for geometry optimization, float32 otherwise. An explicit choice is always honoured — the result will say which dtype actually ran."}
@@ -422,7 +426,7 @@ export function ParameterPanel({
                   updateParam("device", v as CalculationParams["device"])
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -438,7 +442,7 @@ export function ParameterPanel({
       {/* ── Calculation ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-lg">Calculation</CardTitle>
+          <StepTitle step={3}>Calculation</StepTitle>
           <CardDescription>
             Pick what to compute; parameters below adapt to your choice.
           </CardDescription>
@@ -460,7 +464,7 @@ export function ParameterPanel({
                 htmlFor={`ct-${opt.value}`}
                 className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                   opt.disabled
-                    ? "cursor-not-allowed border-[var(--color-border-subtle)] opacity-55"
+                    ? "cursor-not-allowed border-dashed border-[var(--color-border-subtle)]"
                     : params.calculationType === opt.value
                       ? "cursor-pointer border-[var(--color-accent-primary)] bg-[var(--color-accent-soft)]"
                       : "cursor-pointer border-[var(--color-border-subtle)] hover:border-[var(--color-border-emphasis)] hover:bg-[var(--color-bg-secondary)]"
@@ -473,15 +477,23 @@ export function ParameterPanel({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-sm font-medium text-[var(--color-text-primary)]">
+                  <span
+                    className={`block text-sm font-medium ${
+                      opt.disabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"
+                    }`}
+                  >
                     {opt.label}
                     {opt.disabled && (
-                      <span className="ml-2 rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-[10px] font-normal text-[var(--color-text-muted)]">
+                      <span className="ml-2 rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs font-normal text-[var(--color-text-muted)]">
                         soon
                       </span>
                     )}
                   </span>
-                  <span className="mt-0.5 block text-xs text-[var(--color-text-secondary)]">
+                  <span
+                    className={`mt-0.5 block text-xs ${
+                      opt.disabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-secondary)]"
+                    }`}
+                  >
                     {opt.hint}
                   </span>
                 </span>
@@ -570,7 +582,7 @@ export function ParameterPanel({
                     </SelectContent>
                   </Select>
                   {isPeriodic === false && (
-                    <p className="text-[10px] text-[var(--color-text-muted)]">
+                    <p className="text-xs text-[var(--color-text-muted)]">
                       NPT is unavailable — this structure has no periodic
                       cell (not a crystal/bulk structure). Only NVE/NVT apply.
                     </p>
@@ -674,13 +686,19 @@ function Field({
   );
 }
 
+/**
+ * Hover/focus tooltip that also opens on tap: Radix tooltips ignore touch, so
+ * without the click handler this explanation was unreachable on a phone.
+ */
 function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Tooltip>
+    <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]"
+          onClick={() => setOpen(true)}
+          className="touch-target rounded-full text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-strong)]"
           aria-label="More information"
         >
           <Info className="h-3.5 w-3.5" />
@@ -773,17 +791,17 @@ function NumberField({
         step={step ?? 1}
       />
       {hint && (
-        <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-[var(--color-text-muted)]">
           {hint}
         </p>
       )}
       {rangeText && (
-        <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-[var(--color-text-muted)]">
           {rangeText}
         </p>
       )}
       {warning && (
-        <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-[var(--color-warning)]">
+        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-[var(--color-warning)]">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{warning}</span>
         </p>

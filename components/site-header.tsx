@@ -14,10 +14,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Atom, Github, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CHROME_WIDTH_CLASS } from "@/lib/chrome";
 
 // Secondary links only — the calculator is promoted to the primary CTA
 // button rendered separately below, so it isn't duplicated in this list.
@@ -47,21 +48,21 @@ function isUnder(pathname: string, base: string): boolean {
  * same trade — one `max-w-7xl` header on every route, accepting that it does
  * not align with their narrower hero column.
  *
- * Exported so SiteFooter uses the identical value and the two cannot drift.
+ * The value lives in lib/chrome.ts so SiteFooter uses the identical value
+ * (and can import it from a server component).
  */
-export const CHROME_WIDTH_CLASS = "max-w-7xl";
 
 export function Wordmark({ className }: { className?: string }) {
   return (
     <Link
       href="/"
       className={cn(
-        "group inline-flex items-center gap-2 text-lg font-semibold tracking-tight",
+        "group inline-flex min-h-11 items-center gap-2 text-lg font-semibold tracking-tight",
         className,
       )}
       aria-label="SimpleAtom home"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-primary)] transition-colors group-hover:bg-[var(--color-accent-primary)] group-hover:text-white">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)] transition-colors group-hover:bg-[var(--color-accent-primary)] group-hover:text-white">
         <Atom className="h-5 w-5" strokeWidth={1.75} />
       </span>
       <span>
@@ -75,6 +76,16 @@ export function Wordmark({ className }: { className?: string }) {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  // Esc closes the mobile menu, as it would any disclosure.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const isActive = (href: string) => isUnder(pathname, href);
 
@@ -133,9 +144,10 @@ export function SiteHeader() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="rounded-md p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] md:hidden"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] md:hidden"
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
+          aria-controls="mobile-menu"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -144,12 +156,13 @@ export function SiteHeader() {
       {/* Mobile disclosure panel */}
       {open && (
         <nav
+          id="mobile-menu"
           className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] px-6 py-3 md:hidden"
           aria-label="Primary mobile"
         >
           <ul className="flex flex-col gap-1">
             <li>
-              <Button asChild className="w-full">
+              <Button asChild className="h-11 w-full">
                 <Link
                   href="/calculate"
                   onClick={() => setOpen(false)}
@@ -166,7 +179,7 @@ export function SiteHeader() {
                   onClick={() => setOpen(false)}
                   aria-current={isActive(item.href) ? "page" : undefined}
                   className={cn(
-                    "block rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
                     isActive(item.href)
                       ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]",
@@ -181,7 +194,7 @@ export function SiteHeader() {
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+                className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
               >
                 <Github className="h-4 w-4" /> GitHub
               </a>

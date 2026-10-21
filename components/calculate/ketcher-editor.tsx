@@ -123,7 +123,7 @@ export function KetcherEditorInner({ onStructureReady }: KetcherEditorProps) {
           <button
             onClick={handleUseInCalculator}
             disabled={!isReady || isConverting}
-            className="flex items-center gap-2 rounded-md border-2 border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 px-5 py-2.5 font-sans text-sm font-bold text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--color-accent-primary)]/10 disabled:hover:text-[var(--color-accent-primary)]"
+            className="flex items-center gap-2 rounded-md border-2 border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 px-5 py-2.5 font-sans text-sm font-bold text-[var(--color-accent-strong)] transition-all hover:bg-[var(--color-accent-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--color-accent-primary)]/10 disabled:hover:text-[var(--color-accent-strong)]"
           >
             {isConverting ? (
               <>

@@ -13,6 +13,7 @@
  *   - components/calculate/structure-preview.tsx  — on-demand 3D viewer
  */
 
+import { StepTitle } from "@/components/calculate/step-title";
 import { useCallback } from "react";
 import { Upload, X, File as FileIcon } from "lucide-react";
 import { MlPegCatalog } from "./mlpeg-catalog";
@@ -66,7 +67,7 @@ export function FileUploadSection({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-lg">Structure</CardTitle>
+          <StepTitle step={1}>Structure</StepTitle>
           <CardDescription>
             Upload a file, choose a benchmark structure, or generate one from a
             SMILES string.
@@ -94,14 +95,14 @@ export function FileUploadSection({
                   aria-label="Upload a structure file"
                   className="absolute inset-0 cursor-pointer opacity-0"
                 />
-                <Upload className="mx-auto mb-3 h-9 w-9 text-[var(--color-accent-primary)]" strokeWidth={1.5} />
+                <Upload className="mx-auto mb-3 h-9 w-9 text-[var(--color-accent-strong)]" strokeWidth={1.5} />
                 <p className="text-sm font-medium text-[var(--color-text-primary)]">
                   Drag &amp; drop a structure file
                 </p>
                 <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                   or click to browse
                 </p>
-                <p className="mt-3 font-mono text-[11px] text-[var(--color-text-muted)]">
+                <p className="mt-3 font-mono text-xs text-[var(--color-text-secondary)]">
                   {ACCEPTED_FORMATS.join("  ·  ")}
                 </p>
               </div>
@@ -156,12 +157,12 @@ export function FileUploadSection({
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
               <div className="flex items-center gap-3">
-                <FileIcon className="h-4 w-4 text-[var(--color-accent-primary)]" />
+                <FileIcon className="h-4 w-4 text-[var(--color-accent-strong)]" />
                 <div>
                   <p className="font-mono text-xs text-[var(--color-text-primary)]">
                     {files[0].name}
                   </p>
-                  <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                  <p className="font-mono text-xs text-[var(--color-text-muted)]">
                     {(files[0].size / 1024).toFixed(1)} KB
                   </p>
                 </div>
@@ -170,7 +171,7 @@ export function FileUploadSection({
                 type="button"
                 onClick={() => onFilesChange([])}
                 aria-label="Remove selected structure"
-                className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
+                className="touch-target rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
               >
                 <X className="h-4 w-4" />
               </button>

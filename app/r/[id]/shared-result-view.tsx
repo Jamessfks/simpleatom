@@ -188,7 +188,7 @@ export function SharedResultView({ shared }: Props) {
     <div className="min-h-screen bg-background">
       <SiteHeader />
 
-      <main className="mx-auto max-w-screen-2xl space-y-6 px-6 py-6">
+      <main id="main" className="mx-auto max-w-screen-2xl space-y-6 px-6 py-6">
         {/* ── Title: the calculation itself, not the word "result" ── */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -293,7 +293,7 @@ export function SharedResultView({ shared }: Props) {
           <div className="space-y-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
             <div className="flex items-center gap-2">
               <Code2
-                className="h-4 w-4 text-[var(--color-accent-primary)]"
+                className="h-4 w-4 text-[var(--color-accent-strong)]"
                 strokeWidth={1.75}
               />
               <h2 className="font-serif text-lg font-semibold text-[var(--color-text-primary)]">
@@ -313,7 +313,7 @@ export function SharedResultView({ shared }: Props) {
               </code>{" "}
               hides the caption strip.
             </p>
-            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-xs leading-relaxed text-[var(--color-text-secondary)]">
               {embedSnippet}
             </pre>
             <div className="flex flex-wrap items-center gap-2">
@@ -342,7 +342,7 @@ export function SharedResultView({ shared }: Props) {
               Built only from what this result carries — a line is omitted
               rather than filled in with a default.
             </p>
-            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-xs leading-relaxed text-[var(--color-text-secondary)]">
               {citation}
             </pre>
             <CopyButton

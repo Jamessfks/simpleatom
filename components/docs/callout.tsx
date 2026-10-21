@@ -15,7 +15,7 @@ const STYLES: Record<
   note: {
     icon: Info,
     ring: "border-[var(--color-border-emphasis)] bg-[var(--color-bg-secondary)]",
-    iconColor: "text-[var(--color-accent-primary)]",
+    iconColor: "text-[var(--color-accent-strong)]",
     label: "Note",
   },
   warning: {

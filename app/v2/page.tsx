@@ -64,7 +64,7 @@ export default async function V2ProgressPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">
+      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">
         <p className="font-mono text-xs uppercase tracking-widest text-[#8A8478]">
           {data.branch} · gauntlet loop
         </p>
@@ -121,7 +121,7 @@ export default async function V2ProgressPage() {
                   className="flex gap-3 rounded-lg border border-[#E4DFD3] bg-white p-4"
                 >
                   <span
-                    className={`h-fit shrink-0 rounded border px-2 py-0.5 font-mono text-[10px] tracking-wide ${
+                    className={`h-fit shrink-0 rounded border px-2 py-0.5 font-mono text-xs tracking-wide ${
                       SEV_STYLE[d.sev] ?? SEV_STYLE.MEDIUM
                     }`}
                   >
@@ -168,7 +168,7 @@ export default async function V2ProgressPage() {
             <div key={p.id} className="rounded-lg border border-[#E4DFD3] bg-white p-5">
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className={`rounded border px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide ${STATUS_STYLE[p.status]}`}
+                  className={`rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wide ${STATUS_STYLE[p.status]}`}
                 >
                   {p.status}
                 </span>

@@ -28,6 +28,8 @@ import {
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { foundationModelFor } from "@/lib/model-domain";
+import { RunLedger } from "@/components/calculate/run-ledger";
+import { useCapabilities } from "@/lib/use-capabilities";
 import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
 import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
@@ -258,6 +260,7 @@ function CalculatePageInner() {
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [job, setJob] = useState<JobView | null>(null);
+  const caps = useCapabilities();
   const runAbort = useRef<AbortController | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -517,7 +520,7 @@ function CalculatePageInner() {
       </div>
 
       {/* Main content */}
-      <main className="mx-auto max-w-screen-2xl px-6 py-6">
+      <main id="main" className="mx-auto max-w-screen-2xl px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="calculator" className="gap-1.5">
@@ -551,13 +554,23 @@ function CalculatePageInner() {
 
               {/* Run + results */}
               <section className="min-w-0 space-y-6 lg:col-span-7">
-                {/* Run card */}
-                <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
+                {/* The run ledger: sticky beside the configuration until a
+                    result exists, then an ordinary card above it (a sticky
+                    pane would otherwise sit on top of the results). */}
+                <div className={result ? undefined : "lg:sticky lg:top-20"}>
+                <RunLedger
+                  params={params}
+                  structure={parsedStructure}
+                  filename={uploadedFiles[0]?.name}
+                  customModelName={params.customModelName || customModelFile?.name}
+                  caps={caps}
+                  compact={result != null && !isCalculating}
+                >
                   <Button
                     onClick={handleCalculate}
                     disabled={isCalculating || runBlockedReason != null}
                     size="lg"
-                    className="w-full text-base"
+                    className={result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}
                   >
                     {isCalculating ? (
                       <>
@@ -567,7 +580,7 @@ function CalculatePageInner() {
                     ) : (
                       <>
                         <Zap className="h-5 w-5" />
-                        Run MACE calculation
+                        Run calculation
                       </>
                     )}
                   </Button>
@@ -587,7 +600,7 @@ function CalculatePageInner() {
                             {i < currentStage ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)]" />
                             ) : i === currentStage ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-primary)] motion-reduce:animate-none" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-strong)] motion-reduce:animate-none" />
                             ) : (
                               <Circle className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
                             )}
@@ -628,16 +641,16 @@ function CalculatePageInner() {
                             />
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-[var(--color-text-muted)]">
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="h-3 w-3" />
-                            Elapsed: {elapsedSeconds}s
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--color-text-muted)]">
+                          <span className="flex items-center gap-1.5 tabular-nums">
+                            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                            Elapsed {elapsedSeconds} s
                           </span>
                           {stepText && <span>{stepText}</span>}
                           <button
                             type="button"
                             onClick={handleCancel}
-                            className="inline-flex min-h-11 items-center rounded-full border border-[var(--color-border-emphasis)] px-4 text-xs font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-error)] hover:text-[var(--color-error)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-strong)]"
+                            className="inline-flex min-h-11 items-center rounded-full border border-[var(--color-border-emphasis)] px-4 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-error)] hover:text-[var(--color-error)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-strong)]"
                           >
                             Cancel
                           </button>
@@ -645,6 +658,7 @@ function CalculatePageInner() {
                       </div>
                     </div>
                   )}
+                </RunLedger>
                 </div>
 
                 {/* Error */}
@@ -671,52 +685,50 @@ function CalculatePageInner() {
                 {/* Results */}
                 {result && !isCalculating && (
                   <div className="animate-fade-in-up space-y-6">
-                    {/* Share bar */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      {!shareUrl ? (
-                        <Button
-                          onClick={handleShare}
-                          disabled={isSharing || result.status !== "success"}
-                          variant="outline"
-                          size="sm"
-                        >
-                          {isSharing ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Share2 className="h-3.5 w-3.5" />
-                          )}
-                          {isSharing ? "Sharing…" : "Share result"}
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5">
-                          <Share2 className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" />
-                          <a
-                            href={shareUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
-                          >
-                            {shareUrl}
-                          </a>
-                          <button
-                            type="button"
-                            onClick={handleCopyShareUrl}
-                            aria-label="Copy share link"
-                            className="ml-1 rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
-                          >
-                            {shareCopied ? (
-                              <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
                     <MetricsDashboard
                       result={result}
                       filename={uploadedFiles[0]?.name}
+                      actions={
+                        !shareUrl ? (
+                          <Button
+                            onClick={handleShare}
+                            disabled={isSharing || result.status !== "success"}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {isSharing ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Share2 className="h-3.5 w-3.5" />
+                            )}
+                            {isSharing ? "Sharing…" : "Share result"}
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5">
+                            <Share2 className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" />
+                            <a
+                              href={shareUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
+                            >
+                              {shareUrl}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={handleCopyShareUrl}
+                              aria-label="Copy share link"
+                              className="touch-target ml-1 rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                            >
+                              {shareCopied ? (
+                                <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        )
+                      }
                     />
 
                     {isCustomModel && (
@@ -748,14 +760,14 @@ function CalculatePageInner() {
         <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center p-6">
           <div className="elevate pointer-events-auto max-w-lg rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[11px] text-[var(--color-accent-strong)]">
+              <span className="font-mono text-xs text-[var(--color-accent-strong)]">
                 Quick demo · Step {demoStep + 1}/{DEMO_STEPS.length}
               </span>
               <button
                 type="button"
                 onClick={() => setDemoStep(null)}
                 aria-label="Close demo"
-                className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="touch-target rounded text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -897,11 +909,11 @@ function RecentCalculations() {
                     <span className="truncate font-mono text-xs text-[var(--color-text-primary)]">
                       {e.filename ?? "structure"}
                     </span>
-                    <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
+                    <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
                       {timeAgo(e.timestamp)}
                     </span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-text-secondary)]">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--color-text-secondary)]">
                     <span>{e.modelType}</span>
                     <span aria-hidden>·</span>
                     <span>{CALC_LABEL[e.calculationType] ?? e.calculationType}</span>
@@ -913,7 +925,7 @@ function RecentCalculations() {
                     )}
                   </div>
                   {typeof e.energy === "number" && (
-                    <p className="mt-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+                    <p className="mt-1 font-mono text-xs text-[var(--color-text-muted)]">
                       E = {e.energy.toFixed(4)} eV
                     </p>
                   )}
@@ -922,7 +934,7 @@ function RecentCalculations() {
                       href={e.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-[11px] text-[var(--color-accent-strong)] hover:underline"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--color-accent-strong)] hover:underline"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open shared result
@@ -956,7 +968,7 @@ function RecentCalculations() {
 const DEMO_STEPS = [
   "Your structure is loaded (an ethanol molecule). You can also upload your own .xyz, .cif, .poscar, or .pdb file, browse the ml-peg catalog, or enter a SMILES string to generate a 3D structure.",
   "Choose your model and calculation type on the left. Try molecular dynamics for a trajectory animation, or geometry optimization to relax the structure.",
-  'Click "Run MACE calculation" to compute energies and forces. Results appear in a tabbed dashboard with interactive scientific visualizations.',
+  'Click "Run calculation" to compute energies and forces. Results appear in a tabbed dashboard with interactive scientific visualizations.',
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

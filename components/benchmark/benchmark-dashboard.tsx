@@ -93,7 +93,7 @@ export function BenchmarkDashboard({ result }: DashboardProps) {
           {result.summary.errorCount > 0 && (
             <Badge
               variant="outline"
-              className="rounded font-mono text-[10px] text-[var(--color-error)] border-[var(--color-error)]/30 bg-[var(--color-error)]/10"
+              className="rounded font-mono text-xs text-[var(--color-error)] border-[var(--color-error)]/30 bg-[var(--color-error)]/10"
             >
               {result.summary.errorCount} error{result.summary.errorCount !== 1 ? "s" : ""}
             </Badge>
@@ -127,7 +127,7 @@ export function BenchmarkDashboard({ result }: DashboardProps) {
             <TabsTrigger
               key={tab.id}
               value={tab.id}
-              className="flex-none gap-2 whitespace-nowrap rounded-none border-transparent px-4 py-2.5 font-sans text-sm text-[var(--color-text-muted)] shadow-none after:bg-[var(--color-accent-primary)] hover:text-[var(--color-text-secondary)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--color-accent-primary)] data-[state=active]:shadow-none"
+              className="flex-none gap-2 whitespace-nowrap rounded-none border-transparent px-4 py-2.5 font-sans text-sm text-[var(--color-text-muted)] shadow-none after:bg-[var(--color-accent-primary)] hover:text-[var(--color-text-secondary)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--color-accent-strong)] data-[state=active]:shadow-none"
             >
               {tab.icon}
               {tab.label}

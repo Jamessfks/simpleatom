@@ -39,6 +39,15 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
   ([ADR-0025](docs/adr/0025-pin-scientific-dependencies.md)).
 - Landing copy no longer claims "quantum-accurate" results or that calculations run "entirely
   in your browser" (they run on a server).
+- **App screens polished** ([ADR-0029](docs/adr/0029-app-finish-bar.md)):
+  - The calculator now shows a "What will run" summary before you run anything. It lists the
+    structure, the model and its licence, the calculation settings with units, the precision and
+    why, and whether the job fits this deployment's limits. After a run it folds to one line, so
+    the result is at the fold.
+  - Steps are numbered and labels are in sentence case. Mono is used only for values.
+  - Nothing is smaller than 12 px. Text, control borders and the focus ring meet WCAG AA.
+  - Controls have 44 px hit areas on phones and touch screens, and there is a skip link.
+  - The benchmark list shows every structure instead of a hidden scroll region.
 
 ### Fixed
 - **NVT molecular dynamics ran ~39% hot for molecules with mixed masses**: ASE's default
@@ -53,6 +62,14 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
   NaN parameters and NPT on a molecule are refused instead of silently mis-run.
 - A sharing outage no longer says the result does not exist; unknown links are real 404s.
 - The production build no longer fails without Supabase variables.
+- The footer ran edge to edge on every server-rendered page (`/`, `/docs`, `/r/…`, 404s) while
+  the header stayed centred: a "use client" module's exported constant arrives in a server
+  component as a client reference, not a string.
+- The validator reported energy per atom in "eV" instead of "eV/atom". Its force thresholds now
+  carry units too.
+- At phone width, the Precision select ran under the Device select, and the result tabs and
+  export buttons pushed the page sideways. Info icons could not be opened by touch.
+- Primary buttons lightened on hover to 4.3:1 contrast. They now darken instead (7.1:1).
 - From `daily`: the comparison baseline is chosen from the structure, not the filename (D1); the
   validator and the git commit now reach the deployed container (D2, D3).
 
