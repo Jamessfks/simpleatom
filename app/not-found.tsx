@@ -9,10 +9,10 @@ export default function NotFound() {
       <SiteHeader />
       <main id="main" className="flex flex-1 items-center justify-center px-6 py-20">
         <div className="max-w-md space-y-4 text-center">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight text-text-primary">
             Page not found
           </h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">
+          <p className="text-sm text-text-secondary">
             There is nothing at this address.
           </p>
           <Button asChild className="mt-2">

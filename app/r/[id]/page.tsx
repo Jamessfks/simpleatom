@@ -94,12 +94,12 @@ export default async function SharedResultPage({ params }: Props) {
         <SiteHeader />
         <main id="main" className="flex flex-1 items-center justify-center px-6 py-20">
           <div className="max-w-md space-y-4 text-center">
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight text-text-primary">
               Sharing is unavailable right now
             </h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <p className="text-sm text-text-secondary">
               The shared result{" "}
-              <code className="font-mono text-[var(--color-accent-strong)]">{id}</code>{" "}
+              <code className="font-mono text-accent-strong">{id}</code>{" "}
               could not be loaded because the MACE Link database is not reachable. The link
               itself is not known to be broken — try again later.
             </p>

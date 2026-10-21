@@ -140,7 +140,7 @@ function buildTrajectoryXYZ(
  */
 export function TrajectoryViewer({ result }: TrajectoryViewerProps) {
   if (!result.trajectory || !result.symbols) {
-    return <div className="p-4 text-sm text-[var(--color-text-muted)]">No trajectory data available.</div>;
+    return <div className="p-4 text-sm text-text-muted">No trajectory data available.</div>;
   }
   return (
     <TrajectoryPlayer
@@ -362,11 +362,11 @@ function TrajectoryPlayer({
   return (
     <div
       ref={containerRef}
-      className={`${fullscreen ? "flex h-screen w-screen flex-col bg-[var(--color-bg-primary)]" : "space-y-4"}`}
+      className={`${fullscreen ? "flex h-screen w-screen flex-col bg-bg-primary" : "space-y-4"}`}
     >
       {/* ── 3D Viewer ── */}
       <div
-        className={`relative overflow-hidden rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] shadow-inner ${
+        className={`relative overflow-hidden rounded-lg border border-border-subtle bg-bg-primary shadow-inner ${
           fullscreen ? "flex-1 rounded-none border-0" : ""
         }`}
       >
@@ -381,22 +381,22 @@ function TrajectoryPlayer({
         />
         {/* Loading overlay */}
         {!viewerReady && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-secondary)]">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-border-subtle)] border-t-[var(--color-accent-primary)]" />
+          <div className="absolute inset-0 flex items-center justify-center bg-bg-secondary">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-border-subtle border-t-accent-primary" />
           </div>
         )}
 
         {/* Top-right overlay: frame badge + fullscreen toggle */}
         {viewerReady && (
           <div className="absolute right-3 top-3 flex items-center gap-2">
-            <div className="rounded bg-[var(--color-bg-elevated)]/70 px-2 py-1 font-mono text-xs text-[var(--color-accent-strong)] backdrop-blur-sm">
+            <div className="rounded bg-bg-elevated/70 px-2 py-1 font-mono text-xs text-accent-strong backdrop-blur-sm">
               Frame {currentFrame + 1}/{totalFrames}
             </div>
             <button
               type="button"
               onClick={toggleFullscreen}
               title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
-              className="flex h-7 w-7 items-center justify-center rounded bg-[var(--color-bg-elevated)]/70 text-[var(--color-text-muted)] backdrop-blur-sm transition-colors hover:text-[var(--color-accent-strong)]"
+              className="flex h-7 w-7 items-center justify-center rounded bg-bg-elevated/70 text-text-muted backdrop-blur-sm transition-colors hover:text-accent-strong"
             >
               {fullscreen ? (
                 <Minimize className="h-3.5 w-3.5" />
@@ -409,7 +409,7 @@ function TrajectoryPlayer({
 
         {/* Fullscreen: bottom transport bar overlay */}
         {fullscreen && viewerReady && (
-          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 bg-gradient-to-t from-[var(--color-bg-elevated)]/90 to-transparent px-4 pb-4 pt-10">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 bg-gradient-to-t from-bg-elevated/90 to-transparent px-4 pb-4 pt-10">
             <div className="flex items-center gap-1">
               <ControlButton onClick={reset} title="Reset to first frame">
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -423,7 +423,7 @@ function TrajectoryPlayer({
                 className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all ${
                   playing
                     ? "border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                    : "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-strong)] hover:bg-[var(--color-accent-primary)]/20"
+                    : "border-accent-primary bg-accent-primary/10 text-accent-strong hover:bg-accent-primary/20"
                 }`}
               >
                 {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -435,7 +435,7 @@ function TrajectoryPlayer({
                 <Gauge className="h-3.5 w-3.5" />
               </ControlButton>
             </div>
-            <span className="rounded bg-[var(--color-bg-surface)] px-1.5 py-0.5 font-mono text-xs text-[var(--color-text-secondary)]">
+            <span className="rounded bg-bg-surface px-1.5 py-0.5 font-mono text-xs text-text-secondary">
               {speed}×
             </span>
             <input
@@ -447,7 +447,7 @@ function TrajectoryPlayer({
                 setPlaying(false);
                 setCurrentFrame(Number(e.target.value));
               }}
-              className="flex-1 accent-[var(--color-accent-primary)]"
+              className="flex-1 accent-accent-primary"
               title={`Frame ${currentFrame + 1}`}
             />
             <FrameReadout
@@ -476,7 +476,7 @@ function TrajectoryPlayer({
               className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all ${
                 playing
                   ? "border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                  : "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-strong)] hover:bg-[var(--color-accent-primary)]/20"
+                  : "border-accent-primary bg-accent-primary/10 text-accent-strong hover:bg-accent-primary/20"
               }`}
             >
               {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -488,7 +488,7 @@ function TrajectoryPlayer({
               <Gauge className="h-3.5 w-3.5" />
             </ControlButton>
           </div>
-          <span className="rounded bg-[var(--color-bg-surface)] px-1.5 py-0.5 font-mono text-xs text-[var(--color-text-secondary)]">
+          <span className="rounded bg-bg-surface px-1.5 py-0.5 font-mono text-xs text-text-secondary">
             {speed}×
           </span>
           <input
@@ -500,7 +500,7 @@ function TrajectoryPlayer({
               setPlaying(false);
               setCurrentFrame(Number(e.target.value));
             }}
-            className="flex-1 accent-[var(--color-accent-primary)]"
+            className="flex-1 accent-accent-primary"
             title={`Frame ${currentFrame + 1}`}
           />
           <FrameReadout
@@ -514,9 +514,9 @@ function TrajectoryPlayer({
 
       {/* ── Energy vs Step Chart (hidden in fullscreen) ── */}
       {!fullscreen && (
-        <div className="space-y-4 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
+        <div className="space-y-4 rounded-lg border border-border-subtle bg-bg-surface p-3">
           <div>
-            <h4 className="mb-2 text-xs font-semibold text-[var(--color-accent-strong)]">
+            <h4 className="mb-2 text-xs font-semibold text-accent-strong">
               Energy vs. MD Step
             </h4>
             <EnergyChart
@@ -531,7 +531,7 @@ function TrajectoryPlayer({
               unit="eV"
               decimals={3}
             />
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">
               {hasTotal
                 ? "Total energy (potential + kinetic) is what NVE conserves — judge conservation on the solid line. Potential energy alone is not conserved under any ensemble."
                 : "Only potential energy was recorded for this trajectory, so energy conservation cannot be checked here. Re-run the calculation to record kinetic and total energy per frame."}
@@ -540,7 +540,7 @@ function TrajectoryPlayer({
 
           {temperatures.length > 0 && (
             <div>
-              <h4 className="mb-2 text-xs font-semibold text-[var(--color-accent-strong)]">
+              <h4 className="mb-2 text-xs font-semibold text-accent-strong">
                 Temperature vs. MD Step
               </h4>
               <EnergyChart
@@ -562,7 +562,7 @@ function TrajectoryPlayer({
                 unit="K"
                 decimals={0}
               />
-              <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              <p className="mt-1 text-xs leading-relaxed text-text-muted">
                 Under NVT this should fluctuate around the target temperature
                 {targetTemperature != null ? ` (${targetTemperature} K)` : ""}
                 ; under NVE it is unconstrained and free to drift.
@@ -574,7 +574,7 @@ function TrajectoryPlayer({
 
       {/* ── Footer (hidden in fullscreen) ── */}
       {!fullscreen && (
-        <p className="font-mono text-xs text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-text-muted">
           Drag to rotate · Scroll to zoom · Click chart to jump to frame ·
           Keyboard: Space = play/pause
         </p>
@@ -608,44 +608,44 @@ function FrameReadout({
     <div className="shrink-0 text-right font-mono text-xs leading-tight">
       {total != null && (
         <div>
-          <span className="text-[var(--color-text-muted)]">E_tot = </span>
-          <span className="text-[var(--color-text-primary)]">
+          <span className="text-text-muted">E_tot = </span>
+          <span className="text-text-primary">
             {total.toFixed(4)}
           </span>
-          <span className="text-[var(--color-text-muted)]"> eV</span>
+          <span className="text-text-muted"> eV</span>
         </div>
       )}
       {potential != null && (
         <div>
-          <span className="text-[var(--color-text-muted)]">E_pot = </span>
+          <span className="text-text-muted">E_pot = </span>
           <span
             className={
               total != null
-                ? "text-[var(--color-text-secondary)]"
-                : "text-[var(--color-text-primary)]"
+                ? "text-text-secondary"
+                : "text-text-primary"
             }
           >
             {potential.toFixed(4)}
           </span>
-          <span className="text-[var(--color-text-muted)]"> eV</span>
+          <span className="text-text-muted"> eV</span>
         </div>
       )}
       {kinetic != null && (
         <div>
-          <span className="text-[var(--color-text-muted)]">E_kin = </span>
-          <span className="text-[var(--color-text-secondary)]">
+          <span className="text-text-muted">E_kin = </span>
+          <span className="text-text-secondary">
             {kinetic.toFixed(4)}
           </span>
-          <span className="text-[var(--color-text-muted)]"> eV</span>
+          <span className="text-text-muted"> eV</span>
         </div>
       )}
       {temperature != null && (
         <div>
-          <span className="text-[var(--color-text-muted)]">T = </span>
-          <span className="text-[var(--color-text-secondary)]">
+          <span className="text-text-muted">T = </span>
+          <span className="text-text-secondary">
             {temperature.toFixed(0)}
           </span>
-          <span className="text-[var(--color-text-muted)]"> K</span>
+          <span className="text-text-muted"> K</span>
         </div>
       )}
     </div>
@@ -670,7 +670,7 @@ function ControlButton({
       type="button"
       onClick={onClick}
       title={title}
-      className="flex h-7 w-7 items-center justify-center rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-strong)]"
+      className="flex h-7 w-7 items-center justify-center rounded border border-border-subtle bg-bg-elevated text-text-muted transition-colors hover:border-accent-primary/60 hover:text-accent-strong"
     >
       {children}
     </button>

@@ -14,20 +14,20 @@ const STYLES: Record<
 > = {
   note: {
     icon: Info,
-    ring: "border-[var(--color-border-emphasis)] bg-[var(--color-bg-secondary)]",
-    iconColor: "text-[var(--color-accent-strong)]",
+    ring: "border-border-emphasis bg-bg-secondary",
+    iconColor: "text-accent-strong",
     label: "Note",
   },
   warning: {
     icon: TriangleAlert,
-    ring: "border-[var(--color-warning)]/30 bg-[var(--color-warning)]/8",
-    iconColor: "text-[var(--color-warning)]",
+    ring: "border-warning/30 bg-warning/8",
+    iconColor: "text-warning",
     label: "Warning",
   },
   tip: {
     icon: Lightbulb,
-    ring: "border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)]",
-    iconColor: "text-[var(--color-accent-strong)]",
+    ring: "border-accent-primary/30 bg-accent-soft",
+    iconColor: "text-accent-strong",
     label: "Tip",
   },
 };
@@ -46,7 +46,7 @@ export function Callout({
   return (
     <div className={cn("my-5 flex gap-3 rounded-xl border p-4", s.ring)}>
       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", s.iconColor)} strokeWidth={2} />
-      <div className="min-w-0 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+      <div className="min-w-0 text-sm leading-relaxed text-text-secondary">
         <p className={cn("mb-1 font-semibold", s.iconColor)}>
           {title ?? s.label}
         </p>

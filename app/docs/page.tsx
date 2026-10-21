@@ -13,19 +13,19 @@ export default function DocsOverviewPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Documentation
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           Overview
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           SimpleAtom is a free, browser-based interface to the{" "}
           <a
             href="https://github.com/ACEsuit/mace"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-accent-strong)] underline underline-offset-2"
+            className="text-accent-strong underline underline-offset-2"
           >
             MACE
           </a>{" "}

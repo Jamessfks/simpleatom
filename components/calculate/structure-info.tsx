@@ -116,8 +116,8 @@ export function StructureInfo({ file }: StructureInfoProps) {
   // ── Loading state ──
   if (parsing) {
     return (
-      <div className="mt-3 flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-        <div className="h-3 w-3 animate-spin rounded-full border border-[var(--color-border-subtle)] border-t-[var(--color-accent-primary)]" />
+      <div className="mt-3 flex items-center gap-2 text-sm text-text-muted">
+        <div className="h-3 w-3 animate-spin rounded-full border border-border-subtle border-t-accent-primary" />
         Parsing structure...
       </div>
     );
@@ -126,7 +126,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
   // ── Parse error ──
   if (error) {
     return (
-      <div className="mt-3 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-3 text-sm text-[var(--color-error)]">
+      <div className="mt-3 rounded border border-error/40 bg-error/10 p-3 text-sm text-error">
         <strong>Parse error:</strong> {error}
       </div>
     );
@@ -146,10 +146,10 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
   // Atom count badge color
   const countColor = isVeryLarge
-    ? "text-[var(--color-error)] border-[var(--color-error)]/40 bg-[var(--color-error)]/10"
+    ? "text-error border-error/40 bg-error/10"
     : isLarge
-      ? "text-[var(--color-warning)] border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10"
-      : "text-[var(--color-success)] border-[var(--color-success)]/40 bg-[var(--color-success)]/10";
+      ? "text-warning border-warning/40 bg-warning/10"
+      : "text-success border-success/40 bg-success/10";
 
   // ── Geometry sanity checks ──
   const hasOverlap = parsed.minNeighborDist < 0.4;
@@ -172,7 +172,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
         parsed.minNeighborDist === Infinity ? (
           "N/A"
         ) : (
-          <span className={hasOverlap ? "font-bold text-[var(--color-error)]" : undefined}>
+          <span className={hasOverlap ? "font-bold text-error" : undefined}>
             {parsed.minNeighborDist.toFixed(3)} Å
           </span>
         ),
@@ -185,17 +185,17 @@ export function StructureInfo({ file }: StructureInfoProps) {
   return (
     <div className="mt-3 space-y-2">
       {/* ── Structure info card ── */}
-      <div className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-3">
+      <div className="rounded border border-border-subtle bg-bg-secondary p-3">
         <div className="mb-2 flex items-center gap-2">
-          <Info className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" strokeWidth={1.75} />
-          <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <Info className="h-3.5 w-3.5 text-accent-strong" strokeWidth={1.75} />
+          <span className="text-sm font-semibold text-text-primary">
             Structure info
           </span>
         </div>
 
         {/* Formula + atom count header */}
         <div className="mb-2 flex items-center gap-3">
-          <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="text-sm font-semibold text-text-primary">
             <Formula text={parsed.empiricalFormula} />
           </span>
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums ${countColor}`}>
@@ -209,10 +209,10 @@ export function StructureInfo({ file }: StructureInfoProps) {
             <Badge
               key={el}
               variant="outline"
-              className="gap-0.5 bg-[var(--color-bg-surface)] font-mono text-xs font-normal text-[var(--color-text-secondary)]"
+              className="gap-0.5 bg-bg-surface font-mono text-xs font-normal text-text-secondary"
             >
               {el}
-              <span className="text-[var(--color-accent-strong)]">
+              <span className="text-accent-strong">
                 ×{parsed.elementCounts[el]}
               </span>
             </Badge>
@@ -224,10 +224,10 @@ export function StructureInfo({ file }: StructureInfoProps) {
           {geometryRows.map((row) => (
             <div
               key={row.label}
-              className="flex items-baseline justify-between gap-3 border-t border-[var(--color-border-subtle)] py-1 first:border-t-0 first:pt-0 last:pb-0"
+              className="flex items-baseline justify-between gap-3 border-t border-border-subtle py-1 first:border-t-0 first:pt-0 last:pb-0"
             >
-              <span className="text-[var(--color-text-muted)]">{row.label}</span>
-              <span className="text-right font-mono text-xs tabular-nums text-[var(--color-text-primary)]">{row.value}</span>
+              <span className="text-text-muted">{row.label}</span>
+              <span className="text-right font-mono text-xs tabular-nums text-text-primary">{row.value}</span>
             </div>
           ))}
         </div>
@@ -237,7 +237,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* Overlapping atoms — red critical (distance < 0.4 Å) */}
       {hasOverlap && (
-        <div className="flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-3 text-sm text-[var(--color-error)]">
+        <div className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-3 text-sm text-error">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Overlapping atoms detected</strong> (min distance{" "}
@@ -249,7 +249,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* Flat molecule — amber (all atoms coplanar with >3 atoms) */}
       {parsed.isPlanar && (
-        <div className="flex items-start gap-2 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-warning)]">
+        <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Structure is completely flat (2D).</strong> All atoms lie in
@@ -261,7 +261,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* Very large structure (>2000 atoms) — red critical */}
       {isVeryLarge && (
-        <div className="flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-3 text-sm text-[var(--color-error)]">
+        <div className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-3 text-sm text-error">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Very large structure ({atomCount.toLocaleString()} atoms).</strong>{" "}
@@ -273,7 +273,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* Large structure (>500 atoms) — amber warning */}
       {isLarge && (
-        <div className="flex items-start gap-2 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-warning)]">
+        <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Large structure ({atomCount.toLocaleString()} atoms).</strong>{" "}
@@ -285,7 +285,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* Huge bounding box — may indicate periodic system or error */}
       {isHugeBox && (
-        <div className="flex items-start gap-2 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-warning)]">
+        <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>
@@ -300,7 +300,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* All clear — no issues */}
       {!hasWarnings && (
-        <div className="flex items-center gap-2 text-sm text-[var(--color-success)]">
+        <div className="flex items-center gap-2 text-sm text-success">
           <CheckCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
           Structure looks good. Ready to calculate.
         </div>

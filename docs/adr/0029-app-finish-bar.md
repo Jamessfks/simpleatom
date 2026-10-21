@@ -46,7 +46,29 @@ The four pieces that already won blind comparisons must not regress: viewer rend
 * card hover lifts and coloured decorative card edges removed (severity edges kept on validation);
 * chemical formulas rendered with legible subscripts (`components/ui/formula.tsx`).
 
-**Deferred:** moving the semantic tokens into Tailwind `@theme` and removing the arbitrary `[var(--color-…)]` classes (703 remain) and hex literals (137 remain in `.tsx`). This is a mechanical codemod with no visible change, so it gets its own PR.
+**Deferred, then done as its own change: the token migration.** The semantic tokens are now Tailwind utilities, through an `@theme inline reference` block in `app/globals.css` (`text-text-muted`, `bg-accent-soft`, `border-border-subtle/40`). The `:root` and `.dark` values are unchanged and remain the only definitions. A codemod replaced the arbitrary classes and every hex literal that exactly equals a token value. Counted as before (lines for the classes, six-digit hex in `.tsx` for the literals):
+
+* arbitrary `[var(--color-…)]` classes: 703 lines → 40 (984 → 51 occurrences). All 40 are in `components/intro-section.tsx`, because the landing layout is frozen.
+* hex literals: 137 → 104. None of the 104 has a token it could use:
+  * **38 have no token.** 36 are on the `/v2` dashboard: its status and severity tints, its `#E4DFD3` border, and the pre-ADR muted `#8A8478`, which the contrast work replaced with `#6B655A`. The other 2 are the energy chart's axis titles, also `#8A8478`.
+  * **40 go where CSS variables cannot be read:** Plotly layouts (27), react-pdf styles (6), 3Dmol colours and backgrounds (6), and the energy chart's fallback series colour (1), which feeds SVG `stopColor`.
+  * **8 are in documents without the app stylesheet:** `app/global-error.tsx` (5) and the WEAS iframe (3). The iframe element's background is kept equal to its srcdoc background.
+  * **18 are comments** in `molecule-viewer-3d.tsx` that quote element colours.
+
+Zero visual change, measured on 2026-10-21. The before and after production builds were run with the same calculator, MD and benchmark results recorded from the local backend, and a fake MACE Link row for `/r/abc12345`. Screens covered, each at 1440 and 375 (60 full-page captures):
+* calculator configuration;
+* single-point and MD results, every result tab;
+* benchmark configuration and results, every result tab;
+* the shared result, its embed, and the not-found page;
+* landing, every docs page, and `/v2`.
+
+| Check | Result |
+|---|---|
+| Pixels changed, after versus before | 0, beyond the run-to-run noise floor (two boxes of 13 and 9 px at Δ1, which also differ between two before runs) |
+| Computed colour, border, outline, shadow, fill, stroke, opacity, size and box of every element | identical, apart from ids that vary between runs (Plotly gradients, React `useId`) |
+| Compiled CSS outside `@layer utilities` | byte-identical |
+
+Tailwind sorts utilities that set the same property by class name, so a rename can reorder the cascade. A static check found 9 such pairs within a few lines of each other. None share an element, and the one inside a cva variant map goes through `cn()`.
 
 ### Confirmation
 

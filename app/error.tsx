@@ -23,10 +23,10 @@ export default function RouteError({
   return (
     <main id="main" className="flex min-h-[60vh] items-center justify-center px-6 py-20">
       <div className="max-w-md space-y-4 text-center">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="font-serif text-3xl font-semibold tracking-tight text-text-primary">
           Something went wrong
         </h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
+        <p className="text-sm text-text-secondary">
           This page hit an unexpected error. Nothing you entered has been sent anywhere.
           {error.digest ? (
             <>

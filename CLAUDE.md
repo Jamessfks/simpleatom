@@ -217,7 +217,7 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 - **Backend**: Python 3.11, type hints, JSON stdout for subprocess communication; dependencies pinned with `==` in `mace-api/requirements.in` + hashed `requirements.lock.txt` (ADR-0025)
 - **Charts**: Plotly.js with Paul Tol colorblind-safe palette
 - **3D Viewers**: 3Dmol.js (npm) + WEAS (CDN iframe, version pinned with SRI)
-- **Theme**: Light by default — warm off-white canvas (`#FBFAF7`) with a green accent (`#4F9A54`), driven by CSS custom properties (`--color-*`) on `:root`. A dark (navy) theme is preserved under `.dark` for a possible future toggle but is not currently reachable in the UI. See `app/globals.css`.
+- **Theme**: Light by default — warm off-white canvas (`#FBFAF7`) with a green accent (`#4F9A54`), driven by CSS custom properties (`--color-*`) on `:root`. A dark (navy) theme is preserved under `.dark` for a possible future toggle but is not currently reachable in the UI. See `app/globals.css`. The semantic tokens are Tailwind utilities through `@theme inline` (`text-text-muted`, `bg-accent-soft`, `border-border-subtle/40`): use them, not `[var(--color-…)]` or hex literals.
 - **Components**: Use `components/ui/` for shadcn base; domain components in `components/calculate/` or `components/benchmark/`
 - **Imports**: Use `@/` path alias (maps to project root)
 

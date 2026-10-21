@@ -220,7 +220,7 @@ export function EnergyChart({
           {plotted.map((s) => (
             <span
               key={s.label}
-              className="flex items-center gap-1.5 font-mono text-xs text-[var(--color-text-secondary)]"
+              className="flex items-center gap-1.5 font-mono text-xs text-text-secondary"
             >
               <svg width="14" height="6" aria-hidden>
                 <line
@@ -273,7 +273,7 @@ export function EnergyChart({
             y1={toY(t)}
             x2={VIEWBOX_WIDTH - PADDING.right}
             y2={toY(t)}
-            stroke="#EAE6DD"
+            className="stroke-border-subtle"
             strokeWidth="0.5"
           />
         ))}
@@ -319,7 +319,7 @@ export function EnergyChart({
               y1={PADDING.top}
               x2={hover.x}
               y2={PADDING.top + plotH}
-              stroke="#D8D2C6"
+              className="stroke-border-emphasis"
               strokeWidth="0.5"
               strokeDasharray="2,2"
             />
@@ -329,7 +329,7 @@ export function EnergyChart({
                 cx={hover.x}
                 cy={toY(s.values[hover.idx])}
                 r="3"
-                fill="#FFFFFF"
+                className="fill-bg-elevated"
                 stroke={s.color}
                 strokeWidth="1"
               />
@@ -338,7 +338,7 @@ export function EnergyChart({
             <text
               x={hover.x + 6}
               y={PADDING.top + 10}
-              fill="#5C574E"
+              className="fill-text-secondary"
               fontSize="9"
               fontFamily="monospace"
             >
@@ -365,7 +365,7 @@ export function EnergyChart({
             key={t}
             x={PADDING.left - 6}
             y={toY(t) + 3}
-            fill="#5C574E"
+            className="fill-text-secondary"
             fontSize="8"
             fontFamily="monospace"
             textAnchor="end"
@@ -380,7 +380,7 @@ export function EnergyChart({
             key={i}
             x={toX(steps[i] ?? i)}
             y={CHART_HEIGHT - 4}
-            fill="#5C574E"
+            className="fill-text-secondary"
             fontSize="8"
             fontFamily="monospace"
             textAnchor="middle"

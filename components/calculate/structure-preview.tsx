@@ -193,24 +193,24 @@ export function StructurePreview({ files }: StructurePreviewProps) {
 
       {/* ── Preview panel (shown after click) ── */}
       {isOpen && (
-        <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4">
+        <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
           {/* Header with engine toggle and close button */}
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+              <h3 className="text-sm font-semibold text-text-primary">
                 Structure preview
               </h3>
               {/* Engine toggle (only visible when structure is loaded) */}
               {parsed && (
-                <div className="flex rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-secondary)]">
+                <div className="flex rounded border border-border-emphasis bg-bg-secondary">
                   <button
                     type="button"
                     onClick={() => setEngine("weas")}
                     title="WEAS viewer (ml-peg compatible)"
                     className={`flex h-6 items-center px-2 font-mono text-xs transition-colors ${
                       engine === "weas"
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
+                        ? "bg-accent-primary/20 text-accent-strong"
+                        : "text-text-muted hover:text-accent-strong"
                     }`}
                   >
                     WEAS
@@ -221,8 +221,8 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                     title="3Dmol.js viewer"
                     className={`flex h-6 items-center px-2 font-mono text-xs transition-colors ${
                       engine === "3dmol"
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-strong)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-strong)]"
+                        ? "bg-accent-primary/20 text-accent-strong"
+                        : "text-text-muted hover:text-accent-strong"
                     }`}
                   >
                     3Dmol
@@ -235,7 +235,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
               onClick={handleClose}
               title="Close preview"
               aria-label="Close preview"
-              className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
+              className="rounded p-1 text-text-muted transition-colors hover:text-error"
             >
               <X className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -244,13 +244,13 @@ export function StructurePreview({ files }: StructurePreviewProps) {
           {/* Loading spinner */}
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-border-subtle)] border-t-[var(--color-accent-primary)]" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-border-subtle border-t-accent-primary" />
             </div>
           )}
 
           {/* Parse error */}
           {error && (
-            <div className="rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-3 font-mono text-xs text-[var(--color-error)]">
+            <div className="rounded border border-error/40 bg-error/10 p-3 font-mono text-xs text-error">
               <strong>Parse error:</strong> {error}
             </div>
           )}
@@ -262,10 +262,10 @@ export function StructurePreview({ files }: StructurePreviewProps) {
               <div className="mb-3 space-y-1.5">
                 {/* Formula + atom count */}
                 <div className="flex items-center gap-3 font-mono">
-                  <span className="text-sm font-bold text-[var(--color-text-primary)]">
+                  <span className="text-sm font-bold text-text-primary">
                     <Formula text={parsed.empiricalFormula} />
                   </span>
-                  <span className="text-xs text-[var(--color-text-secondary)]">
+                  <span className="text-xs text-text-secondary">
                     {parsed.atomCount} atoms
                   </span>
                 </div>
@@ -273,25 +273,25 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                 {/* Element breakdown + geometry stats */}
                 <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs">
                   {/* Per-element counts */}
-                  <span className="text-[var(--color-text-secondary)]">
+                  <span className="text-text-secondary">
                     {parsed.elements.map((el) => (
                       <span key={el} className="mr-1.5">
                         {el}×{parsed.elementCounts[el]}
                       </span>
                     ))}
                   </span>
-                  <span className="text-[var(--color-text-secondary)]">
+                  <span className="text-text-secondary">
                     Box:{" "}
-                    <span className="text-[var(--color-text-primary)]">
+                    <span className="text-text-primary">
                       {parsed.boundingBox.size[0].toFixed(1)} × {" "}
                       {parsed.boundingBox.size[1].toFixed(1)} × {" "}
                       {parsed.boundingBox.size[2].toFixed(1)} Å
                     </span>
                   </span>
                   {parsed.frameCount > 1 && (
-                    <span className="text-[var(--color-text-secondary)]">
+                    <span className="text-text-secondary">
                       Frames:{" "}
-                      <span className="text-[var(--color-text-primary)]">
+                      <span className="text-text-primary">
                         {parsed.frameCount} (showing first)
                       </span>
                     </span>
@@ -301,7 +301,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
 
               {/* ── Warnings ── */}
               {isVeryLarge && (
-                <div className="mb-3 flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-3 font-mono text-xs text-[var(--color-error)]">
+                <div className="mb-3 flex items-start gap-2 rounded border border-error/40 bg-error/10 p-3 font-mono text-xs text-error">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
                   <div>
                     <strong>Very large structure ({atomCount} atoms).</strong>{" "}
@@ -311,7 +311,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                 </div>
               )}
               {isLarge && !isVeryLarge && (
-                <div className="mb-3 flex items-start gap-2 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 font-mono text-xs text-[var(--color-warning)]">
+                <div className="mb-3 flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 font-mono text-xs text-warning">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
                   <div>
                     <strong>Large structure ({atomCount} atoms).</strong>{" "}
@@ -322,7 +322,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
               )}
 
               {/* ── Viewer (WEAS or 3Dmol based on engine toggle) ── */}
-              <div className="relative overflow-hidden rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] shadow-inner">
+              <div className="relative overflow-hidden rounded-lg border border-border-subtle bg-bg-primary shadow-inner">
                 {/* WEAS viewer (default — ml-peg compatible) */}
                 {engine === "weas" && rawXYZ && (
                   <WeasViewer structureData={rawXYZ} format="xyz" height={500} />
@@ -343,7 +343,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                 )}
               </div>
 
-              <p className="mt-2 font-mono text-xs text-[var(--color-text-muted)]">
+              <p className="mt-2 font-mono text-xs text-text-muted">
                 {engine === "weas"
                   ? "WEAS viewer (ml-peg compatible) · Drag to rotate · Scroll to zoom"
                   : "3Dmol.js · Drag to rotate · Scroll to zoom"

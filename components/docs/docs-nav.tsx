@@ -52,7 +52,7 @@ export function DocsSidebar() {
     <nav aria-label="Documentation" className="space-y-6">
       {DOCS_NAV.map((section) => (
         <div key={section.title}>
-          <p className="mb-2 text-xs font-semibold text-[var(--color-text-muted)]">
+          <p className="mb-2 text-xs font-semibold text-text-muted">
             {section.title}
           </p>
           <ul className="space-y-0.5">
@@ -66,8 +66,8 @@ export function DocsSidebar() {
                     className={cn(
                       "block rounded-md px-3 py-1.5 text-sm transition-colors",
                       active
-                        ? "bg-[var(--color-accent-soft)] font-medium text-[var(--color-accent-strong)]"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]",
+                        ? "bg-accent-soft font-medium text-accent-strong"
+                        : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary",
                     )}
                   >
                     {item.title}
@@ -90,13 +90,13 @@ export function DocsPager({ pathname }: { pathname: string }) {
   const next = idx < DOCS_ORDER.length - 1 ? DOCS_ORDER[idx + 1] : null;
 
   return (
-    <div className="mt-12 flex items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-6">
+    <div className="mt-12 flex items-center justify-between gap-4 border-t border-border-subtle pt-6">
       {prev ? (
         <Link
           href={prev.href}
-          className="group flex flex-col text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)]"
+          className="group flex flex-col text-sm text-text-secondary transition-colors hover:text-accent-strong"
         >
-          <span className="text-xs text-[var(--color-text-muted)]">
+          <span className="text-xs text-text-muted">
             Previous
           </span>
           <span className="font-medium">← {prev.title}</span>
@@ -107,9 +107,9 @@ export function DocsPager({ pathname }: { pathname: string }) {
       {next && (
         <Link
           href={next.href}
-          className="group flex flex-col text-right text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)]"
+          className="group flex flex-col text-right text-sm text-text-secondary transition-colors hover:text-accent-strong"
         >
-          <span className="text-xs text-[var(--color-text-muted)]">Next</span>
+          <span className="text-xs text-text-muted">Next</span>
           <span className="font-medium">{next.title} →</span>
         </Link>
       )}
