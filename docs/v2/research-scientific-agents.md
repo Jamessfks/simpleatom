@@ -1,3 +1,5 @@
+> **Superseded snapshot.** Written 2026-08-09 against the code at that time; many findings are fixed. Current state: [docs/audits/2026-10-20.md](../audits/2026-10-20.md) and `docs/v2/defects.json`.
+
 # Scientific Accuracy Tooling for SimpleAtom v2.0
 
 **Research date:** 2026-08-09 · **Author:** research pass for Zicheng Zhao

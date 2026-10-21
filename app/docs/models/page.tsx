@@ -6,7 +6,7 @@ import { DocsPager } from "@/components/docs/docs-nav";
 export const metadata: Metadata = {
   title: "Foundation models",
   description:
-    "MACE foundation models in SimpleAtom: MACE-MP-0 for materials (PBE+U, 89 elements), MACE-OFF for organic molecules (ωB97M-D3BJ), model sizes, custom checkpoints, and energy-reference conventions.",
+    "MACE foundation models in SimpleAtom: MACE-MPA-0 (default) and MACE-MP-0 for materials (PBE/PBE+U, 89 elements), MACE-OFF23 for organic molecules (ωB97M-D3BJ, non-commercial licence), sizes, custom checkpoints, and energy-reference conventions.",
 };
 
 export default function ModelsPage() {
@@ -27,31 +27,56 @@ export default function ModelsPage() {
       </header>
 
       <article className="docs-prose">
-        <h2 id="mace-mp-0">MACE-MP-0</h2>
+        <h2 id="mace-mpa-0">MACE-MPA-0 (default)</h2>
         <ul>
           <li>
             <strong>Scope:</strong> materials, crystals, surfaces, and bulk
-            systems — 89 elements across the periodic table.
+            systems — 89 elements. Upstream MACE&rsquo;s own default for{" "}
+            <code>mace_mp()</code> since v0.3.10.
+          </li>
+          <li>
+            <strong>Training data:</strong> MPtrj plus the subsampled Alexandria
+            set, PBE/PBE+U DFT.
+          </li>
+          <li>
+            <strong>Benchmark:</strong> Matbench Discovery F1 0.852, energy MAE
+            0.028 eV/atom (MACE-MP-0: 0.669 and 0.057).
+          </li>
+          <li>
+            <strong>Size:</strong> published as <code>medium</code> only.
+          </li>
+          <li>
+            <strong>Licence:</strong> MIT.
+          </li>
+        </ul>
+
+        <h2 id="mace-mp-0">MACE-MP-0</h2>
+        <ul>
+          <li>
+            <strong>Scope:</strong> the 2023 materials model, same 89 elements.
+            Kept so earlier results can be reproduced; prefer MPA-0 for new
+            work.
           </li>
           <li>
             <strong>Training data:</strong> Materials Project DFT calculations
             (PBE+U functional).
           </li>
           <li>
-            <strong>Accuracy:</strong> PBE-level. Expect roughly 0.1–0.5 eV/atom
-            overbinding relative to experiment.
+            <strong>Accuracy:</strong> PBE-level, like MPA-0. Expect roughly
+            0.1–0.5 eV/atom overbinding relative to experiment.
           </li>
           <li>
-            <strong>D3 dispersion:</strong> supported and recommended for van
-            der Waals systems (layered materials, molecular crystals).
+            <strong>D3 dispersion:</strong> supported for both MPA-0 and MP-0,
+            and recommended for van der Waals systems (layered materials,
+            molecular crystals).
           </li>
           <li>
-            <strong>Energy reference:</strong> isolated-atom energies. Typical
-            range <code>−1 to −15 eV/atom</code>.
+            <strong>Energy reference:</strong> PBE-referenced totals, shared by
+            MPA-0 and MP-0. Typical range <code>−1 to −15 eV/atom</code>.
           </li>
         </ul>
 
-        <h2 id="mace-off">MACE-OFF</h2>
+        <h2 id="mace-off">MACE-OFF23</h2>
         <ul>
           <li>
             <strong>Scope:</strong> organic molecules and drug-like compounds.
@@ -61,12 +86,20 @@ export default function ModelsPage() {
             (10 elements).
           </li>
           <li>
-            <strong>Training data:</strong> ωB97M-D3BJ reference data
-            (near coupled-cluster quality for organic chemistry).
+            <strong>Training data:</strong> the SPICE dataset at the
+            ωB97M-D3(BJ)/def2-TZVPPD level of DFT.
           </li>
           <li>
-            <strong>Energy reference:</strong> a different convention from
-            MACE-MP-0. Typical range <code>−100 to −600 eV/atom</code>.
+            <strong>Energy reference:</strong> total energies including core
+            electrons — a different convention from the MACE-MP family. Typical
+            range <code>−100 to −600 eV/atom</code>, and much more negative for
+            molecules containing Br or I.
+          </li>
+          <li>
+            <strong>Licence:</strong> the{" "}
+            <a href="https://github.com/gabor1/ASL">Academic Software License</a>
+            , which does not permit commercial use. Every MACE-OFF result
+            carries this notice.
           </li>
         </ul>
 
@@ -78,7 +111,10 @@ export default function ModelsPage() {
         </Callout>
 
         <h2 id="sizes">Model sizes</h2>
-        <p>Each foundation model is available in three sizes:</p>
+        <p>
+          MACE-MP-0 and MACE-OFF23 come in three sizes; MACE-MPA-0 in{" "}
+          <code>medium</code> only:
+        </p>
         <table>
           <thead>
             <tr>
@@ -118,27 +154,34 @@ export default function ModelsPage() {
 
         <h2 id="custom">Custom models</h2>
         <p>
-          You can upload your own <code>.model</code> checkpoint trained with{" "}
-          <code>mace-torch</code> (for example, a model fine-tuned with{" "}
-          <code>mace_run_train</code>). SimpleAtom loads it with{" "}
-          <code>MACECalculator</code>, runs the calculation identically to the
-          foundation models, and can compare your model against a foundation
-          model with agreement metrics (MAE, RMSE, R²).
+          When you run SimpleAtom locally you can upload your own{" "}
+          <code>.model</code> checkpoint trained with <code>mace-torch</code>{" "}
+          (for example, fine-tuned with <code>mace_run_train</code>).
+          SimpleAtom loads it with <code>MACECalculator</code>, runs the
+          calculation identically to the foundation models, and can compare
+          your model against a foundation model with agreement metrics (MAE,
+          RMSE, R²).
         </p>
+        <Callout type="note" title="Not on the public site">
+          A <code>.model</code> file is a pickled PyTorch module: loading it
+          runs code from the file. The public instance therefore only loads the
+          foundation checkpoints whose SHA-256 it has pinned, and refuses
+          uploaded ones. Run locally to use your own model.
+        </Callout>
 
         <h2 id="choosing">Choosing a model</h2>
         <pre>
           <code>{`Is your system purely organic (only H, C, N, O, F, P, S, Cl, Br, I)?
   ├─ Yes → MACE-OFF
-  └─ No  → MACE-MP-0
+  └─ No  → MACE-MPA-0   (or MACE-MP-0 to reproduce an older result)
 
 Do you need van der Waals / dispersion corrections?
-  ├─ MACE-MP-0 → enable D3 dispersion
-  └─ MACE-OFF  → do nothing (already included)`}</code>
+  ├─ MACE-MPA-0 / MP-0 → enable D3 dispersion
+  └─ MACE-OFF          → do nothing (already included)`}</code>
         </pre>
 
         <Callout type="note" title="Reference conventions differ">
-          MACE-MP-0 and MACE-OFF use different energy-reference conventions, so
+          The MACE-MP family and MACE-OFF use different energy-reference conventions, so
           their absolute energies differ by an order of magnitude. Never compare
           absolute energies across the two models — see{" "}
           <Link href="/docs/units">Units &amp; conventions</Link>.

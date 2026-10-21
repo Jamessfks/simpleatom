@@ -88,9 +88,12 @@ python test_scripts/validate_calculation.py result.json`}</code>
         <h2 id="what-it-checks">What the validator checks</h2>
         <ul>
           <li>
-            <strong>Energy bounds (model-aware):</strong> MACE-MP-0 between
-            &minus;20 and +100 eV/atom; MACE-OFF between &minus;800 and +100
-            eV/atom.
+            <strong>Energy bounds (model-aware):</strong> the MACE-MP family
+            (MPA-0 and MP-0) between &minus;20 and +100 eV/atom; MACE-OFF
+            between &minus;800 and +100 eV/atom; skipped for a custom
+            checkpoint, whose reference convention is unknown. Below the
+            minimum is a warning, above the maximum an issue. These are the
+            enforced bounds; the typical ranges are narrower (below).
           </li>
           <li>
             <strong>Force magnitude:</strong> max force &lt; 50 eV/Å warns,
@@ -133,9 +136,9 @@ python test_scripts/validate_calculation.py result.json`}</code>
         </p>
         <ol>
           <li>
-            Energy in a reasonable range for the model: MACE-MP-0 &rarr;
-            &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; &minus;100 to
-            &minus;600 eV/atom.
+            Energy in the typical range for the model: MACE-MPA-0 or MP-0
+            &rarr; &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; &minus;100
+            to &minus;600 eV/atom (more negative with Br or I).
           </li>
           <li>
             Forces &lt; 10 eV/Å for a reasonable structure — forces above 50

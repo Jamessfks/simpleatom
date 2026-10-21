@@ -120,8 +120,9 @@ npm run dev                    # starts the dev server`}</code>
         <ol>
           <li>Provide a structure using any of the four methods above.</li>
           <li>
-            Choose a foundation model (<Link href="/docs/models">MACE-MP-0
-            or MACE-OFF</Link>, or upload your own checkpoint), a model
+            Choose a foundation model (<Link href="/docs/models">MACE-MPA-0,
+            MACE-MP-0 or MACE-OFF</Link>; your own checkpoint when running
+            locally), a model
             size, and a{" "}
             <Link href="/docs/calculations">calculation type</Link> —
             single-point, geometry optimization, or molecular dynamics.

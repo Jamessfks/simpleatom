@@ -1,10 +1,11 @@
-# MACE Force Fields — Web Interface
+# SimpleAtom — MACE Force Fields Web Interface
 
 Browser-based interface for MACE (Multi-Atomic Cluster Expansion) machine learning interatomic potentials. Full-stack: Next.js 16 frontend + Python/FastAPI backend using ASE and mace-torch.
 
 **Author:** Zicheng Zhao, Northeastern University
 **Live:** https://mace-lake.vercel.app
-**Version:** 1.3.0 Stable
+**Version:** 2.2.0 (single source: `mace-api/contract.json` `appVersion` = `package.json`; CI checks they agree)
+**Decisions:** `docs/adr/` (MADR, 30 records) · **Latest audit:** `docs/audits/2026-10-20.md`
 
 ## Architecture
 
@@ -13,29 +14,37 @@ Frontend (Next.js 16 / React 19 / TypeScript / Tailwind CSS 4)
   ├── app/calculate/       → Calculator page (upload, configure, run, view results)
   ├── app/benchmark/       → Multi-model comparison suite
   ├── app/r/[id]/          → MACE Link (shared result viewer)
-  ├── app/api/calculate/   → Route handler (dual-mode: local subprocess or remote API)
+  ├── app/api/jobs/        → Submit / poll / cancel calculations (the UI's path)
+  ├── app/api/calculate/   → Synchronous calculation (dual-mode) + capabilities (GET)
   ├── app/api/benchmark/   → Batch benchmark endpoint
+  ├── app/api/share/       → MACE Link writes (validated, server-side storage)
   └── app/api/smiles-to-xyz/ → SMILES → 3D structure conversion
 
-Backend (Python 3.10+)
+Backend (Python 3.11)
+  ├── mace-api/contract.json       → THE request contract: types, bounds, profiles, model registry
+  ├── mace-api/contract.py         → Enforces it (ContractError with code/field/status)
   ├── mace-api/calculate.py        → Shared calculation engine (all scientific logic)
-  ├── mace-api/calculate_local.py  → Subprocess CLI wrapper (called by Next.js)
-  ├── mace-api/main.py             → FastAPI server (cloud deployment)
+  ├── mace-api/safe_load.py        → Unpickles only SHA-256-pinned checkpoints
+  ├── mace-api/jobs.py             → One-worker job queue (FastAPI)
+  ├── mace-api/provenance.py       → Reproducibility manifest
+  ├── mace-api/calculate_local.py  → Subprocess CLI wrapper (local mode, --progress)
+  ├── mace-api/main.py             → FastAPI server (Hugging Face Space)
   ├── mace-api/smiles_to_xyz.py    → RDKit SMILES → XYZ converter
-  └── test_scripts/validate_calculation.py → Scientific result validator
+  └── test_scripts/validate_calculation.py → Scientific result validator (advisory)
 ```
 
 **Dual-mode execution:**
-- Local: `MACE_API_URL` not set → spawns `python3 mace-api/calculate_local.py`
-- Remote: `MACE_API_URL` set → forwards to hosted API (Hugging Face Spaces / Railway)
+- Local: `MACE_API_URL` not set → spawns `python3 mace-api/calculate_local.py` (profile `local`)
+- Remote: `MACE_API_URL` set → forwards to the hosted API on Hugging Face Spaces (profile `hosted`)
 
-**Data flow:** Browser → Parse structure (client) → POST /api/calculate → Python (ASE + mace-torch) → JSON → Plotly charts + 3Dmol.js visualization
+**Data flow:** Browser → parse structure (client) → POST /api/jobs → Python (ASE + mace-torch) → poll GET /api/jobs/[id] → JSON → Plotly charts + 3Dmol.js visualization
 
 ## Key Files
 
 | Area | Files |
 |------|-------|
-| **Calculation API** | `app/api/calculate/route.ts`, `app/api/benchmark/route.ts` |
+| **Request contract** | `mace-api/contract.json` (edit) → `npm run gen:contract` → `lib/generated/contract.ts`, `docs/reference/contract.md`; mirror in `lib/contract.ts`; fixtures in `test/fixtures/contract-requests.json` |
+| **Calculation API** | `app/api/jobs/*`, `app/api/calculate/route.ts`, `app/api/benchmark/route.ts`, `lib/server/{backend,jobs,local-jobs}.ts`, `lib/api-client.ts` |
 | **SMILES conversion** | `app/api/smiles-to-xyz/route.ts`, `mace-api/smiles_to_xyz.py` |
 | **Python backend** | `mace-api/calculate.py` (shared engine), `mace-api/calculate_local.py` (CLI), `mace-api/main.py` (FastAPI) |
 | **Calculator UI** | `app/calculate/page.tsx`, `components/calculate/*.tsx` |
@@ -45,10 +54,10 @@ Backend (Python 3.10+)
 | **Type definitions** | `types/mace.ts` |
 | **Structure parser** | `lib/parse-structure.ts` (XYZ, CIF, POSCAR, PDB) |
 | **Benchmark catalog** | `lib/mlpeg-catalog.ts` (14 embedded structures) |
-| **Sharing** | `lib/share.ts`, `lib/supabase.ts` |
+| **Sharing** | `app/api/share/route.ts`, `lib/server/share-store.ts` (server-only), `lib/share.ts`, `supabase/migrations/` |
 | **Visualization** | `components/calculate/molecule-viewer-3d.tsx` (3Dmol.js), `components/calculate/weas-viewer.tsx` (WEAS CDN) |
 | **Charts** | `components/calculate/charts/*.tsx`, `components/calculate/trajectory/*.tsx` |
-| **PDF export** | `components/calculate/pdf-report.tsx` |
+| **PDF export** | `components/calculate/pdf-report.tsx` (button) + `pdf-report-document.tsx` (loaded on click) |
 | **Validation** | `test_scripts/validate_calculation.py` |
 
 ## Development Commands
@@ -57,14 +66,20 @@ Backend (Python 3.10+)
 # Frontend
 npm run dev          # Next.js dev server (localhost:3000)
 npm run build        # Production build (catches type errors)
-npm run lint         # ESLint
+npm run lint         # ESLint (CI: node scripts/lint-baseline.mjs — never above LINT_BASELINE)
+npm run typecheck    # tsc --noEmit
+npm test             # vitest (contract fixtures, parser, upload names, share)
+npm run gen:contract # after editing mace-api/contract.json (CI: npm run check:contract)
 
 # Backend
 cd mace-api && pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 7860
 
-# Validation
+# Validation (export KMP_DUPLICATE_LIB_OK=TRUE on macOS)
 python test_scripts/validate_calculation.py --test    # Full scientific validation suite
+python -m unittest discover -s test_scripts -p "test_backend_contract.py"     # contract, checkpoint trust, guards
+python -m unittest discover -s test_scripts -p "test_science_regressions.py"  # D5/D6/D16/D18, MPA-0 pin, translation invariance
+python test_scripts/daily_gate.py --no-bars           # every gate at once
 
 # Quick calculation test
 python mace-api/calculate_local.py public/demo/ethanol.xyz \
@@ -97,20 +112,31 @@ When spawning subagents or choosing model complexity, follow this tier system:
 | Energy | **eV** | electron volts |
 | Forces | **eV/Å** | per-atom 3-vector |
 | Distances | **Å** | Angstroms |
-| Stress | **eV/Å³** | Voigt notation |
+| Stress | **eV/Å³** internal; **GPa** in results | Voigt (xx, yy, zz, yz, xz, xy); fully periodic cells only |
 | Temperature | **K** | Kelvin |
 | Time | **fs** | always use `ase.units.fs` for conversion |
-| Pressure | **eV/Å³** internal; **GPa** user-facing | 1 GPa = 10,000 bar |
+| Pressure | **eV/Å³** internal; **GPa** user-facing | convert with `ase.units.GPa`; nothing uses bar |
 
 ### Model Selection
-- **MACE-MP-0**: Materials, crystals, surfaces, bulk — 89 elements, trained on PBE+U DFT
-- **MACE-OFF**: Organic molecules only (H,C,N,O,F,P,S,Cl,Br,I) — trained on wB97M-D3BJ
-- **D3 dispersion**: Only meaningful for MACE-MP-0 (MACE-OFF already includes dispersion)
-- Model sizes: small (fastest) → medium (default) → large (most accurate)
+The registry in `mace-api/contract.json` is the single source of truth (ADR-0021). Never
+hard-code a model id, size, element list or licence anywhere else — read it from the
+registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`).
+- **MACE-MPA-0** (default): materials, crystals, surfaces — 89 elements, PBE/PBE+U
+  (MPtrj + sAlex); upstream's own `mace_mp()` default since v0.3.10; `medium` only; MIT
+- **MACE-MP-0**: the 2023 materials model, kept for reproducing earlier results; MIT
+- **MACE-OFF** (alias MACE-OFF23): organic molecules only (H,C,N,O,F,P,S,Cl,Br,I) —
+  ωB97M-D3(BJ) DFT (SPICE); **ASL, non-commercial** — results carry `licenseNotice`
+- Not offered (all ASL): OMAT-0, MATPES, MH-1, OMOL, POLAR-1 (ADR-0018)
+- **D3 dispersion**: only for the MACE-MP family (`dispersion.allowed` in the registry)
+- **Checkpoints are SHA-256 pinned.** `safe_load.trusted_checkpoints()` is the only place
+  `torch.load` may unpickle. Never patch `torch.load` globally, never pass a user string
+  to `mace_mp(model=...)`/`mace_off(model=...)` — sizes go through the registry (ADR-0020)
 
 ### Energy Reference Conventions
-- **MACE-MP-0**: -1 to -15 eV/atom (DFT reference)
-- **MACE-OFF**: -100 to -600 eV/atom (different reference convention)
+- **MACE-MP family** (MPA-0, MP-0): typically -1 to -15 eV/atom; validator enforces -20 to +100
+- **MACE-OFF**: typically -100 to -600 eV/atom (more negative with Br/I); validator enforces -800 to +100
+- Custom checkpoints: unknown convention — the range check is skipped
+- Bounds live in `contract.json` `energyConventions` (enforced vs typical)
 - Catalog reference energies are **EXPERIMENTAL**, not DFT — always note this in comparisons
 
 ### Supported Calculation Types
@@ -121,7 +147,10 @@ When spawning subagents or choosing model complexity, follow this tier system:
 - **Never** let an unrecognised `calculationType` fall through to a default calculation —
   returning plausible numbers for a calculation that never ran is worse than an error
 - The Python backend is the security boundary (the API can be called directly); the
-  route handler check in `app/api/calculate/route.ts` is a fast mirror, not a substitute
+  TypeScript mirror (`lib/contract.ts`) is a fast check, not a substitute
+- Every enumerated input is an allow-list and every number must be finite and in range;
+  steps, atoms, uploads and wall time are capped per profile. Refuse with `ContractError`
+  (code, field, HTTP status) — never coerce (`bool("false")` is True)
 
 ### Geometry Optimization
 - Optimizer is **BFGS only** — hardcoded in `_run_geometry_opt`, with no optimizer
@@ -139,9 +168,14 @@ When spawning subagents or choosing model complexity, follow this tier system:
   "completed" is the same class of error as returning a calculation that never ran
 
 ### Molecular Dynamics
-- NVT: Langevin thermostat with friction parameter
-- NPT: Requires periodic system with defined cell
+- NVT: Langevin thermostat with friction, **`fixcm=False`**. ASE's default `fixcm=True`
+  mass-weights its centre-of-mass correction wrongly for mixed masses — ethanol ran at
+  417 K for a 300 K target (D18). Do not switch it back
+- NPT: `ase.md.melchionna.MelchionnaNPT` (`ase.md.npt.NPT` is a deprecated alias), fully
+  periodic cell required (refused otherwise), `pfactor = (75 fs)² × 100 GPa` (D17)
 - NVE: No thermostat (microcanonical)
+- Temperature is reported over the degrees of freedom that carry energy: 3N for NVT,
+  3N−3 for NVE/NPT (COM momentum stays zero) — recorded as `temperatureDegreesOfFreedom`
 - Always initialize velocities with `MaxwellBoltzmannDistribution`
 - Typical timestep: 0.5–2.0 fs (smaller for light elements like H)
 - **Reproducibility**: every stochastic source must be seeded. MD has two —
@@ -163,8 +197,10 @@ When spawning subagents or choosing model complexity, follow this tier system:
 
 ### Common Pitfalls
 1. Never mix units — MACE outputs eV/Å, ASE uses eV/Å internally
-2. PyTorch 2.6+ requires `weights_only=False` for MACE model loading
-3. MACE-MP-0 is PBE-level — ~0.1–0.5 eV/atom overbinding vs experiment
+2. PyTorch 2.6+ refuses to unpickle MACE checkpoints by default, and importing `mace` sets
+   `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` process-wide. Load checkpoints only through
+   `safe_load.trusted_checkpoints()`, which passes `weights_only` explicitly
+3. The MACE-MP family is PBE-level — ~0.1–0.5 eV/atom overbinding vs experiment
 4. Don't enable D3 dispersion with MACE-OFF (double-counting)
 5. GPU fallback: always handle CUDA unavailable → CPU gracefully
 6. Extended XYZ metadata keys vary: check REF_energy, ref_energy, energy, dft_energy
@@ -178,32 +214,36 @@ When spawning subagents or choosing model complexity, follow this tier system:
 ## Code Style
 
 - **Frontend**: TypeScript strict, React 19 hooks, Tailwind CSS 4, shadcn/ui (New York style)
-- **Backend**: Python 3.10+, type hints, JSON stdout for subprocess communication
+- **Backend**: Python 3.11, type hints, JSON stdout for subprocess communication; dependencies pinned with `==` in `mace-api/requirements.in` + hashed `requirements.lock.txt` (ADR-0025)
 - **Charts**: Plotly.js with Paul Tol colorblind-safe palette
-- **3D Viewers**: 3Dmol.js (npm) + WEAS (CDN iframe)
+- **3D Viewers**: 3Dmol.js (npm) + WEAS (CDN iframe, version pinned with SRI)
 - **Theme**: Light by default — warm off-white canvas (`#FBFAF7`) with a green accent (`#4F9A54`), driven by CSS custom properties (`--color-*`) on `:root`. A dark (navy) theme is preserved under `.dark` for a possible future toggle but is not currently reachable in the UI. See `app/globals.css`.
 - **Components**: Use `components/ui/` for shadcn base; domain components in `components/calculate/` or `components/benchmark/`
 - **Imports**: Use `@/` path alias (maps to project root)
 
 ## Testing & Validation
 
+CI (`.github/workflows/ci.yml`) runs everything below on every push and PR; the HF Space
+deploys only after it passes on `main`. Run it locally before pushing.
+
 ### Before Merging Any Scientific Code Change
 1. Run `python test_scripts/validate_calculation.py --test` — must pass all checks
-2. Verify energy bounds, force magnitudes, unit consistency
-3. Check that D3 dispersion is not enabled with MACE-OFF
+2. Run the contract, provenance and science-regression suites (commands above)
+3. A mace-torch/torch/ase bump must pass `TestTranslationInvariance` and the golden energies
+4. Verify energy bounds, force magnitudes, unit consistency
 
 ### Before Merging Any Frontend Change
-1. Run `npm run build` — must compile without errors
-2. Run `npm run lint` — no new warnings
-3. Test the affected page in browser at localhost:3000
+1. `npm run check:contract && npm run typecheck && npm test && npm run build`
+2. `node scripts/lint-baseline.mjs` — never above `LINT_BASELINE` (lower it when you fix things)
+3. Test the affected page in the browser — on the dev server of the branch under test
 
 ### Automated Validator Checks
-- Energy bounds (model-aware: MACE-MP-0 vs MACE-OFF reference conventions)
+- Energy bounds (model-aware, from the registry: MACE-MP family vs MACE-OFF; skipped for custom)
 - Force magnitude and conservation (net force ≈ 0 for molecules)
 - Interatomic distances (overlapping atoms detection)
 - Lattice validity (positive volume, 3x3 matrix)
 - MD trajectory stability (NaN/Inf detection, energy fluctuation)
-- Parameter sanity (D3+MACE-OFF double-counting, precision for phonons)
+- Parameter sanity (D3+MACE-OFF double-counting)
 
 ### Manual Verification Checklist
 1. Energy in reasonable range per model convention
@@ -216,11 +256,13 @@ When spawning subagents or choosing model complexity, follow this tier system:
 ## Deployment
 
 ```
-Vercel CDN (Frontend) → Supabase PostgreSQL (shared_results)
-                      → Hugging Face Spaces / Railway (Backend: FastAPI on port 7860)
+Vercel (Frontend, deploys main) → Supabase PostgreSQL (shared_results, via /api/share only)
+                                → Hugging Face Space (FastAPI on port 7860, deployed only by CI)
 ```
 
-**Required env vars:**
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
-- `MACE_API_URL` (optional) — omit for local subprocess mode
+**Env vars** (full table: `docs/reference/environment.md`):
+- `MACE_API_URL` — hosted backend; omit for local subprocess mode
+- `MACE_API_TOKEN` — shared secret on Vercel and the Space
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — MACE Link
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only; required before `supabase/migrations/0003_lockdown.sql`
+- `SIMPLEATOM_PROFILE` (`hosted`/`local`), `ALLOW_CUSTOM_MODELS`

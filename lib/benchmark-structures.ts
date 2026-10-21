@@ -13,21 +13,15 @@
  * bundle: that page imports lib/mlpeg-catalog directly and its structure picker
  * is deliberately unchanged by this feature.
  *
- * WHY MP ENTRIES ARE SENT AS .cif AND NOT .xyz
- *   mace-api/calculate.py's detect_format() maps a ".xyz" extension to ASE's
- *   "xyz" format, i.e. ase.io.xyz.simple_read_xyz, which ignores the comment
- *   line. Extended-XYZ `Lattice=` and `pbc=` are discarded, the structure is
- *   treated as an isolated cluster, and the energy comes back wrong by whole eV
- *   per atom — measured on MP's primitive FCC Cu (mp-30): -0.93 eV/atom instead
- *   of -4.08 eV/atom. CIF carries the cell in the body of the file, so it
- *   survives. Every CIF in the fixture was checked to round-trip with no loss of
- *   minimum-image distances or cell parameters (see `cifRoundTrip`).
- *
- *   This is a workaround for a backend defect, not a preference. When
- *   detect_format() is fixed to use "extxyz" (or to let ASE auto-detect), the
- *   xyzData path becomes usable again and this can be simplified. Until then,
- *   sending .xyz here would silently produce a formation energy that is not a
- *   formation energy.
+ * WHY MP ENTRIES ARE SENT AS .cif
+ *   When this set was added, mace-api/calculate.py read ".xyz" with ASE's plain
+ *   "xyz" reader, which ignores the comment line, so extended-XYZ `Lattice=`
+ *   and `pbc=` were discarded and MP's primitive FCC Cu (mp-30) came out at
+ *   -0.93 eV/atom instead of -4.08 as an isolated cluster. That reader defect
+ *   was fixed in 88aa676 (".xyz" now maps to "extxyz"). CIF is kept because
+ *   every CIF in the fixture was checked to round-trip with no loss of
+ *   minimum-image distances or cell parameters (see `cifRoundTrip`), and the
+ *   cell lives in the body of the file rather than in a comment line.
  */
 
 import { getEntriesByIds, type CatalogEntry } from "./mlpeg-catalog";
@@ -103,11 +97,10 @@ export function getBenchmarkStructuresByIds(ids: string[]): BenchmarkStructure[]
       elements: entry.elements,
       structureData: entry.xyzData,
       filename: `${entry.id}.xyz`,
-      // Left false for ml-peg entries: several of them declare a lattice but
-      // are submitted as .xyz and hit the reader defect described above. Making
-      // them periodic-strict here would turn the Leaderboard into a wall of
-      // errors for a defect that belongs to mace-api/calculate.py, so the
-      // change is scoped to the set this feature owns.
+      // Left false for ml-peg entries pending a check of each one: several
+      // declare a lattice and were submitted as .xyz while the reader defect
+      // above existed. Making them periodic-strict is a follow-up once each
+      // entry's returned lattice has been verified.
       expectsPeriodic: false,
       reference: entry.reference,
     });

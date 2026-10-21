@@ -1,3 +1,6 @@
-mkdocs>=1.6
-mkdocs-material>=9.5
-mkdocs-minify-plugin>=0.8
+# Docs toolchain, pinned: MkDocs 2.0 is incompatible with mkdocs-material
+# (squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0), and an
+# unpinned Read the Docs build would pick it up.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocs-minify-plugin==0.8.0

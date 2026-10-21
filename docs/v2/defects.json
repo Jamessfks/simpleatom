@@ -1,6 +1,6 @@
 {
-  "note": "Open defect backlog, machine-readable so test_scripts/daily_gate.py can order the day's queue. Extracted 2026-09-11 from the 'Known defects, deliberately unfixed' section of docs/v2/CONTINUE.md, which was last written at 9efa649 and is six commits stale. Anything marked verify:true may already be fixed by 9187abc, 88aa676, bdfb7af, 63d5b70 or 9e1dca0 \u2014 confirm by execution before working it, and close it here if it is gone. Set status to 'fixed' with the commit, never delete the row.",
-  "updated": "2026-09-11",
+  "note": "Open defect backlog, machine-readable so test_scripts/daily_gate.py can order the day's queue. Extracted 2026-09-11 from the 'Known defects, deliberately unfixed' section of docs/v2/CONTINUE.md, which was last written at 9efa649 and is six commits stale. Anything marked verify:true may already be fixed by 9187abc, 88aa676, bdfb7af, 63d5b70 or 9e1dca0 — confirm by execution before working it, and close it here if it is gone. Set status to 'fixed' with the commit, never delete the row.",
+  "updated": "2026-10-20",
   "defects": [
     {
       "id": "D1",
@@ -18,7 +18,7 @@
       "id": "D2",
       "severity": "HIGH",
       "status": "fixed",
-      "what": "The validator is absent from the deployed container: mace-api/Dockerfile's build context is mace-api/, so `COPY . .` cannot reach ../test_scripts/. Hosted results report validation.status 'unavailable' \u2014 degrading correctly, but degraded. The live site runs without the scientific gate the repo advertises.",
+      "what": "The validator is absent from the deployed container: mace-api/Dockerfile's build context is mace-api/, so `COPY . .` cannot reach ../test_scripts/. Hosted results report validation.status 'unavailable' — degrading correctly, but degraded. The live site runs without the scientific gate the repo advertises.",
       "where": "mace-api/Dockerfile",
       "verify": false,
       "howToVerify": "Run a calculation against the hosted API and read result.validation.status.",
@@ -36,63 +36,78 @@
       "verify": false,
       "howToVerify": "Read provenance.code.gitCommit on a result from the hosted API. Fix by baking the SHA in as a build arg.",
       "source": "found 2026-09-11 against the NOMAD bar",
-      "fixNote": "Fixed in two places, because the runtime lookup cannot work in the image: provenance.git_info() now falls back to a GIT_COMMIT file written next to the module, and deploy-hf-space.yml writes that file from the SHA it is pushing. The same workflow was ALSO never copying provenance.py into the Space at all, so no change to that module could ever have reached production \u2014 that copy is added too (same defect class as D2). Verified by execution in a simulated Space layout with no .git and an empty PATH: gitCommit goes from null ('FileNotFoundError: ... git') to the exact pinned SHA, while dirty stays null because it cannot be checked after the fact. Two regressions checked: a real checkout still uses live git and still reports dirty=true, and an empty GIT_COMMIT still yields null with a reason rather than a fabricated SHA. NOT verified against the live hosted API \u2014 that needs a push to main, which this routine does not do."
+      "fixNote": "Fixed in two places, because the runtime lookup cannot work in the image: provenance.git_info() now falls back to a GIT_COMMIT file written next to the module, and deploy-hf-space.yml writes that file from the SHA it is pushing. The same workflow was ALSO never copying provenance.py into the Space at all, so no change to that module could ever have reached production — that copy is added too (same defect class as D2). Verified by execution in a simulated Space layout with no .git and an empty PATH: gitCommit goes from null ('FileNotFoundError: ... git') to the exact pinned SHA, while dirty stays null because it cannot be checked after the fact. Two regressions checked: a real checkout still uses live git and still reports dirty=true, and an empty GIT_COMMIT still yields null with a reason rather than a fabricated SHA. NOT verified against the live hosted API — that needs a push to main, which this routine does not do."
     },
     {
       "id": "D4",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "mace-api/main.py returns HTTP 500 instead of 400 for a rejected calculationType, so the hosted FastAPI path reports a server fault for what is correct input validation. The refusal itself works; only the status is wrong.",
       "where": "mace-api/main.py",
       "verify": false,
       "howToVerify": "POST {'calculationType':'phonon'} to the running FastAPI and read the status code.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "Refusals raise ContractError with an HTTP status; FastAPI maps it (400/403/413/422/429). Verified in-process with TestClient and in CI docker-smoke."
     },
     {
       "id": "D5",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Geometry-opt trajectories contain a duplicated frame 0 with off-by-one step labels, so the result message and the trajectory it ships contradict each other.",
       "where": "mace-api/calculate.py _run_geometry_opt",
-      "verify": true,
+      "verify": false,
       "howToVerify": "Run a geometry-opt and compare len(trajectory) against the step count in result.message.",
-      "source": "audit finding 6"
+      "source": "audit finding 6",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "The manual record_opt_step() before run() is gone: ASE's Dynamics.irun already calls observers at nsteps == 0. Labels are opt.nsteps. Regression test: test_science_regressions.py::test_d5_geometry_opt_records_each_step_once."
     },
     {
       "id": "D6",
       "severity": "MEDIUM",
-      "status": "open",
-      "what": "Upstream computes stress on every call and SimpleAtom discards it; properties.pressure is declared in the type and never populated. Materials Project shows a unit on every value it prints \u2014 a declared field that is always null is the opposite of that.",
+      "status": "fixed",
+      "what": "Upstream computes stress on every call and SimpleAtom discards it; properties.pressure is declared in the type and never populated. Materials Project shows a unit on every value it prints — a declared field that is always null is the opposite of that.",
       "where": "mace-api/calculate.py, types/mace.ts",
-      "verify": true,
+      "verify": false,
       "howToVerify": "Run a periodic single-point and read properties.pressure.",
-      "source": "audit finding 10"
+      "source": "audit finding 10",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "properties.stress (Voigt, GPa) and properties.pressure (GPa, -trace/3) for fully periodic cells only; null otherwise (a molecule's 'volume' is the neighbour list's padding box; upstream #1684). Silicon at the CIF lattice under MPA-0: +1.81 GPa."
     },
     {
       "id": "D7",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "lattice and properties.volume are declared non-nullable in TypeScript but the backend sends null for both on non-periodic systems. The type asserts something the API does not guarantee.",
       "where": "types/mace.ts, mace-api/calculate.py",
       "verify": false,
       "howToVerify": "Run a molecule (non-periodic) and read lattice and properties.volume against their declared types.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "47080b8",
+      "fixedOn": "2026-10-20",
+      "fixNote": "types/mace.ts: lattice and properties.volume are `| null`; phantom density and status 'timeout' removed."
     },
     {
       "id": "D8",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "ASE's get_temperature() divides by 3N even with centre-of-mass momentum pinned, so reported MD temperature reads about 11 percent low for a 9-atom molecule. The MD chart shows it as-is, with no note.",
       "where": "mace-api/calculate.py MD path, components/calculate/trajectory/",
       "verify": false,
       "howToVerify": "Run NVT at 300 K on ethanol and read the plateau temperature off the chart.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "Temperatures are computed over the ensemble's degrees of freedom (3N for NVT, 3N-3 for NVE/NPT), recorded as params.temperatureDegreesOfFreedom. See D18 for the larger NVT error found while verifying this."
     },
     {
       "id": "D9",
       "severity": "MEDIUM",
       "status": "open",
-      "what": "The force-arrow scale silently differs between models \u2014 0.82 vs 1.0 A per eV/A on the same geometry \u2014 so two results for one molecule render non-comparable arrow lengths with no indication of the change.",
+      "what": "The force-arrow scale silently differs between models — 0.82 vs 1.0 A per eV/A on the same geometry — so two results for one molecule render non-comparable arrow lengths with no indication of the change.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Render the same structure under MACE-MP-0 and MACE-OFF and measure arrow length per unit force.",
@@ -115,14 +130,14 @@
       "what": "Force arrows are drawn for hidden C-H hydrogens, leaving arrows with no visible atom at their base.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": true,
-      "howToVerify": "Toggle Hide C-H with force vectors on and look for orphaned arrows. Commit 9e1dca0 touched exactly this area \u2014 check it first.",
+      "howToVerify": "Toggle Hide C-H with force vectors on and look for orphaned arrows. Commit 9e1dca0 touched exactly this area — check it first.",
       "source": "CONTINUE.md"
     },
     {
       "id": "D12",
       "severity": "LOW",
       "status": "open",
-      "what": "components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present \u2014 the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.",
+      "what": "components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present — the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.",
       "where": "components/ui/card.tsx",
       "verify": false,
       "howToVerify": "Render a CardHeader with two children and no CardAction at 375px.",
@@ -132,7 +147,7 @@
       "id": "D13",
       "severity": "LOW",
       "status": "open",
-      "what": "The green selection shell in the viewer is nearly invisible \u2014 delta-G of only +2 while R and B drop 13.",
+      "what": "The green selection shell in the viewer is nearly invisible — delta-G of only +2 while R and B drop 13.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Select an atom, screenshot, and sample the shell pixel against the unselected atom.",
@@ -141,12 +156,15 @@
     {
       "id": "D14",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Installed mace-torch is 0.3.15 while the reference-conformance bar is pinned at ACEsuit/mace v0.3.16, so conformance findings are being judged against a version the local environment is not running.",
       "where": "requirements.txt, local env",
       "verify": false,
       "howToVerify": "python3 -c \"import mace; print(mace.__version__)\" against the bar's pinned tag.",
-      "source": "found 2026-09-11"
+      "source": "found 2026-09-11",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "Pinned mace-torch==0.3.16 (hashed lock). Verified under 0.3.16 in an isolated venv: golden energies bit-identical, 40 provenance tests, validator --test, science regressions incl. translation invariance."
     },
     {
       "id": "D15",
@@ -157,6 +175,112 @@
       "verify": true,
       "howToVerify": "Read the audit and confirm which findings are still live against current code.",
       "source": "CONTINUE.md reference-conformance piece"
+    },
+    {
+      "id": "D16",
+      "severity": "MEDIUM",
+      "status": "fixed",
+      "what": "ase.io.read() with no index returns the LAST frame of a multi-frame file while the UI previews the first, so a trajectory upload was computed on a geometry the user never saw.",
+      "where": "mace-api/calculate.py",
+      "verify": false,
+      "source": "audit 2026-10-20",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "read(..., index=0). Test: test_d16_multiframe_file_computes_the_first_frame."
+    },
+    {
+      "id": "D17",
+      "severity": "MEDIUM",
+      "status": "fixed",
+      "what": "NPT used pfactor = 75*units.fs**2, omitting the bulk modulus ASE's docs require (ptime^2 * B): a barostat ~47x softer than intended.",
+      "where": "mace-api/calculate.py _run_md",
+      "verify": false,
+      "source": "audit 2026-10-20",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "MelchionnaNPT with pfactor = (75 fs)^2 * 100 GPa; barostat settings recorded in params."
+    },
+    {
+      "id": "D18",
+      "severity": "HIGH",
+      "status": "fixed",
+      "what": "ASE's default Langevin(fixcm=True) subtracts the random kick's centre-of-mass part as P/(m_i N) per atom and rescales by sqrt(N/(N-1)), exact only for equal masses. NVT ethanol (MACE-OFF small, 300 K target, 2 ps) equilibrated at 417 K over 3N-3 DOF: every NVT run on a mixed-mass molecule ran ~39% hot.",
+      "where": "mace-api/calculate.py _run_md",
+      "verify": false,
+      "source": "found by execution 2026-10-20 while verifying D8",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "Langevin(fixcm=False): 298.8 K. Isolated with plain ASE (independent of dtype and timestep) and a Bussi control. Test: test_d18_nvt_equilibrates_at_the_target_temperature. Worth reporting to ASE."
+    },
+    {
+      "id": "D19",
+      "severity": "CRITICAL",
+      "status": "fixed",
+      "what": "Untrusted checkpoint deserialisation: a process-wide torch.load(weights_only=False) patch plus public custom .model uploads, and modelSize passed unvalidated to upstream loaders that download and unpickle any URL or path.",
+      "where": "mace-api/main.py, calculate_local.py, calculate.py",
+      "verify": false,
+      "source": "audit 2026-10-20 (S3, S3b)",
+      "fixedIn": "9e8e17c",
+      "fixedOn": "2026-10-20",
+      "fixNote": "safe_load.trusted_checkpoints(): SHA-256 allow-list from contract.json, explicit weights_only everywhere else; sizes are an allow-list; custom models refused on hosted. Planted-pickle test: its payload never runs."
+    },
+    {
+      "id": "D20",
+      "severity": "CRITICAL",
+      "status": "fixed",
+      "what": "Local mode joined the client's multipart filename into the temp path, so a filename like ../../x.xyz wrote outside the temp directory.",
+      "where": "app/api/calculate/route.ts, app/api/benchmark/route.ts",
+      "verify": false,
+      "source": "audit 2026-10-20 (S2)",
+      "fixedIn": "47080b8",
+      "fixedOn": "2026-10-20",
+      "fixNote": "Server-chosen names (lib/server/backend.ts). test/backend.test.ts."
+    },
+    {
+      "id": "D21",
+      "severity": "CRITICAL",
+      "status": "fixed",
+      "what": "next@16.1.6 carried a critical advisory (request smuggling in rewrites) and DoS advisories; 27 npm advisories in total.",
+      "where": "package.json",
+      "verify": false,
+      "source": "audit 2026-10-20 (S1)",
+      "fixedIn": "47080b8",
+      "fixedOn": "2026-10-20",
+      "fixNote": "next 16.4.2 et al.; 0 advisories in production dependencies (CI: npm audit --omit=dev --audit-level=high)."
+    },
+    {
+      "id": "D22",
+      "severity": "HIGH",
+      "status": "fixed",
+      "what": "No resource bounds anywhere (steps, atoms, uploads, SMILES, benchmark size, wall time); every calculation one blocking request with fabricated progress and no cancel.",
+      "where": "mace-api/, app/api/",
+      "verify": false,
+      "source": "audit 2026-10-20 (S4, A1)",
+      "fixedIn": "358b66e",
+      "fixedOn": "2026-10-20",
+      "fixNote": "contract.json profiles + jobs (submit / real progress / cancel)."
+    },
+    {
+      "id": "D23",
+      "severity": "HIGH",
+      "status": "open",
+      "what": "MACE Link appears down in production: the README's showcase link renders 'Result not found' and the Supabase host in .env.local no longer resolves. Code now distinguishes an outage from a missing row, but the project itself must be restored or recreated.",
+      "where": "Supabase project (outside the repo)",
+      "verify": true,
+      "howToVerify": "Open the Supabase dashboard; then load /r/gK7tabOE on production.",
+      "source": "audit 2026-10-20 (R1)"
+    },
+    {
+      "id": "D24",
+      "severity": "HIGH",
+      "status": "fixed",
+      "what": "The MACE Link table was world-listable and world-insertable from the browser with the anon key.",
+      "where": "lib/share.ts",
+      "verify": false,
+      "source": "audit 2026-10-20 (S5)",
+      "fixedIn": "358b66e",
+      "fixedOn": "2026-10-20",
+      "fixNote": "POST /api/share validates; storage server-only; supabase/migrations/0003_lockdown.sql removes anon access once SUPABASE_SERVICE_ROLE_KEY is set (user action)."
     }
   ]
 }

@@ -1,3 +1,5 @@
+> **Superseded snapshot.** Written 2026-08-09 against the code at that time; many findings are fixed. Current state: [docs/audits/2026-10-20.md](../audits/2026-10-20.md) and `docs/v2/defects.json`.
+
 # Audit — SimpleAtom v2.0 vs. ACEsuit/mace
 
 Performed 2026-08-09 against `docs/v2/bars/acesuit-mace.md`. Upstream read at tag **v0.3.16**;
