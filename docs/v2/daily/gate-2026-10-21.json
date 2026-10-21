@@ -1,10 +1,10 @@
 {
   "date": "2026-10-21",
-  "ranAt": "2026-10-21T04:41:03+00:00",
+  "ranAt": "2026-10-21T18:20:48+00:00",
   "repo": {
     "branch": "v2.2",
-    "head": "fe95471",
-    "dirty": true
+    "head": "e27cd24",
+    "dirty": false
   },
   "score": {
     "won": 4,
@@ -80,23 +80,11 @@
     },
     {
       "kind": "DEFECT",
-      "item": "D9 MEDIUM  The force-arrow scale silently differs between models \u2014 0.82 vs 1.0 A per eV/A on the same geometry \u2014 so two results for one molecule render non-comparable arrow lengths with no indication of the change.  [components/calculate/molecule-viewer-3d.tsx]"
-    },
-    {
-      "kind": "DEFECT",
-      "item": "D11 LOW  Force arrows are drawn for hidden C-H hydrogens, leaving arrows with no visible atom at their base.  [components/calculate/molecule-viewer-3d.tsx]"
-    },
-    {
-      "kind": "DEFECT",
-      "item": "D13 LOW  The green selection shell in the viewer is nearly invisible \u2014 delta-G of only +2 while R and B drop 13.  [components/calculate/molecule-viewer-3d.tsx]"
-    },
-    {
-      "kind": "DEFECT",
       "item": "D15 LOW  Audit findings 6, 9 and 12 from docs/v2/audit-vs-acesuit.md were never closed out. Findings 7, 10 and 11 are recorded as done.  [docs/v2/audit-vs-acesuit.md]"
     },
     {
       "kind": "LOSING",
-      "item": "viewer-chrome r3 vs Rowan viewer embed  gap: REGRESSION I shipped: Hide C-H now scales the molecule UP 1.44x and CLIPS at both canvas edges (bbox 0 to 1327 on a 1328px canvas). It previ"
+      "item": "viewer-chrome r3 vs Rowan viewer embed  gap: Hide C-H regression fixed in 5985bee: the fit, spin sweep and arrow ceiling now include hidden atoms, so Hide C-H changes px/A by 0.0% (was "
     },
     {
       "kind": "LOSING",
