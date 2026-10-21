@@ -1,7 +1,7 @@
 {
   "version": "2.0.0-dev",
   "branch": "v2.1",
-  "updated": "2026-09-11T18:16:59.059Z",
+  "updated": "2026-09-15",
   "bars": [
     {
       "name": "Rowan",
@@ -316,6 +316,19 @@
       "sev": "MEDIUM",
       "what": "result.params reported requested rather than effective values for dispersion and precision",
       "where": "mace-api/calculate.py"
+    },
+    {
+      "sev": "CRITICAL",
+      "what": "The foundation-model comparison picked its baseline by substring-matching the uploaded FILENAME for 'off'/'organic', so a periodic crystal named offcut.cif was compared against MACE-OFF across two incompatible energy conventions. Now chosen from the parsed structure (periodicity + MACE-OFF element domain): 3 of 5 test structures picked the wrong baseline before, 0 of 5 after.",
+      "where": "app/calculate/page.tsx, lib/model-domain.ts",
+      "fixedIn": "2698662"
+    },
+    {
+      "sev": "HIGH",
+      "what": "Hosted API never had the scientific validator: Dockerfile build context is mace-api/ alone, so validate_calculation.py was unreachable and every live result reported validation.status unavailable",
+      "where": ".github/workflows/deploy-hf-space.yml",
+      "fixedIn": "1b279ed",
+      "fixedOn": "2026-09-12"
     }
   ]
 }

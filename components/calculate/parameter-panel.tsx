@@ -23,6 +23,7 @@
 import { useEffect, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
+import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import {
   Card,
   CardContent,
@@ -108,13 +109,6 @@ const CALC_TYPES: CalcTypeOption[] = [
  * honouring an explicit request. Never send this string.
  */
 const PRECISION_AUTO = "auto";
-
-/** Elements MACE-OFF was trained on (organic chemistry space only). Per
- * CLAUDE.md's Model Selection rules; used to warn when a loaded structure
- * falls outside MACE-OFF's domain. */
-const MACE_OFF_ELEMENTS = new Set([
-  "H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I",
-]);
 
 export function ParameterPanel({
   params,

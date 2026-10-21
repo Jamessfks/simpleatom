@@ -27,6 +27,7 @@ import {
 } from "@/lib/parse-structure";
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
+import { foundationModelFor } from "@/lib/model-domain";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
 import { Button } from "@/components/ui/button";
@@ -381,16 +382,13 @@ function CalculatePageInner() {
     useCallback(async (): Promise<CalculationResult | null> => {
       if (uploadedFiles.length === 0) return null;
 
-      const nameHint = (
-        params.customModelName ||
-        customModelFile?.name ||
-        ""
-      ).toLowerCase();
-      const isOFF = nameHint.includes("off") || nameHint.includes("organic");
-
+      // Picked from the parsed structure, never from the uploaded FILENAME:
+      // a periodic crystal can be named "offcut.cif", and matching that name
+      // against "off" used to send it to MACE-OFF, crossing two incompatible
+      // energy conventions and printing a meaningless deltaE.
       const foundationParams: CalculationParams = {
         ...params,
-        modelType: isOFF ? "MACE-OFF" : "MACE-MP-0",
+        modelType: foundationModelFor(parsedStructure),
       };
 
       const formData = new FormData();
@@ -408,7 +406,7 @@ function CalculatePageInner() {
       }
 
       return response.json();
-    }, [uploadedFiles, params, customModelFile]);
+    }, [uploadedFiles, params, parsedStructure]);
 
   const handleCalculate = async () => {
     // Same gate as the Run button, restated here so the check cannot be

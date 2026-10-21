@@ -1,36 +1,42 @@
 {
-  "note": "Open defect backlog, machine-readable so test_scripts/daily_gate.py can order the day's queue. Extracted 2026-09-11 from the 'Known defects, deliberately unfixed' section of docs/v2/CONTINUE.md, which was last written at 9efa649 and is six commits stale. Anything marked verify:true may already be fixed by 9187abc, 88aa676, bdfb7af, 63d5b70 or 9e1dca0 — confirm by execution before working it, and close it here if it is gone. Set status to 'fixed' with the commit, never delete the row.",
+  "note": "Open defect backlog, machine-readable so test_scripts/daily_gate.py can order the day's queue. Extracted 2026-09-11 from the 'Known defects, deliberately unfixed' section of docs/v2/CONTINUE.md, which was last written at 9efa649 and is six commits stale. Anything marked verify:true may already be fixed by 9187abc, 88aa676, bdfb7af, 63d5b70 or 9e1dca0 \u2014 confirm by execution before working it, and close it here if it is gone. Set status to 'fixed' with the commit, never delete the row.",
   "updated": "2026-09-11",
   "defects": [
     {
       "id": "D1",
       "severity": "CRITICAL",
-      "status": "open",
+      "status": "fixed",
       "what": "The foundation-model comparison picks its baseline by substring-matching the uploaded FILENAME for 'off'/'organic', so a periodic crystal named e.g. offcut.cif is compared against MACE-OFF. That crosses two incompatible energy conventions (-1..-15 vs -100..-600 eV/atom) and the delta it prints is meaningless.",
       "where": "app/calculate/page.tsx ~259",
       "verify": false,
-      "howToVerify": "Load a periodic structure from a file whose name contains 'off' and read which baseline the comparison chose.",
-      "source": "audit finding 8"
+      "howToVerify": "Parse a periodic structure from a file whose name contains 'off' (e.g. public/demo/silicon.cif renamed offcut.cif) and check foundationModelFor() in lib/model-domain.ts returns MACE-MP-0. Also check an isolated molecule carrying an element outside MACE_OFF_ELEMENTS (e.g. a C10Fe cluster) returns MACE-MP-0, and that c-diamond.xyz (periodic, C only) returns MACE-MP-0.",
+      "source": "audit finding 8",
+      "fixedIn": "2698662",
+      "fixedOn": "2026-09-11"
     },
     {
       "id": "D2",
       "severity": "HIGH",
-      "status": "open",
-      "what": "The validator is absent from the deployed container: mace-api/Dockerfile's build context is mace-api/, so `COPY . .` cannot reach ../test_scripts/. Hosted results report validation.status 'unavailable' — degrading correctly, but degraded. The live site runs without the scientific gate the repo advertises.",
+      "status": "fixed",
+      "what": "The validator is absent from the deployed container: mace-api/Dockerfile's build context is mace-api/, so `COPY . .` cannot reach ../test_scripts/. Hosted results report validation.status 'unavailable' \u2014 degrading correctly, but degraded. The live site runs without the scientific gate the repo advertises.",
       "where": "mace-api/Dockerfile",
       "verify": false,
       "howToVerify": "Run a calculation against the hosted API and read result.validation.status.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "1b279ed",
+      "fixedOn": "2026-09-12",
+      "fixNote": "Dockerfile's build context can't be changed without restructuring the whole deploy (HF Space root = mace-api/ contents copied flat by .github/workflows/deploy-hf-space.yml). Fixed at the deploy step instead: that workflow now also copies test_scripts/validate_calculation.py into the Space root, which is exactly the sibling path calculate.py's _load_validator() already checks as its second candidate. Verified locally by simulating the flat HF Space layout (calculate.py + provenance.py + validate_calculation.py in one dir): _load_validator() goes from (None, 'not found') to a loaded module. Not verified against the live hosted API since that requires a push to main, which this routine does not do."
     },
     {
       "id": "D3",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "code.gitCommit is null in the deployed container because there is no .git in the image, so the live provenance manifest cannot pin the code that produced a result. NOMAD stamps nomad_version and nomad_commit into every public entry at build time; SimpleAtom only manages it locally.",
       "where": "mace-api/provenance.py git_info(), mace-api/Dockerfile",
       "verify": false,
       "howToVerify": "Read provenance.code.gitCommit on a result from the hosted API. Fix by baking the SHA in as a build arg.",
-      "source": "found 2026-09-11 against the NOMAD bar"
+      "source": "found 2026-09-11 against the NOMAD bar",
+      "fixNote": "Fixed in two places, because the runtime lookup cannot work in the image: provenance.git_info() now falls back to a GIT_COMMIT file written next to the module, and deploy-hf-space.yml writes that file from the SHA it is pushing. The same workflow was ALSO never copying provenance.py into the Space at all, so no change to that module could ever have reached production \u2014 that copy is added too (same defect class as D2). Verified by execution in a simulated Space layout with no .git and an empty PATH: gitCommit goes from null ('FileNotFoundError: ... git') to the exact pinned SHA, while dirty stays null because it cannot be checked after the fact. Two regressions checked: a real checkout still uses live git and still reports dirty=true, and an empty GIT_COMMIT still yields null with a reason rather than a fabricated SHA. NOT verified against the live hosted API \u2014 that needs a push to main, which this routine does not do."
     },
     {
       "id": "D4",
@@ -56,7 +62,7 @@
       "id": "D6",
       "severity": "MEDIUM",
       "status": "open",
-      "what": "Upstream computes stress on every call and SimpleAtom discards it; properties.pressure is declared in the type and never populated. Materials Project shows a unit on every value it prints — a declared field that is always null is the opposite of that.",
+      "what": "Upstream computes stress on every call and SimpleAtom discards it; properties.pressure is declared in the type and never populated. Materials Project shows a unit on every value it prints \u2014 a declared field that is always null is the opposite of that.",
       "where": "mace-api/calculate.py, types/mace.ts",
       "verify": true,
       "howToVerify": "Run a periodic single-point and read properties.pressure.",
@@ -86,7 +92,7 @@
       "id": "D9",
       "severity": "MEDIUM",
       "status": "open",
-      "what": "The force-arrow scale silently differs between models — 0.82 vs 1.0 A per eV/A on the same geometry — so two results for one molecule render non-comparable arrow lengths with no indication of the change.",
+      "what": "The force-arrow scale silently differs between models \u2014 0.82 vs 1.0 A per eV/A on the same geometry \u2014 so two results for one molecule render non-comparable arrow lengths with no indication of the change.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Render the same structure under MACE-MP-0 and MACE-OFF and measure arrow length per unit force.",
@@ -109,14 +115,14 @@
       "what": "Force arrows are drawn for hidden C-H hydrogens, leaving arrows with no visible atom at their base.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": true,
-      "howToVerify": "Toggle Hide C-H with force vectors on and look for orphaned arrows. Commit 9e1dca0 touched exactly this area — check it first.",
+      "howToVerify": "Toggle Hide C-H with force vectors on and look for orphaned arrows. Commit 9e1dca0 touched exactly this area \u2014 check it first.",
       "source": "CONTINUE.md"
     },
     {
       "id": "D12",
       "severity": "LOW",
       "status": "open",
-      "what": "components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present — the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.",
+      "what": "components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present \u2014 the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.",
       "where": "components/ui/card.tsx",
       "verify": false,
       "howToVerify": "Render a CardHeader with two children and no CardAction at 375px.",
@@ -126,7 +132,7 @@
       "id": "D13",
       "severity": "LOW",
       "status": "open",
-      "what": "The green selection shell in the viewer is nearly invisible — delta-G of only +2 while R and B drop 13.",
+      "what": "The green selection shell in the viewer is nearly invisible \u2014 delta-G of only +2 while R and B drop 13.",
       "where": "components/calculate/molecule-viewer-3d.tsx",
       "verify": false,
       "howToVerify": "Select an atom, screenshot, and sample the shell pixel against the unselected atom.",

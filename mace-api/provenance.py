@@ -316,6 +316,24 @@ def structure_sha256(atoms) -> tuple[str | None, str | None]:
 _GIT_INFO: dict | None = None
 
 
+def _pinned_commit() -> str | None:
+    """
+    Fallback for containers that have no git checkout at all.
+
+    The deploy step (.github/workflows/deploy-hf-space.yml) resolves the SHA
+    it is pushing and writes it into this plain file next to the module,
+    since the deployed image has neither a `.git` directory nor a `git`
+    binary. A file written at deploy time still names the exact commit that
+    was pushed, so this is not a fabrication — it just moves *when* the SHA
+    is captured from "container runtime" to "deploy time".
+    """
+    try:
+        sha = (Path(__file__).resolve().parent / "GIT_COMMIT").read_text().strip()
+    except OSError:
+        return None
+    return sha or None
+
+
 def git_info() -> dict:
     """
     Commit of the checkout this backend is running from.
@@ -323,8 +341,10 @@ def git_info() -> dict:
     `dirty` is reported alongside, because a commit SHA taken from a modified
     working tree names code that was never run. When the dirty state cannot be
     determined it is null, not False — an unchecked tree is not a clean tree.
-    Deployed containers usually have no `.git`, and that reads as null with a
-    reason rather than as an error. Resolved once per process.
+    Deployed containers have no `.git` and no `git` binary; when the live git
+    lookup is unavailable, `_pinned_commit()` supplies a SHA baked in at
+    deploy time instead, and `dirty` stays null because that can't be
+    checked after the fact. Resolved once per process.
     """
     global _GIT_INFO
     if _GIT_INFO is not None:
@@ -345,19 +365,23 @@ def git_info() -> dict:
             info["unavailableReason"] = (
                 (head.stderr or "git rev-parse HEAD failed").strip().splitlines()[0]
             )
-            _GIT_INFO = info
-            return dict(info)
-        info["commit"] = head.stdout.strip() or None
-
-        # Tracked files only: untracked files (node_modules, caches, editor
-        # scratch) are not part of what ran and would make every checkout dirty.
-        status = run(["status", "--porcelain", "--untracked-files=no"])
-        if status.returncode == 0:
-            info["dirty"] = bool(status.stdout.strip())
         else:
-            info["unavailableReason"] = "dirty state could not be determined"
+            info["commit"] = head.stdout.strip() or None
+
+            # Tracked files only: untracked files (node_modules, caches, editor
+            # scratch) are not part of what ran and would make every checkout dirty.
+            status = run(["status", "--porcelain", "--untracked-files=no"])
+            if status.returncode == 0:
+                info["dirty"] = bool(status.stdout.strip())
+            else:
+                info["unavailableReason"] = "dirty state could not be determined"
     except Exception as exc:  # noqa: BLE001 — includes git-not-installed, timeout
         info["unavailableReason"] = f"{type(exc).__name__}: {exc}"
+
+    if info["commit"] is None:
+        pinned = _pinned_commit()
+        if pinned is not None:
+            info = {"commit": pinned, "dirty": None, "unavailableReason": None}
 
     _GIT_INFO = info
     return dict(info)
