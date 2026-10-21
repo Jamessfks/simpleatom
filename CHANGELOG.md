@@ -48,6 +48,8 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
   - Nothing is smaller than 12 px. Text, control borders and the focus ring meet WCAG AA.
   - Controls have 44 px hit areas on phones and touch screens, and there is a skip link.
   - The benchmark list shows every structure instead of a hidden scroll region.
+  - Colour tokens are Tailwind utilities (`text-text-muted`, `bg-accent-soft`); 933 one-off
+    `[var(--color-…)]` classes were replaced with no visible change (pixel-diffed).
 
 ### Fixed
 - **NVT molecular dynamics ran ~39% hot for molecules with mixed masses**: ASE's default
@@ -70,6 +72,13 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
 - At phone width, the Precision select ran under the Device select, and the result tabs and
   export buttons pushed the page sideways. Info icons could not be opened by touch.
 - Primary buttons lightened on hover to 4.3:1 contrast. They now darken instead (7.1:1).
+- 3D viewer:
+  - Each model got its own silent force-arrow scale: MACE-OFF drew larger forces with shorter
+    arrows than MACE-MP-0 on the same molecule. The scale now depends only on the geometry, and
+    the legend says when a small screen shortens it (D9).
+  - Hide C–H re-zoomed the molecule by 1.41×; the frame now stays put.
+  - The selected atom's highlight was nearly invisible; it is drawn in solid green (D13).
+- With a result loaded, the shared-result page was 724 px wide on a 375 px phone; it now fits.
 - From `daily`: the comparison baseline is chosen from the structure, not the filename (D1); the
   validator and the git commit now reach the deployed container (D2, D3).
 
@@ -77,7 +86,8 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
 - CI on every push and pull request (typecheck, lint baseline, unit tests, build, audit,
   validator, provenance, science regressions, a Docker smoke test); the Space deploys only from
   CI ([ADR-0026](docs/adr/0026-ci-gates-every-merge.md)).
-- 30 architecture decision records ([docs/adr](docs/adr/README.md)), restructured contributor
+- 31 architecture decision records ([docs/adr](docs/adr/README.md)), including ADR-0030 (stay on
+  mace-torch 0.3.x until a released v1.0 passes an engine-parity gate), restructured contributor
   docs, CONTRIBUTING, SECURITY, CITATION, THIRD-PARTY-NOTICES.
 - Error pages, per-page titles, lazy-loaded PDF engine and 3D viewers.
 
