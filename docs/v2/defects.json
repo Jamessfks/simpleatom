@@ -1,6 +1,6 @@
 {
   "note": "Open defect backlog, machine-readable so test_scripts/daily_gate.py can order the day's queue. Extracted 2026-09-11 from the 'Known defects, deliberately unfixed' section of docs/v2/CONTINUE.md, which was last written at 9efa649 and is six commits stale. Anything marked verify:true may already be fixed by 9187abc, 88aa676, bdfb7af, 63d5b70 or 9e1dca0 — confirm by execution before working it, and close it here if it is gone. Set status to 'fixed' with the commit, never delete the row.",
-  "updated": "2026-10-20",
+  "updated": "2026-10-21",
   "defects": [
     {
       "id": "D1",
@@ -116,12 +116,15 @@
     {
       "id": "D10",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "21 interactive targets are under 44x44 and nav links are 17px tall, so the site fails the platform minimum touch target on mobile. Partly addressed inside the viewer; unaddressed elsewhere.",
       "where": "site-wide; components/site-header.tsx",
       "verify": true,
       "howToVerify": "Measure every interactive element's bounding box at 375px in the browser pane.",
-      "source": "CONTINUE.md mobile piece"
+      "source": "CONTINUE.md mobile piece",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "touch-target utility for icon controls; max-sm:/pointer-coarse: 44 px minimums in Button, Select, Input, Tabs; header/footer links. Hit test (9 points over a >=44x44 box) at 375 px: 0 failures on calculator, results, benchmark, shared result. Remaining by design: inline links in sentences (WCAG 2.5.8 exception); viewer toolbar is 32 px on fine pointers and 44 px on coarse (it sizes on the pointer); /docs sidebar not in this round's scope."
     },
     {
       "id": "D11",
@@ -136,12 +139,15 @@
     {
       "id": "D12",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present — the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.",
       "where": "components/ui/card.tsx",
       "verify": false,
       "howToVerify": "Render a CardHeader with two children and no CardAction at 375px.",
-      "source": "CONTINUE.md"
+      "source": "CONTINUE.md",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "CardHeader carries grid-cols-1 explicitly."
     },
     {
       "id": "D13",
@@ -281,6 +287,66 @@
       "fixedIn": "358b66e",
       "fixedOn": "2026-10-20",
       "fixNote": "POST /api/share validates; storage server-only; supabase/migrations/0003_lockdown.sql removes anon access once SUPABASE_SERVICE_ROLE_KEY is set (user action)."
+    },
+    {
+      "id": "D25",
+      "severity": "MEDIUM",
+      "status": "fixed",
+      "what": "The footer lost its max-width on every server-rendered page (/, /docs, /r/*, 404s) and ran edge to edge while the header stayed centred. CHROME_WIDTH_CLASS was exported from the 'use client' site-header module, and a server component importing a value from a client module receives a client reference, not the string. Live in production on 2026-10-21 (footer inner left 0 px vs header 73-80 px at 1440).",
+      "where": "components/site-footer.tsx, components/site-header.tsx",
+      "verify": false,
+      "source": "design review 2026-10-21",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Constant moved to lib/chrome.ts (no 'use client'); measured aligned on /, /docs and /r/abc12345."
+    },
+    {
+      "id": "D26",
+      "severity": "MEDIUM",
+      "status": "fixed",
+      "what": "The validator reported energy per atom with the unit eV instead of eV/atom on every result, and its force thresholds were unitless. Breaks the results-units-inline criterion.",
+      "where": "test_scripts/validate_calculation.py",
+      "verify": false,
+      "source": "design review 2026-10-21",
+      "fixedIn": "c4a64b6",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Messages only; validator --test all_passed, provenance 40 OK."
+    },
+    {
+      "id": "D27",
+      "severity": "MEDIUM",
+      "status": "fixed",
+      "what": "At 375 px the Precision select (w-fit, 254 px) ran underneath the Device select in a 130 px grid column, and after a run the result tabs and the export row widened the page to 572 px.",
+      "where": "components/calculate/parameter-panel.tsx, components/calculate/metrics-dashboard.tsx",
+      "verify": false,
+      "source": "verify-ui 2026-10-21",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Grid stacks below sm, selects fill their column; tabs and exports wrap. scrollWidth equals clientWidth on every app screen at 375."
+    },
+    {
+      "id": "D28",
+      "severity": "LOW",
+      "status": "fixed",
+      "what": "Info icons used Radix Tooltip, which ignores touch, so explanations such as the D3 double-counting note were unreachable on phones.",
+      "where": "components/calculate/parameter-panel.tsx",
+      "verify": false,
+      "source": "verify-ui 2026-10-21",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Controlled tooltip that also opens on click/tap."
+    },
+    {
+      "id": "D29",
+      "severity": "LOW",
+      "status": "fixed",
+      "what": "Primary buttons lightened on hover (bg-primary/90), leaving white text at 4.28:1, below AA.",
+      "where": "components/ui/button.tsx",
+      "verify": false,
+      "source": "contrast scan 2026-10-21",
+      "fixedIn": "6b754a4",
+      "fixedOn": "2026-10-21",
+      "fixNote": "Hover uses --color-accent-hover #2E6533 (7.1:1)."
     }
   ]
 }
