@@ -11,6 +11,7 @@ Returns JSON with validation status, warnings, and errors.
 """
 
 import json
+from pathlib import Path
 import sys
 import math
 import warnings
@@ -50,6 +51,32 @@ MIN_INTERATOMIC_DIST = 0.4    # Å (below this = overlapping atoms)
 MAX_INTERATOMIC_DIST = 100.0  # Å (above this = disconnected structure)
 
 
+# Where the model registry lives: next to this file in the flat Hugging Face
+# Space layout, or in mace-api/ in the repository.
+_CONTRACT_CANDIDATES = (
+    Path(__file__).resolve().parent / "contract.json",
+    Path(__file__).resolve().parent.parent / "mace-api" / "contract.json",
+)
+
+
+def _energy_bounds(model_type: str):
+    """(min, max) eV/atom enforced for this model, or (None, None) to skip."""
+    for candidate in _CONTRACT_CANDIDATES:
+        if candidate.is_file():
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+            for model in data["models"]:
+                if model_type == model["id"] or model_type in model["aliases"]:
+                    enforced = data["energyConventions"][model["energyConvention"]]["enforced"]
+                    if enforced is None:
+                        return None, None
+                    return enforced["minEvPerAtom"], enforced["maxEvPerAtom"]
+            break
+    # Registry not shipped alongside, or an unknown model: the historical rule.
+    if model_type in ("MACE-OFF", "MACE-OFF23"):
+        return ENERGY_PER_ATOM_MIN_OFF, ENERGY_PER_ATOM_MAX_OFF
+    return ENERGY_PER_ATOM_MIN_MP, ENERGY_PER_ATOM_MAX_MP
+
+
 def validate_result(result: dict) -> dict:
     """Validate a MACE calculation result for scientific correctness."""
     issues = []
@@ -71,14 +98,17 @@ def validate_result(result: dict) -> dict:
     # Detect model type from params if available
     params = result.get("params", {})
     model_type = params.get("modelType", "unknown")
-    is_off = model_type in ("MACE-OFF", "MACE-OFF23")
 
-    # Select appropriate energy bounds based on model
-    e_min = ENERGY_PER_ATOM_MIN_OFF if is_off else ENERGY_PER_ATOM_MIN_MP
-    e_max = ENERGY_PER_ATOM_MAX_OFF if is_off else ENERGY_PER_ATOM_MAX_MP
+    # Select the energy bounds for this model's reference convention, from the
+    # registry when it can be found (mace-api/contract.json). A custom
+    # checkpoint has no known convention, so its range check is skipped rather
+    # than judged against MACE-MP bounds it never promised to meet.
+    e_min, e_max = _energy_bounds(model_type)
 
     # --- Energy validation ---
-    if energy is not None and symbols:
+    if energy is not None and symbols and e_min is None:
+        info.append(f"Energy range check skipped: no reference convention is known for {model_type}.")
+    elif energy is not None and symbols:
         n_atoms = len(symbols)
         e_per_atom = energy / n_atoms if n_atoms > 0 else 0
 

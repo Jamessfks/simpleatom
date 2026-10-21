@@ -1,0 +1,33 @@
+# SimpleAtom backend — direct dependencies, pinned exactly (docs/adr/0025).
+#
+# The science stack is pinned with ==, never >= or ~=: upstream MACE v1.0 is a
+# rewrite with no code or checkpoint compatibility (ACEsuit/mace #1699, #1715),
+# and an unpinned rebuild of the Space would pull it the day it reaches PyPI.
+# `~=0.3.16` would also admit a 0.3.17 that has not passed this repo's gates.
+#
+# Edit this file, then regenerate the hashed lock the Docker image installs:
+#   uv pip compile mace-api/requirements.in --python-version 3.11 \
+#     --python-platform x86_64-manylinux_2_28 \
+#     --extra-index-url https://download.pytorch.org/whl/cpu \
+#     --index-strategy unsafe-best-match --generate-hashes \
+#     -o mace-api/requirements.lock.txt
+# A mace-torch bump must pass test_scripts/test_translation_invariance.py and
+# the validator before it merges.
+
+torch==2.10.0
+mace-torch==0.3.16
+e3nn==0.4.4
+ase==3.27.0
+numpy==2.4.2
+
+# D3 dispersion backend for the MACE-MP family. NOT a dependency of mace-torch:
+# without it, mace_mp(dispersion=True) raises "Please install torch-dftd to use
+# dispersion corrections" (foundations_models.py:176-180). It pulls in
+# pymatgen at module scope, so --no-deps is not an option.
+torch-dftd==0.5.3
+
+rdkit==2026.3.1
+fastapi==0.135.1
+uvicorn[standard]==0.42.0
+python-multipart==0.0.22
+pydantic==2.12.4

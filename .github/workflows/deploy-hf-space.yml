@@ -1,52 +1,60 @@
 name: Deploy to Hugging Face Space
 
+# The Space is written only by this workflow (docs/adr/0002, 0026). It used to
+# be reachable by hand-pushes too, and for a month production ran code from an
+# unmerged branch; staging from git ls-files + rsync --delete makes the Space
+# exactly the backend at the commit being deployed — no more, no less.
+
 on:
-  push:
-    branches: [main]
-    paths:
-      - "mace-api/**"
-      - "test_scripts/validate_calculation.py"
+  workflow_call:
+    secrets:
+      HF_TOKEN:
+        required: true
+  workflow_dispatch:
+
+concurrency:
+  group: hf-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: hf-production
+    timeout-minutes: 45
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Push mace-api to HF Space
+      - name: Stage the backend
+        run: scripts/stage-hf-space.sh "$RUNNER_TEMP/stage"
+
+      - name: Mirror the staged tree into the Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-
-          # Clone the HF Space repo
-          git clone https://Jamessfks:${HF_TOKEN}@huggingface.co/spaces/Jamessfks/mace-api /tmp/hf-space
-
-          # Copy API files to HF Space root
-          cp mace-api/Dockerfile /tmp/hf-space/
-          cp mace-api/README.md /tmp/hf-space/
-          cp mace-api/calculate.py /tmp/hf-space/
-          cp mace-api/calculate_local.py /tmp/hf-space/
-          cp mace-api/main.py /tmp/hf-space/
-          cp mace-api/provenance.py /tmp/hf-space/
-          cp mace-api/requirements.txt /tmp/hf-space/
-          # calculate.py's _load_validator() looks for this next to itself
-          # (mace-api/ is not a valid build context for ../test_scripts/, so
-          # the validator has to travel here instead — see D2 in defects.json)
-          cp test_scripts/validate_calculation.py /tmp/hf-space/
-
-          # The image has no .git and no git binary, so the SHA cannot be read
-          # at runtime. Pin it here instead — provenance.git_info() reads this
-          # file when the live git lookup fails (D3 in defects.json).
-          git -C $GITHUB_WORKSPACE rev-parse HEAD > /tmp/hf-space/GIT_COMMIT
-
-          # Commit and push
-          cd /tmp/hf-space
+          git clone "https://Jamessfks:${HF_TOKEN}@huggingface.co/spaces/Jamessfks/mace-api" "$RUNNER_TEMP/hf-space"
+          # --delete removes anything the commit does not contain (stale or
+          # hand-pushed modules); the Space's own .git and LFS config stay.
+          rsync -a --delete --exclude .git --exclude .gitattributes "$RUNNER_TEMP/stage/" "$RUNNER_TEMP/hf-space/"
+          cd "$RUNNER_TEMP/hf-space"
           git add -A
-          git diff --staged --quiet && echo "No changes to deploy" && exit 0
-          git commit -m "Auto-deploy from GitHub @ $(git -C $GITHUB_WORKSPACE rev-parse --short HEAD)"
+          if git diff --staged --quiet; then echo "No changes to deploy"; exit 0; fi
+          git commit -m "Auto-deploy from GitHub @ ${GITHUB_SHA::7}"
           git push
+
+      - name: Wait for the Space to serve this commit
+        run: |
+          # The Space rebuilds the image after the push; a deploy only counts
+          # once /health reports the SHA that was pushed (D3).
+          for i in $(seq 1 80); do
+            body=$(curl -fsS -m 10 https://jamessfks-mace-api.hf.space/health || true)
+            echo "attempt $i: $body"
+            if echo "$body" | grep -q "\"gitCommit\":\"${GITHUB_SHA}\""; then
+              echo "Space is serving ${GITHUB_SHA}"; exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::The Space did not report ${GITHUB_SHA} within 40 minutes."
+          exit 1
