@@ -31,21 +31,21 @@ export function SiteFooter() {
   const widthClass = CHROME_WIDTH_CLASS;
 
   return (
-    <footer className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
+    <footer className="border-t border-border-subtle bg-bg-secondary">
       <div className={cn("mx-auto px-6 py-12", widthClass)}>
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand + tagline */}
           <div className="lg:col-span-2">
             <div className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent-strong">
                 <Atom className="h-5 w-5" strokeWidth={1.75} />
               </span>
               <span>
-                <span className="text-[var(--color-text-primary)]">Simple</span>
-                <span className="text-[var(--color-accent-strong)]">Atom</span>
+                <span className="text-text-primary">Simple</span>
+                <span className="text-accent-strong">Atom</span>
               </span>
             </div>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-text-secondary">
               A free, browser-based interface to MACE machine-learning
               interatomic potentials. DFT-trained simulation without the
               installation, command line, or supercomputer.
@@ -54,7 +54,7 @@ export function SiteFooter() {
 
           {/* Product */}
           <div>
-            <h2 className="text-xs font-semibold text-[var(--color-text-muted)]">
+            <h2 className="text-xs font-semibold text-text-muted">
               Product
             </h2>
             <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
@@ -62,7 +62,7 @@ export function SiteFooter() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="flex min-h-11 items-center text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)] sm:inline sm:min-h-0"
+                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong sm:inline sm:min-h-0"
                   >
                     {link.label}
                   </Link>
@@ -73,7 +73,7 @@ export function SiteFooter() {
 
           {/* Resources */}
           <div>
-            <h2 className="text-xs font-semibold text-[var(--color-text-muted)]">
+            <h2 className="text-xs font-semibold text-text-muted">
               Resources
             </h2>
             <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
@@ -83,7 +83,7 @@ export function SiteFooter() {
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-h-11 items-center text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent-strong)] sm:inline sm:min-h-0"
+                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong sm:inline sm:min-h-0"
                   >
                     {link.label}
                   </a>
@@ -94,14 +94,14 @@ export function SiteFooter() {
         </div>
 
         {/* Attribution + release */}
-        <div className="mt-10 flex flex-col gap-4 border-t border-[var(--color-border-subtle)] pt-6 text-xs text-[var(--color-text-muted)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col gap-4 border-t border-border-subtle pt-6 text-xs text-text-muted sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-2xl leading-relaxed">
             Powered by the{" "}
             <a
               href="https://github.com/ACEsuit/mace"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--color-text-secondary)] underline-offset-2 hover:underline"
+              className="text-text-secondary underline-offset-2 hover:underline"
             >
               MACE
             </a>{" "}
@@ -110,7 +110,7 @@ export function SiteFooter() {
               href="https://github.com/Jamessfks/simpleatom"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--color-text-secondary)] underline-offset-2 hover:underline"
+              className="text-text-secondary underline-offset-2 hover:underline"
             >
               Zicheng Zhao
             </a>

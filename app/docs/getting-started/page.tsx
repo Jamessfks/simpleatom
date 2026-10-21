@@ -13,13 +13,13 @@ export default function GettingStartedPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Introduction
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           Getting started
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           The fastest way to run a MACE calculation is the hosted version —
           there is nothing to install. This page also covers running
           SimpleAtom locally, the four ways to provide a structure, and how

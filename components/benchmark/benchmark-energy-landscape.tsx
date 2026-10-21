@@ -55,11 +55,11 @@ export function BenchmarkEnergyLandscape({ result }: EnergyLandscapeProps) {
   }));
 
   return (
-    <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-4">
-      <h3 className="mb-2 font-sans text-sm font-bold text-[var(--color-text-primary)]">
+    <Card className="gap-0 rounded-lg bg-bg-secondary p-4">
+      <h3 className="mb-2 font-sans text-sm font-bold text-text-primary">
         Energy Landscape
       </h3>
-      <p className="mb-3 text-xs text-[var(--color-text-muted)]">
+      <p className="mb-3 text-xs text-text-muted">
         Energy per atom across all structures for each model. Overlapping points indicate model
         agreement; divergence reveals structures where models disagree.
       </p>

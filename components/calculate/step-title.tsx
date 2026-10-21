@@ -10,7 +10,7 @@ export function StepTitle({ step, children }: { step: number; children: React.Re
     <CardTitle className="flex items-center gap-3 font-serif text-xl font-semibold">
       <span
         aria-hidden="true"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] font-sans text-sm font-semibold text-[var(--color-accent-strong)]"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft font-sans text-sm font-semibold text-accent-strong"
       >
         {step}
       </span>

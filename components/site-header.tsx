@@ -62,12 +62,12 @@ export function Wordmark({ className }: { className?: string }) {
       )}
       aria-label="SimpleAtom home"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)] transition-colors group-hover:bg-[var(--color-accent-primary)] group-hover:text-white">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent-strong transition-colors group-hover:bg-accent-primary group-hover:text-white">
         <Atom className="h-5 w-5" strokeWidth={1.75} />
       </span>
       <span>
-        <span className="text-[var(--color-text-primary)]">Simple</span>
-        <span className="text-[var(--color-accent-strong)]">Atom</span>
+        <span className="text-text-primary">Simple</span>
+        <span className="text-accent-strong">Atom</span>
       </span>
     </Link>
   );
@@ -92,7 +92,7 @@ export function SiteHeader() {
   const widthClass = CHROME_WIDTH_CLASS;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-primary/85 backdrop-blur-md">
       <div
         className={cn(
           "mx-auto flex h-16 items-center justify-between px-6",
@@ -114,8 +114,8 @@ export function SiteHeader() {
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]"
-                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]",
+                  ? "bg-accent-soft text-accent-strong"
+                  : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary",
               )}
             >
               {item.label}
@@ -125,7 +125,7 @@ export function SiteHeader() {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-1 rounded-md p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+            className="ml-1 rounded-md p-2 text-text-secondary transition-colors hover:bg-bg-secondary hover:text-text-primary"
             aria-label="View source on GitHub"
           >
             <Github className="h-5 w-5" strokeWidth={1.75} />
@@ -144,7 +144,7 @@ export function SiteHeader() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] md:hidden"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-bg-secondary md:hidden"
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           aria-controls="mobile-menu"
@@ -157,7 +157,7 @@ export function SiteHeader() {
       {open && (
         <nav
           id="mobile-menu"
-          className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] px-6 py-3 md:hidden"
+          className="border-t border-border-subtle bg-bg-primary px-6 py-3 md:hidden"
           aria-label="Primary mobile"
         >
           <ul className="flex flex-col gap-1">
@@ -181,8 +181,8 @@ export function SiteHeader() {
                   className={cn(
                     "flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
                     isActive(item.href)
-                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]",
+                      ? "bg-accent-soft text-accent-strong"
+                      : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary",
                   )}
                 >
                   {item.label}
@@ -194,7 +194,7 @@ export function SiteHeader() {
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+                className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-secondary hover:text-text-primary"
               >
                 <Github className="h-4 w-4" /> GitHub
               </a>

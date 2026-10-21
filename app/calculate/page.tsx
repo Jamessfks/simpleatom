@@ -68,7 +68,7 @@ const KetcherEditor = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-[700px] items-center justify-center">
-        <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+        <div className="flex items-center gap-3 text-text-muted">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="font-mono text-sm">Loading molecular editor…</span>
         </div>
@@ -516,13 +516,13 @@ function CalculatePageInner() {
       <SiteHeader />
 
       {/* Page sub-header */}
-      <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/80 backdrop-blur-sm">
+      <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-4">
           <div>
-            <h1 className="font-serif text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
               Calculator
             </h1>
-            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 text-sm text-text-secondary">
               Run MACE on your structure — configure, compute, and explore.
             </p>
           </div>
@@ -600,7 +600,7 @@ function CalculatePageInner() {
                   </Button>
 
                   {runBlockedReason && !isCalculating && (
-                    <p className="mt-3 text-center text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    <p className="mt-3 text-center text-xs leading-relaxed text-text-muted">
                       {runBlockedReason}
                     </p>
                   )}
@@ -612,17 +612,17 @@ function CalculatePageInner() {
                         {STAGES.map((stage, i) => (
                           <li key={stage.key} className="flex items-center gap-1.5">
                             {i < currentStage ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)]" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             ) : i === currentStage ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-strong)] motion-reduce:animate-none" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent-strong motion-reduce:animate-none" />
                             ) : (
-                              <Circle className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                              <Circle className="h-3.5 w-3.5 text-text-muted" />
                             )}
                             <span
                               className={`text-xs ${
                                 i === currentStage
-                                  ? "font-semibold text-[var(--color-accent-strong)]"
-                                  : "text-[var(--color-text-muted)]"
+                                  ? "font-semibold text-accent-strong"
+                                  : "text-text-muted"
                               }`}
                             >
                               {stage.label}
@@ -636,7 +636,7 @@ function CalculatePageInner() {
 
                       <div className="space-y-1.5">
                         <div
-                          className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]"
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-bg-secondary"
                           role="progressbar"
                           aria-label="Calculation progress"
                           aria-valuemin={0}
@@ -645,17 +645,17 @@ function CalculatePageInner() {
                         >
                           {stepPct != null ? (
                             <div
-                              className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-500 motion-reduce:transition-none"
+                              className="h-full rounded-full bg-accent-primary transition-all duration-500 motion-reduce:transition-none"
                               style={{ width: `${stepPct}%` }}
                             />
                           ) : (
                             <div
-                              className="h-full w-1/3 rounded-full bg-[var(--color-accent-primary)] motion-reduce:w-full motion-reduce:opacity-40"
+                              className="h-full w-1/3 rounded-full bg-accent-primary motion-reduce:w-full motion-reduce:opacity-40"
                               style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
                             />
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--color-text-muted)]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-text-muted">
                           <span className="flex items-center gap-1.5 tabular-nums">
                             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                             Elapsed {elapsedSeconds} s
@@ -664,7 +664,7 @@ function CalculatePageInner() {
                           <button
                             type="button"
                             onClick={handleCancel}
-                            className="inline-flex min-h-11 items-center rounded-full border border-[var(--color-border-emphasis)] px-4 text-sm font-medium text-[var(--color-text-secondary)] hover:border-[var(--color-error)] hover:text-[var(--color-error)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent-strong)]"
+                            className="inline-flex min-h-11 items-center rounded-full border border-border-emphasis px-4 text-sm font-medium text-text-secondary hover:border-error hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
                           >
                             Cancel
                           </button>
@@ -679,14 +679,14 @@ function CalculatePageInner() {
                 {error && (
                   <div
                     role="alert"
-                    className="flex items-start gap-3 rounded-xl border border-[var(--color-error)]/25 bg-[var(--color-error)]/5 p-4"
+                    className="flex items-start gap-3 rounded-xl border border-error/25 bg-error/5 p-4"
                   >
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-error)]" />
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
                     <div>
-                      <p className="text-sm font-semibold text-[var(--color-error)]">
+                      <p className="text-sm font-semibold text-error">
                         Calculation error
                       </p>
-                      <p className="mt-1 font-mono text-xs text-[var(--color-error)]/80">
+                      <p className="mt-1 font-mono text-xs text-error/80">
                         {error}
                       </p>
                     </div>
@@ -718,13 +718,13 @@ function CalculatePageInner() {
                             {isSharing ? "Sharing…" : "Share result"}
                           </Button>
                         ) : (
-                          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5 max-sm:col-span-2">
-                            <Share2 className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" />
+                          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-accent-primary/30 bg-accent-soft px-3 py-1.5 max-sm:col-span-2">
+                            <Share2 className="h-3.5 w-3.5 text-accent-strong" />
                             <a
                               href={shareUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="min-w-0 truncate font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
+                              className="min-w-0 truncate font-mono text-xs text-accent-strong hover:underline"
                             >
                               {shareUrl}
                             </a>
@@ -732,10 +732,10 @@ function CalculatePageInner() {
                               type="button"
                               onClick={handleCopyShareUrl}
                               aria-label="Copy share link"
-                              className="touch-target ml-1 rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                              className="touch-target ml-1 rounded p-1 text-text-muted transition-colors hover:text-text-primary"
                             >
                               {shareCopied ? (
-                                <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
+                                <Check className="h-3.5 w-3.5 text-success" />
                               ) : (
                                 <Copy className="h-3.5 w-3.5" />
                               )}
@@ -772,21 +772,21 @@ function CalculatePageInner() {
       {/* Demo guided overlay */}
       {demoStep != null && demoStep < DEMO_STEPS.length && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center p-6">
-          <div className="elevate pointer-events-auto max-w-lg rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
+          <div className="elevate pointer-events-auto max-w-lg rounded-2xl border border-border-subtle bg-bg-elevated p-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-xs text-[var(--color-accent-strong)]">
+              <span className="font-mono text-xs text-accent-strong">
                 Quick demo · Step {demoStep + 1}/{DEMO_STEPS.length}
               </span>
               <button
                 type="button"
                 onClick={() => setDemoStep(null)}
                 aria-label="Close demo"
-                className="touch-target rounded text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="touch-target rounded text-text-muted transition-colors hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-sm text-[var(--color-text-primary)]">
+            <p className="text-sm text-text-primary">
               {DEMO_STEPS[demoStep]}
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -831,24 +831,24 @@ function StatusPill({
   const state = isCalculating
     ? {
         label: "Computing",
-        dot: "bg-[var(--color-warning)]",
-        text: "text-[var(--color-warning)]",
+        dot: "bg-warning",
+        text: "text-warning",
       }
     : hasResult
       ? {
           label: "Complete",
-          dot: "bg-[var(--color-success)]",
-          text: "text-[var(--color-success)]",
+          dot: "bg-success",
+          text: "text-success",
         }
       : {
           label: "Ready",
-          dot: "bg-[var(--color-text-muted)]",
-          text: "text-[var(--color-text-muted)]",
+          dot: "bg-text-muted",
+          text: "text-text-muted",
         };
 
   return (
     <span
-      className="hidden items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-1.5 text-xs font-medium sm:inline-flex"
+      className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex"
       role="status"
       aria-live="polite"
     >
@@ -909,7 +909,7 @@ function RecentCalculations() {
 
         <div className="flex-1 overflow-y-auto px-4">
           {entries.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[var(--color-text-muted)]">
+            <p className="py-10 text-center text-sm text-text-muted">
               No calculations yet. Your runs will appear here.
             </p>
           ) : (
@@ -917,17 +917,17 @@ function RecentCalculations() {
               {entries.map((e) => (
                 <li
                   key={e.id}
-                  className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-3"
+                  className="rounded-lg border border-border-subtle bg-bg-elevated p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-mono text-xs text-[var(--color-text-primary)]">
+                    <span className="truncate font-mono text-xs text-text-primary">
                       {e.filename ?? "structure"}
                     </span>
-                    <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
+                    <span className="shrink-0 text-xs text-text-muted">
                       {timeAgo(e.timestamp)}
                     </span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--color-text-secondary)]">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-secondary">
                     <span>{e.modelType}</span>
                     <span aria-hidden>·</span>
                     <span>{CALC_LABEL[e.calculationType] ?? e.calculationType}</span>
@@ -939,7 +939,7 @@ function RecentCalculations() {
                     )}
                   </div>
                   {typeof e.energy === "number" && (
-                    <p className="mt-1 font-mono text-xs text-[var(--color-text-muted)]">
+                    <p className="mt-1 font-mono text-xs text-text-muted">
                       E = {e.energy.toFixed(4)} eV
                     </p>
                   )}
@@ -948,7 +948,7 @@ function RecentCalculations() {
                       href={e.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--color-accent-strong)] hover:underline"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-accent-strong hover:underline"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open shared result
@@ -961,12 +961,12 @@ function RecentCalculations() {
         </div>
 
         {entries.length > 0 && (
-          <div className="border-t border-[var(--color-border-subtle)] p-4">
+          <div className="border-t border-border-subtle p-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setEntries(clearHistory())}
-              className="w-full text-[var(--color-text-secondary)]"
+              className="w-full text-text-secondary"
             >
               <Trash2 className="h-4 w-4" />
               Clear history

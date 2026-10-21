@@ -218,8 +218,8 @@ export function WeasViewer({
         />
       )}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-primary)]/80">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-accent-primary)]/30 border-t-[var(--color-accent-primary)]" />
+        <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/80">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-primary/30 border-t-accent-primary" />
         </div>
       )}
     </div>

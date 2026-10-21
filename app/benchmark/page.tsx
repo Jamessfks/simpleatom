@@ -139,17 +139,17 @@ export default function BenchmarkPage() {
       <SiteHeader />
 
       {/* Page sub-header */}
-      <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/80 backdrop-blur-sm">
+      <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent-strong">
               <FlaskConical className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="font-serif text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+              <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
                 Benchmark
               </h1>
-              <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+              <p className="mt-0.5 text-sm text-text-secondary">
                 Compare MACE models across ml-peg reference structures.
               </p>
             </div>
@@ -182,11 +182,11 @@ export default function BenchmarkPage() {
           {phase === "results" &&
             result &&
             (result.status === "error" && result.results.length === 0 ? (
-              <div className="rounded-2xl border border-[var(--color-error)]/25 bg-[var(--color-error)]/5 p-8 text-center">
-                <p className="font-serif text-lg font-semibold text-[var(--color-error)]">
+              <div className="rounded-2xl border border-error/25 bg-error/5 p-8 text-center">
+                <p className="font-serif text-lg font-semibold text-error">
                   Benchmark failed
                 </p>
-                <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                <p className="mt-2 text-sm text-text-secondary">
                   All calculations returned errors. Check that the Python
                   backend is running.
                 </p>
@@ -200,13 +200,13 @@ export default function BenchmarkPage() {
         </div>
 
         {/* Attribution */}
-        <p className="mt-12 border-t border-[var(--color-border-subtle)] pt-6 text-center text-sm text-[var(--color-text-muted)]">
+        <p className="mt-12 border-t border-border-subtle pt-6 text-center text-sm text-text-muted">
           Inspired by{" "}
           <a
             href="https://ml-peg.stfc.ac.uk"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-accent-strong)] hover:underline"
+            className="text-accent-strong hover:underline"
           >
             ml-peg
           </a>{" "}
@@ -215,7 +215,7 @@ export default function BenchmarkPage() {
             href="https://mlip-testing.stfc.ac.uk:8050"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-accent-strong)] hover:underline"
+            className="text-accent-strong hover:underline"
           >
             STFC MLIP Testing
           </a>

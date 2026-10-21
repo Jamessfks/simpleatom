@@ -87,9 +87,9 @@ function EmbedShell({
 }) {
   return (
     <div
-      className={`flex min-h-[100svh] flex-col overflow-y-auto bg-[var(--color-bg-elevated)] ${
+      className={`flex min-h-[100svh] flex-col overflow-y-auto bg-bg-elevated ${
         bordered
-          ? "rounded-lg border border-[var(--color-border-subtle)]"
+          ? "rounded-lg border border-border-subtle"
           : ""
       }`}
     >
@@ -113,10 +113,10 @@ function EmbedMessage({
     <EmbedShell bordered={bordered}>
       <div className="flex flex-1 items-center justify-center p-6 text-center">
         <div className="space-y-1.5">
-          <p className="font-serif text-sm font-semibold text-[var(--color-text-primary)]">
+          <p className="font-serif text-sm font-semibold text-text-primary">
             {title}
           </p>
-          <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+          <p className="text-xs leading-relaxed text-text-secondary">
             {detail}
           </p>
           {href && (
@@ -124,7 +124,7 @@ function EmbedMessage({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block font-mono text-xs text-[var(--color-accent-strong)] underline underline-offset-2"
+              className="inline-block font-mono text-xs text-accent-strong underline underline-offset-2"
             >
               Open on SimpleAtom
             </a>
@@ -226,18 +226,18 @@ export default async function EmbeddedResultPage({
       </div>
 
       {showCaption && (
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-[var(--color-border-subtle)] px-3 py-2">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border-subtle px-3 py-2">
           <div className="min-w-0">
-            <p className="truncate font-sans text-xs font-semibold text-[var(--color-text-primary)]">
+            <p className="truncate font-sans text-xs font-semibold text-text-primary">
               {summary.headline}
               {summary.atomCount != null && (
-                <span className="font-normal text-[var(--color-text-secondary)]">
+                <span className="font-normal text-text-secondary">
                   {" "}
                   · {summary.atomCount} atoms
                 </span>
               )}
             </p>
-            <p className="mt-0.5 font-mono text-xs leading-snug text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 font-mono text-xs leading-snug text-text-secondary">
               {[
                 summary.energy,
                 summary.energyPerAtom,
@@ -247,7 +247,7 @@ export default async function EmbeddedResultPage({
                 .filter(Boolean)
                 .join(" · ")}
             </p>
-            <p className="mt-0.5 font-mono text-xs leading-snug text-[var(--color-text-muted)]">
+            <p className="mt-0.5 font-mono text-xs leading-snug text-text-muted">
               {[
                 summary.computedUtc
                   ? `Computed ${summary.computedUtc}`
@@ -270,7 +270,7 @@ export default async function EmbeddedResultPage({
             href={fullUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 rounded-full border border-[var(--color-border-subtle)] px-2.5 py-1 font-mono text-xs font-medium text-[var(--color-accent-strong)] transition-colors hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-soft)]"
+            className="shrink-0 rounded-full border border-border-subtle px-2.5 py-1 font-mono text-xs font-medium text-accent-strong transition-colors hover:border-accent-primary hover:bg-accent-soft"
           >
             SimpleAtom ↗
           </a>

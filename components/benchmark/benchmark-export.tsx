@@ -102,7 +102,7 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
         disabled={pdfLoading}
         variant="outline"
         size="sm"
-        className="gap-1.5 border-[var(--color-accent-primary)]/50 bg-[var(--color-accent-primary)]/10 font-mono text-xs text-[var(--color-accent-strong)] hover:bg-[var(--color-accent-primary)]/15 hover:text-[var(--color-accent-strong)]"
+        className="gap-1.5 border-accent-primary/50 bg-accent-primary/10 font-mono text-xs text-accent-strong hover:bg-accent-primary/15 hover:text-accent-strong"
       >
         <FileText className="h-3 w-3" />
         {pdfLoading ? "Generating..." : "Export PDF"}
@@ -111,7 +111,7 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
         onClick={downloadCSV}
         variant="outline"
         size="sm"
-        className="gap-1.5 bg-[var(--color-bg-elevated)] font-mono text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50 hover:text-[var(--color-accent-strong)]"
+        className="gap-1.5 bg-bg-elevated font-mono text-xs text-text-secondary hover:border-accent-primary/50 hover:text-accent-strong"
       >
         <Download className="h-3 w-3" /> Export CSV
       </Button>
@@ -119,7 +119,7 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
         onClick={downloadJSON}
         variant="outline"
         size="sm"
-        className="gap-1.5 bg-[var(--color-bg-elevated)] font-mono text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50 hover:text-[var(--color-accent-strong)]"
+        className="gap-1.5 bg-bg-elevated font-mono text-xs text-text-secondary hover:border-accent-primary/50 hover:text-accent-strong"
       >
         <Download className="h-3 w-3" /> Export JSON
       </Button>

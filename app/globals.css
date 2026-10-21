@@ -86,6 +86,41 @@
   --color-card: var(--card);
 }
 
+/*
+ * SimpleAtom semantic tokens as utilities: `text-text-muted`, `bg-accent-soft`,
+ * `border-border-subtle/40`, … The values live on :root and .dark below; each
+ * entry here names itself on purpose. `inline` makes every utility emit
+ * `var(--color-…)`, so .dark still re-themes it. `reference` keeps Tailwind
+ * from also writing these variables into @layer theme, where each would be a
+ * self-reference (inert while :root is unlayered, a cycle if it ever moved
+ * into a layer).
+ */
+@theme inline reference {
+  --color-bg-primary: var(--color-bg-primary);
+  --color-bg-secondary: var(--color-bg-secondary);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-emphasis: var(--color-border-emphasis);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-accent-primary: var(--color-accent-primary);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-data-blue: var(--color-data-blue);
+  --color-data-red: var(--color-data-red);
+  --color-data-green: var(--color-data-green);
+  --color-data-yellow: var(--color-data-yellow);
+  --color-data-cyan: var(--color-data-cyan);
+  --color-data-purple: var(--color-data-purple);
+  --color-data-gray: var(--color-data-gray);
+}
+
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;

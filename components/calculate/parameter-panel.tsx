@@ -248,12 +248,12 @@ export function ParameterPanel({
           </Field>
 
           {isOFF && (
-            <div className="space-y-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
-              <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" />
+            <div className="space-y-2 rounded-lg border border-border-subtle bg-bg-surface p-3">
+              <p className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-strong" />
                 <span>
                   Trained only on organic elements:{" "}
-                  <strong className="font-mono text-[var(--color-text-primary)]">
+                  <strong className="font-mono text-text-primary">
                     H, C, N, O, F, P, S, Cl, Br, I
                   </strong>
                   . Structures with other elements (metals, noble gases, etc.)
@@ -261,13 +261,13 @@ export function ParameterPanel({
                 </span>
               </p>
               {notice && (
-                <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                  <strong className="font-semibold text-[var(--color-text-primary)]">Licence:</strong>{" "}
+                <p className="text-xs leading-relaxed text-text-secondary">
+                  <strong className="font-semibold text-text-primary">Licence:</strong>{" "}
                   {notice}
                 </p>
               )}
               {unsupportedElements.length > 0 && (
-                <p className="flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-2 text-xs leading-relaxed text-[var(--color-error)]">
+                <p className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-2 text-xs leading-relaxed text-error">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     This structure contains{" "}
@@ -281,9 +281,9 @@ export function ParameterPanel({
           )}
 
           {isCustom && (
-            <div className="space-y-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
-              <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" />
+            <div className="space-y-3 rounded-lg border border-border-subtle bg-bg-surface p-4">
+              <p className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-strong" />
                 <span>
                   Upload a MACE-compatible <code className="font-mono">.model</code>{" "}
                   checkpoint — a fine-tuned model from{" "}
@@ -293,7 +293,7 @@ export function ParameterPanel({
               </p>
 
               {!customModelFile ? (
-                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] p-4 text-center transition-colors hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-soft)]">
+                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft">
                   <input
                     type="file"
                     accept=".model"
@@ -304,20 +304,20 @@ export function ParameterPanel({
                     }}
                     className="absolute inset-0 cursor-pointer opacity-0"
                   />
-                  <Upload className="mx-auto mb-1 h-5 w-5 text-[var(--color-text-muted)]" />
-                  <p className="text-xs text-[var(--color-text-secondary)]">
+                  <Upload className="mx-auto mb-1 h-5 w-5 text-text-muted" />
+                  <p className="text-xs text-text-secondary">
                     Drop a .model file or click to browse
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-2.5">
+                <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-elevated p-2.5">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[var(--color-accent-strong)]" />
+                    <FileText className="h-4 w-4 text-accent-strong" />
                     <div>
-                      <p className="font-mono text-xs text-[var(--color-text-primary)]">
+                      <p className="font-mono text-xs text-text-primary">
                         {customModelFile.name}
                       </p>
-                      <p className="font-mono text-xs text-[var(--color-text-muted)]">
+                      <p className="font-mono text-xs text-text-muted">
                         {(customModelFile.size / 1024 / 1024).toFixed(1)} MB
                       </p>
                     </div>
@@ -326,7 +326,7 @@ export function ParameterPanel({
                     type="button"
                     onClick={() => onCustomModelChange(null)}
                     aria-label="Remove custom model"
-                    className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
+                    className="rounded p-1 text-text-muted transition-colors hover:text-error"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -371,7 +371,7 @@ export function ParameterPanel({
               </SelectContent>
             </Select>
             {!isCustom && sizes.length === 1 && (
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="text-xs text-text-muted">
                 {model?.label} is published in one size.
               </p>
             )}
@@ -412,7 +412,7 @@ export function ParameterPanel({
                   <SelectItem value="float64">float64 — precise</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+              <p className="text-xs leading-relaxed text-text-muted">
                 {isCustom
                   ? "Custom checkpoints run in the dtype they were saved in."
                   : "Auto follows upstream MACE: float64 for MACE-OFF and for geometry optimization, float32 otherwise. An explicit choice is always honoured — the result will say which dtype actually ran."}
@@ -464,10 +464,10 @@ export function ParameterPanel({
                 htmlFor={`ct-${opt.value}`}
                 className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                   opt.disabled
-                    ? "cursor-not-allowed border-dashed border-[var(--color-border-subtle)]"
+                    ? "cursor-not-allowed border-dashed border-border-subtle"
                     : params.calculationType === opt.value
-                      ? "cursor-pointer border-[var(--color-accent-primary)] bg-[var(--color-accent-soft)]"
-                      : "cursor-pointer border-[var(--color-border-subtle)] hover:border-[var(--color-border-emphasis)] hover:bg-[var(--color-bg-secondary)]"
+                      ? "cursor-pointer border-accent-primary bg-accent-soft"
+                      : "cursor-pointer border-border-subtle hover:border-border-emphasis hover:bg-bg-secondary"
                 }`}
               >
                 <RadioGroupItem
@@ -479,19 +479,19 @@ export function ParameterPanel({
                 <span>
                   <span
                     className={`block text-sm font-medium ${
-                      opt.disabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"
+                      opt.disabled ? "text-text-muted" : "text-text-primary"
                     }`}
                   >
                     {opt.label}
                     {opt.disabled && (
-                      <span className="ml-2 rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs font-normal text-[var(--color-text-muted)]">
+                      <span className="ml-2 rounded-full bg-bg-secondary px-2 py-0.5 text-xs font-normal text-text-muted">
                         soon
                       </span>
                     )}
                   </span>
                   <span
                     className={`mt-0.5 block text-xs ${
-                      opt.disabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-secondary)]"
+                      opt.disabled ? "text-text-muted" : "text-text-secondary"
                     }`}
                   >
                     {opt.hint}
@@ -501,7 +501,7 @@ export function ParameterPanel({
             ))}
           </RadioGroup>
 
-          <div className="border-t border-[var(--color-border-subtle)] pt-5">
+          <div className="border-t border-border-subtle pt-5">
             {/* D3 dispersion — meaningful only for the MACE-MP family */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -518,13 +518,13 @@ export function ParameterPanel({
               />
             </div>
             {isOFF && (
-              <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-1.5 text-xs text-text-muted">
                 Disabled — MACE-OFF already includes dispersion; enabling D3
                 would double-count it.
               </p>
             )}
             {isCustom && (
-              <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-1.5 text-xs text-text-muted">
                 Disabled — dispersion is not applied to custom model
                 checkpoints; it depends on how the model was trained.
               </p>
@@ -582,7 +582,7 @@ export function ParameterPanel({
                     </SelectContent>
                   </Select>
                   {isPeriodic === false && (
-                    <p className="text-xs text-[var(--color-text-muted)]">
+                    <p className="text-xs text-text-muted">
                       NPT is unavailable — this structure has no periodic
                       cell (not a crystal/bulk structure). Only NVE/NVT apply.
                     </p>
@@ -651,7 +651,7 @@ export function ParameterPanel({
             )}
 
             {params.calculationType === "single-point" && (
-              <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-4 text-xs text-text-muted">
                 No additional parameters required for a single-point evaluation.
               </p>
             )}
@@ -676,7 +676,7 @@ function Field({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
-        <Label className="text-xs font-medium text-[var(--color-text-secondary)]">
+        <Label className="text-xs font-medium text-text-secondary">
           {label}
         </Label>
         {tooltip && <InfoTip text={tooltip} />}
@@ -698,7 +698,7 @@ function InfoTip({ text }: { text: string }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="touch-target rounded-full text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-strong)]"
+          className="touch-target rounded-full text-text-muted transition-colors hover:text-accent-strong"
           aria-label="More information"
         >
           <Info className="h-3.5 w-3.5" />
@@ -746,10 +746,10 @@ function NumberField({
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-[var(--color-text-secondary)]">
+      <Label className="text-xs font-medium text-text-secondary">
         {label}
         {unit && (
-          <span className="ml-1 font-normal text-[var(--color-text-muted)]">
+          <span className="ml-1 font-normal text-text-muted">
             ({unit})
           </span>
         )}
@@ -791,17 +791,17 @@ function NumberField({
         step={step ?? 1}
       />
       {hint && (
-        <p className="font-mono text-xs text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-text-muted">
           {hint}
         </p>
       )}
       {rangeText && (
-        <p className="font-mono text-xs text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-text-muted">
           {rangeText}
         </p>
       )}
       {warning && (
-        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-[var(--color-warning)]">
+        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{warning}</span>
         </p>

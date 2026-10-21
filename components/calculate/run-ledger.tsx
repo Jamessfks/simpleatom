@@ -84,8 +84,8 @@ function limitProblem(params: CalculationParams, structure: ParsedStructure | nu
 function Row({ term, children }: { term: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-0.5 py-2.5 first:pt-0 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
-      <dt className="text-sm text-[var(--color-text-muted)]">{term}</dt>
-      <dd className="min-w-0 text-sm text-[var(--color-text-primary)]">{children}</dd>
+      <dt className="text-sm text-text-muted">{term}</dt>
+      <dd className="min-w-0 text-sm text-text-primary">{children}</dd>
     </div>
   );
 }
@@ -103,11 +103,11 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
       : `${model?.label ?? params.modelType} ${params.modelSize}`;
     const calc = (CALC_LABELS[params.calculationType] ?? params.calculationType).toLowerCase();
     return (
-      <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-5 py-4">
+      <div className="rounded-2xl border border-border-subtle bg-bg-elevated px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Next run</h2>
-            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+            <h2 className="text-sm font-semibold text-text-primary">Next run</h2>
+            <p className="mt-0.5 text-sm text-text-secondary">
               <Formula text={structure.empiricalFormula} /> ({structure.atomCount} atoms), {modelText}, {calc},{" "}
               <span className="font-mono">{precision.dtype}</span>
             </p>
@@ -117,14 +117,14 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="min-h-11 shrink-0 rounded-full px-3 text-sm font-medium text-[var(--color-accent-strong)] hover:bg-[var(--color-accent-soft)]"
+              className="min-h-11 shrink-0 rounded-full px-3 text-sm font-medium text-accent-strong hover:bg-accent-soft"
             >
               Details
             </button>
           </div>
         </div>
         {problem && (
-          <p role="status" className="mt-3 rounded-xl border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-text-primary)]">
+          <p role="status" className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-text-primary">
             {problem}
           </p>
         )}
@@ -133,14 +133,14 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
   }
 
   return (
-    <div className="ledger rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-6">
+    <div className="ledger rounded-2xl border border-border-subtle bg-bg-elevated p-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-serif text-xl font-semibold text-[var(--color-text-primary)]">What will run</h2>
+        <h2 className="font-serif text-xl font-semibold text-text-primary">What will run</h2>
         {compact && (
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="min-h-11 rounded-full px-3 text-sm font-medium text-[var(--color-accent-strong)] hover:bg-[var(--color-accent-soft)]"
+            className="min-h-11 rounded-full px-3 text-sm font-medium text-accent-strong hover:bg-accent-soft"
           >
             Hide details
           </button>
@@ -148,13 +148,13 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
       </div>
 
       {structure ? (
-        <dl className="mt-4 divide-y divide-[var(--color-border-subtle)]">
+        <dl className="mt-4 divide-y divide-border-subtle">
           <Row term="Structure">
             <span className="font-medium"><Formula text={structure.empiricalFormula} /></span>
-            <span className="text-[var(--color-text-secondary)]">
+            <span className="text-text-secondary">
               , {structure.atomCount} atoms, {structure.isPeriodic ? "periodic cell" : "isolated molecule"}
             </span>
-            {filename && <span className="block truncate text-xs text-[var(--color-text-muted)]">{filename}</span>}
+            {filename && <span className="block truncate text-xs text-text-muted">{filename}</span>}
           </Row>
           <Row term="Model">
             {params.modelType === "custom" ? (
@@ -162,12 +162,12 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
             ) : (
               <>
                 <span className="font-medium">{model?.label ?? params.modelType}</span>
-                <span className="text-[var(--color-text-secondary)]">, {params.modelSize}</span>
+                <span className="text-text-secondary">, {params.modelSize}</span>
                 {model?.levelOfTheory && (
-                  <span className="block text-xs text-[var(--color-text-muted)]">Trained on {model.levelOfTheory}</span>
+                  <span className="block text-xs text-text-muted">Trained on {model.levelOfTheory}</span>
                 )}
                 {model?.license.notice && (
-                  <span className="mt-1 block text-xs text-[var(--color-warning)]">
+                  <span className="mt-1 block text-xs text-warning">
                     {model.license.id}: non-commercial use only.
                   </span>
                 )}
@@ -176,22 +176,22 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
           </Row>
           <Row term="Calculation">
             {CALC_LABELS[params.calculationType] ?? params.calculationType}
-            {settings && <span className="block font-mono text-xs text-[var(--color-text-secondary)]">{settings}</span>}
+            {settings && <span className="block font-mono text-xs text-text-secondary">{settings}</span>}
           </Row>
           <Row term="Precision">
             <span className="font-mono">{precision.dtype}</span>
-            <span className="text-[var(--color-text-secondary)]"> ({precision.why})</span>
+            <span className="text-text-secondary"> ({precision.why})</span>
           </Row>
         </dl>
       ) : (
-        <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-sm leading-relaxed text-text-secondary">
           Choose a structure to begin: upload a file, pick one from the catalog, or type a SMILES
           string. This panel then shows exactly what will be computed before you run it.
         </p>
       )}
 
       {problem && (
-        <p role="status" className="mt-4 rounded-xl border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-text-primary)]">
+        <p role="status" className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-text-primary">
           {problem}
         </p>
       )}

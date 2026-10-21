@@ -86,7 +86,7 @@ export function FileUploadSection({
               <div
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
-                className="group relative cursor-pointer rounded-xl border-2 border-dashed border-[var(--color-border-emphasis)] bg-[var(--color-bg-surface)] p-10 text-center transition-colors hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-soft)]"
+                className="group relative cursor-pointer rounded-xl border-2 border-dashed border-border-emphasis bg-bg-surface p-10 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft"
               >
                 <input
                   type="file"
@@ -95,14 +95,14 @@ export function FileUploadSection({
                   aria-label="Upload a structure file"
                   className="absolute inset-0 cursor-pointer opacity-0"
                 />
-                <Upload className="mx-auto mb-3 h-9 w-9 text-[var(--color-accent-strong)]" strokeWidth={1.5} />
-                <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                <Upload className="mx-auto mb-3 h-9 w-9 text-accent-strong" strokeWidth={1.5} />
+                <p className="text-sm font-medium text-text-primary">
                   Drag &amp; drop a structure file
                 </p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-0.5 text-xs text-text-secondary">
                   or click to browse
                 </p>
-                <p className="mt-3 font-mono text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-3 font-mono text-xs text-text-secondary">
                   {ACCEPTED_FORMATS.join("  ·  ")}
                 </p>
               </div>
@@ -110,13 +110,13 @@ export function FileUploadSection({
 
             {/* Catalog */}
             <TabsContent value="catalog" className="mt-4">
-              <p className="mb-3 text-xs text-[var(--color-text-secondary)]">
+              <p className="mb-3 text-xs text-text-secondary">
                 Select a benchmark structure from the{" "}
                 <a
                   href="https://github.com/ddmms/ml-peg"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--color-accent-strong)] underline-offset-2 hover:underline"
+                  className="text-accent-strong underline-offset-2 hover:underline"
                 >
                   ml-peg
                 </a>{" "}
@@ -127,13 +127,13 @@ export function FileUploadSection({
 
             {/* SMILES */}
             <TabsContent value="smiles" className="mt-4">
-              <p className="mb-3 text-xs text-[var(--color-text-secondary)]">
+              <p className="mb-3 text-xs text-text-secondary">
                 Enter a{" "}
                 <a
                   href="https://en.wikipedia.org/wiki/Simplified_molecular-input_line-entry_system"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--color-accent-strong)] underline-offset-2 hover:underline"
+                  className="text-accent-strong underline-offset-2 hover:underline"
                 >
                   SMILES
                 </a>{" "}
@@ -155,14 +155,14 @@ export function FileUploadSection({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
+            <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-surface p-3">
               <div className="flex items-center gap-3">
-                <FileIcon className="h-4 w-4 text-[var(--color-accent-strong)]" />
+                <FileIcon className="h-4 w-4 text-accent-strong" />
                 <div>
-                  <p className="font-mono text-xs text-[var(--color-text-primary)]">
+                  <p className="font-mono text-xs text-text-primary">
                     {files[0].name}
                   </p>
-                  <p className="font-mono text-xs text-[var(--color-text-muted)]">
+                  <p className="font-mono text-xs text-text-muted">
                     {(files[0].size / 1024).toFixed(1)} KB
                   </p>
                 </div>
@@ -171,7 +171,7 @@ export function FileUploadSection({
                 type="button"
                 onClick={() => onFilesChange([])}
                 aria-label="Remove selected structure"
-                className="touch-target rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
+                className="touch-target rounded p-1 text-text-muted transition-colors hover:text-error"
               >
                 <X className="h-4 w-4" />
               </button>

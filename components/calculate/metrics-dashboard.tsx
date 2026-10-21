@@ -294,10 +294,10 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
   return (
     <div className="space-y-5">
       {/* ═══ Status Banner ═══ */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-success)]/20 bg-[var(--color-success)]/5 px-5 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 px-5 py-3.5">
         <div className="flex flex-wrap items-center gap-3">
-          <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-[var(--color-success)]" />
-          <span className="font-sans text-sm font-semibold text-[var(--color-success)]">
+          <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
+          <span className="font-sans text-sm font-semibold text-success">
             Calculation complete
           </span>
           {/* Name the structure the numbers came from — this banner is also
@@ -346,7 +346,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
           {hasRef && (
             <Badge
               variant="outline"
-              className="border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 text-xs text-[var(--color-accent-strong)]"
+              className="border-accent-primary/30 bg-accent-primary/10 text-xs text-accent-strong"
             >
               Reference data detected
             </Badge>
@@ -387,7 +387,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             <TabsTrigger
               key={tab.id}
               value={tab.id}
-              className="flex-none gap-2 rounded-none border-transparent px-1 py-2.5 group-data-[orientation=horizontal]/tabs:after:bottom-0 font-sans text-sm text-muted-foreground shadow-none after:bg-[var(--color-accent-strong)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--color-accent-strong)] data-[state=active]:shadow-none"
+              className="flex-none gap-2 rounded-none border-transparent px-1 py-2.5 group-data-[orientation=horizontal]/tabs:after:bottom-0 font-sans text-sm text-muted-foreground shadow-none after:bg-accent-strong data-[state=active]:bg-transparent data-[state=active]:text-accent-strong data-[state=active]:shadow-none"
             >
               {tab.icon}
               {tab.label}
@@ -560,7 +560,7 @@ function SummaryTab({
             <>
               <div>{ePerAtom} eV/atom</div>
               {modelType && (
-                <div className={energyInRange === false ? "text-[var(--color-warning)]" : undefined}>
+                <div className={energyInRange === false ? "text-warning" : undefined}>
                   {modelType === "custom" ? "Custom model" : modelType}
                   {modelSize ? ` (${modelSize})` : ""} &middot;{" "}
                   {convention?.method ?? "reference convention unknown"}
@@ -619,7 +619,7 @@ function SummaryTab({
       {hasRef && accuracyRows.length > 0 && (
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">
-            <CardTitle className="font-serif text-sm font-semibold text-[var(--color-accent-strong)]">
+            <CardTitle className="font-serif text-sm font-semibold text-accent-strong">
               Model accuracy
             </CardTitle>
           </CardHeader>
@@ -662,22 +662,22 @@ function SummaryTab({
         </h4>
         <ul className="space-y-1 text-xs leading-relaxed text-muted-foreground">
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">ML potential, not QM:</span>{" "}
+            <span className="font-medium text-text-secondary">ML potential, not QM:</span>{" "}
             MACE is a machine-learned surrogate for DFT, not a first-principles calculation.
             Accuracy depends on the training data distribution.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">Out-of-distribution risk:</span>{" "}
+            <span className="font-medium text-text-secondary">Out-of-distribution risk:</span>{" "}
             Structures or chemistries far from the training set (exotic bonding, extreme pressures,
             charged species) may produce unreliable results with no built-in warning.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">No uncertainty estimates:</span>{" "}
+            <span className="font-medium text-text-secondary">No uncertainty estimates:</span>{" "}
             These models do not provide prediction confidence intervals. Consider running
             multiple model sizes (small/medium/large) and comparing results to gauge robustness.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">MACE-OFF scope:</span>{" "}
+            <span className="font-medium text-text-secondary">MACE-OFF scope:</span>{" "}
             Trained on neutral, closed-shell organic molecules only (H, C, N, O, F, P, S, Cl, Br, I).
             Not suitable for metals, radicals, ions, or extended solid-state systems.
           </li>
@@ -723,7 +723,7 @@ function ResultsToc({
           {i > 0 && <span aria-hidden="true" className="max-sm:hidden">·</span>}
           <a
             href={`#${s.id}`}
-            className="inline-flex items-center rounded text-[var(--color-accent-strong)] underline-offset-2 hover:underline max-sm:min-h-11 pointer-coarse:min-h-11"
+            className="inline-flex items-center rounded text-accent-strong underline-offset-2 hover:underline max-sm:min-h-11 pointer-coarse:min-h-11"
           >
             {s.label}
           </a>
@@ -1081,12 +1081,12 @@ function RawDataTab({
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ACCENT_MAP: Record<string, { icon: string }> = {
-  "data-blue": { icon: "text-[var(--color-data-blue)]" },
-  "data-red": { icon: "text-[var(--color-data-red)]" },
-  "data-cyan": { icon: "text-[var(--color-data-cyan)]" },
-  "data-green": { icon: "text-[var(--color-data-green)]" },
-  "data-purple": { icon: "text-[var(--color-data-purple)]" },
-  "data-yellow": { icon: "text-[var(--color-data-yellow)]" },
+  "data-blue": { icon: "text-data-blue" },
+  "data-red": { icon: "text-data-red" },
+  "data-cyan": { icon: "text-data-cyan" },
+  "data-green": { icon: "text-data-green" },
+  "data-purple": { icon: "text-data-purple" },
+  "data-yellow": { icon: "text-data-yellow" },
 };
 
 /**
@@ -1116,14 +1116,14 @@ function ResultWarnings({ warnings }: { warnings?: string[] }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-4 py-3"
+      className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3"
     >
       <div className="flex items-center gap-2">
         <AlertTriangle
-          className="h-4 w-4 shrink-0 text-[var(--color-warning)]"
+          className="h-4 w-4 shrink-0 text-warning"
           strokeWidth={1.75}
         />
-        <h3 className="font-sans text-sm font-bold text-[var(--color-warning)]">
+        <h3 className="font-sans text-sm font-bold text-warning">
           {warnings.length === 1
             ? "1 warning from the calculation"
             : `${warnings.length} warnings from the calculation`}
@@ -1133,7 +1133,7 @@ function ResultWarnings({ warnings }: { warnings?: string[] }) {
         {warnings.map((warning, i) => (
           <li
             key={i}
-            className="list-disc text-xs leading-relaxed text-[var(--color-warning)]"
+            className="list-disc text-xs leading-relaxed text-warning"
           >
             {warning}
           </li>
@@ -1273,20 +1273,20 @@ function ValidationFindings({
  */
 const FINDING_STYLES = {
   issue: {
-    text: "text-[var(--color-error)]",
-    border: "border-l-[var(--color-error)]",
+    text: "text-error",
+    border: "border-l-error",
   },
   warning: {
-    text: "text-[var(--color-warning)]",
-    border: "border-l-[var(--color-warning)]",
+    text: "text-warning",
+    border: "border-l-warning",
   },
   ok: {
-    text: "text-[var(--color-success)]",
-    border: "border-l-[var(--color-success)]",
+    text: "text-success",
+    border: "border-l-success",
   },
   info: {
     text: "text-muted-foreground",
-    border: "border-l-[var(--color-data-gray)]",
+    border: "border-l-data-gray",
   },
 } as const;
 
@@ -1399,10 +1399,10 @@ function HashValue({
         onClick={copy}
         title={`Copy full ${label}: ${value}`}
         aria-label={`Copy full ${label}`}
-        className="touch-target shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-accent-strong)]"
+        className="touch-target shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-accent-strong"
       >
         {copied ? (
-          <Check className="h-3 w-3 text-[var(--color-success)]" strokeWidth={2} />
+          <Check className="h-3 w-3 text-success" strokeWidth={2} />
         ) : (
           <Copy className="h-3 w-3" strokeWidth={1.75} />
         )}
@@ -1468,7 +1468,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     value: checkpoint?.sha256 ? (
       <HashValue value={checkpoint.sha256} label="checkpoint SHA-256" />
     ) : (
-      <span className="text-[var(--color-warning)]">
+      <span className="text-warning">
         not identified
         {checkpoint?.resolvedBy ? ` (${checkpoint.resolvedBy})` : ""}
       </span>
@@ -1497,13 +1497,13 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
       label: "Upstream weights",
       value: (
         <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-          <span className="text-[var(--color-warning)]">no download URL recorded</span>
+          <span className="text-warning">no download URL recorded</span>
           <a
             href={UPSTREAM_WEIGHTS_REPO[modelFamily]}
             target="_blank"
             rel="noopener noreferrer"
             title={`Not reported by this result. This is where ${modelFamily} weights are published upstream in general (docs/v2/bars/acesuit-mace.md) — not a verified link to this exact checkpoint file.`}
-            className="touch-target inline-flex items-center gap-0.5 text-[var(--color-accent-strong)] underline underline-offset-2 hover:no-underline"
+            className="touch-target inline-flex items-center gap-0.5 text-accent-strong underline underline-offset-2 hover:no-underline"
           >
             expected location (unverified)
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
@@ -1601,13 +1601,13 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
             href={`${REPO_URL}/commit/${code.gitCommit}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="touch-target inline-flex items-center gap-0.5 text-[var(--color-accent-strong)] underline underline-offset-2 hover:no-underline"
+            className="touch-target inline-flex items-center gap-0.5 text-accent-strong underline underline-offset-2 hover:no-underline"
           >
             view
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
           </a>
           {code.gitDirty === true ? (
-            <span className="text-[var(--color-warning)]">uncommitted changes</span>
+            <span className="text-warning">uncommitted changes</span>
           ) : code.gitDirty === false ? (
             <span className="text-muted-foreground">clean</span>
           ) : (
@@ -1741,7 +1741,7 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
   return (
     <div className="rounded-lg border border-border bg-muted px-4 py-3">
       <p className="text-sm leading-relaxed text-muted-foreground">
-        <span className="font-bold text-[var(--color-text-secondary)]">
+        <span className="font-bold text-text-secondary">
           Note{modelType ? ` (${modelType}${modelSize ? `, ${modelSize}` : ""})` : ""}:
         </span>{" "}
         Energy is the total electronic energy from the MACE model (including all-electron
@@ -1749,7 +1749,7 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         {conv ? (
           <>
             This model is referenced to{" "}
-            <span className="text-[var(--color-text-secondary)]">{conv.method}</span>; typical
+            <span className="text-text-secondary">{conv.method}</span>; typical
             values fall between {conv.range[0]} and {conv.range[1]} eV/atom for {modelType}.
           </>
         ) : modelType === "custom" ? (
@@ -1810,21 +1810,21 @@ function ForcesTable({
               </th>
             </tr>
           </thead>
-          <tbody className="text-[var(--color-text-secondary)]">
+          <tbody className="text-text-secondary">
             {forces.map((force, i) => {
               const mag = Math.sqrt(force[0] ** 2 + force[1] ** 2 + force[2] ** 2);
               const isMax = i === maxForceIdx;
               return (
                 <tr
                   key={i}
-                  className={`border-t border-border/60 transition-colors hover:bg-muted ${isMax ? "bg-[var(--color-data-cyan)]/10" : ""}`}
+                  className={`border-t border-border/60 transition-colors hover:bg-muted ${isMax ? "bg-data-cyan/10" : ""}`}
                 >
                   <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-1.5 font-bold">{symbols[i]}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[0].toFixed(FORCE_DECIMALS)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[1].toFixed(FORCE_DECIMALS)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[2].toFixed(FORCE_DECIMALS)}</td>
-                  <td className={`px-3 py-1.5 text-right tabular-nums font-bold ${isMax ? "text-[var(--color-data-red)]" : "text-[var(--color-accent-strong)]"}`}>
+                  <td className={`px-3 py-1.5 text-right tabular-nums font-bold ${isMax ? "text-data-red" : "text-accent-strong"}`}>
                     {mag.toFixed(FORCE_DECIMALS)}
                   </td>
                 </tr>
