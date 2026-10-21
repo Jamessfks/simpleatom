@@ -11,6 +11,7 @@
  * training DFT functionals (PBE vs ωB97M-D3BJ).
  */
 
+import { findModel } from "@/lib/contract";
 import { useState, useMemo } from "react";
 import {
   Trophy,
@@ -69,7 +70,8 @@ export function BenchmarkDashboard({ result }: DashboardProps) {
     const families = new Set(
       result.results[0]?.models.map((m) => m.modelType) ?? []
     );
-    return families.has("MACE-MP-0") && families.has("MACE-OFF");
+    const conventions = new Set([...families].map((t) => findModel(t)?.energyConvention));
+    return conventions.has("mp") && conventions.has("off");
   }, [result]);
 
   return (

@@ -56,7 +56,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
       })
     );
 
-    const anns: any[] = [];
+    const anns: Partial<Plotly.Annotations>[] = [];
     for (let pi = 0; pi < pairs.length; pi++) {
       for (let si = 0; si < result.results.length; si++) {
         const val = z[pi][si];
@@ -70,7 +70,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
             size: 10,
             family: "Geist Mono, ui-monospace, monospace",
           },
-        } as any);
+        });
       }
     }
 
@@ -110,14 +110,14 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
               [1, "#EE6677"],
             ],
             colorbar: {
-              title: { text: "|ΔE| (meV)", side: "right" },
+              // `titlefont` is deprecated in Plotly; the font lives on the title.
+              title: { text: "|ΔE| (meV)", side: "right", font: { color: "#5C574E", size: 10 } },
               tickfont: { color: "#5C574E", size: 10 },
-              titlefont: { color: "#5C574E", size: 10 },
             },
             hovertemplate:
               "<b>%{x}</b><br>%{y}<br>|ΔE| = %{z:.2f} meV<extra></extra>",
             showscale: true,
-          } as any,
+          },
         ]}
         layout={{
           ...BASE_LAYOUT,

@@ -28,6 +28,7 @@ import {
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { foundationModelFor } from "@/lib/model-domain";
+import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
 import { Button } from "@/components/ui/button";
@@ -242,7 +243,7 @@ function CalculatePageInner() {
     useState<ParsedStructure | null>(null);
   const [params, setParams] = useState<CalculationParams>({
     modelSize: "medium",
-    modelType: "MACE-MP-0",
+    modelType: DEFAULT_MODEL_TYPE,
     // `precision` is deliberately absent, not "float32". Omitting the key is
     // what makes the backend take upstream MACE's own default for the chosen
     // model and calculation — float64 for MACE-OFF (mace_off() has defaulted
@@ -373,7 +374,7 @@ function CalculatePageInner() {
     uploadedFiles.length === 0
       ? "Choose or upload a structure to enable the run button."
       : isCustomModel && !customModelFile
-        ? "Upload a MACE .model checkpoint to run a custom model — or switch to MACE-MP-0 or MACE-OFF. A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
+        ? "Upload a MACE .model checkpoint to run a custom model — or switch to a foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF). A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
         : params.calculationType === "phonon"
           ? "Phonon spectrum is not implemented. Choose single-point, geometry optimization, or molecular dynamics."
           : null;

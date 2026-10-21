@@ -24,6 +24,8 @@ import { useEffect, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
+import { MODELS, PARAMS, findModel, isMaceOffModel, licenseNotice, modelSizes } from "@/lib/contract";
+import { useCapabilities } from "@/lib/use-capabilities";
 import {
   Card,
   CardContent,
@@ -110,6 +112,12 @@ const CALC_TYPES: CalcTypeOption[] = [
  */
 const PRECISION_AUTO = "auto";
 
+const SIZE_LABELS: Record<string, string> = {
+  small: "Small — fastest",
+  medium: "Medium — balanced",
+  large: "Large — most accurate",
+};
+
 export function ParameterPanel({
   params,
   onChange,
@@ -123,8 +131,16 @@ export function ParameterPanel({
     value: CalculationParams[K],
   ) => onChange({ ...params, [key]: value });
 
+  const caps = useCapabilities();
+  const model = findModel(params.modelType);
   const isCustom = params.modelType === "custom";
-  const isOFF = params.modelType === "MACE-OFF";
+  const isOFF = isMaceOffModel(params.modelType);
+  const dispersionAllowed = model?.dispersion.allowed ?? false;
+  const sizes = modelSizes(params.modelType);
+  const notice = licenseNotice(params.modelType);
+  // Step ceilings: the tighter of the physical bound and this deployment's cap.
+  const maxOptSteps = Math.min(PARAMS.maxOptSteps.max, caps.limits.maxOptSteps);
+  const maxMdSteps = Math.min(PARAMS.mdSteps.max, caps.limits.maxMdSteps);
 
   // Elements outside MACE-OFF's training domain, if the loaded structure is known.
   const unsupportedElements = isOFF
@@ -153,11 +169,17 @@ export function ParameterPanel({
     const next = { ...params };
     let changed = false;
 
-    if (
-      (params.modelType === "MACE-OFF" || params.modelType === "custom") &&
-      params.dispersion
-    ) {
+    if (!findModel(params.modelType)?.dispersion.allowed && params.dispersion) {
       next.dispersion = false;
+      changed = true;
+    }
+
+    // Sizes are per model (MACE-MPA-0 ships only "medium"): keep the current
+    // one if the new model has it, otherwise take the model's default.
+    const available = modelSizes(params.modelType);
+    const fallback = findModel(params.modelType)?.defaultSize;
+    if (available.length > 0 && !available.includes(params.modelSize) && fallback) {
+      next.modelSize = fallback as CalculationParams["modelSize"];
       changed = true;
     }
 
@@ -198,7 +220,7 @@ export function ParameterPanel({
         <CardContent className="space-y-5">
           <Field
             label="Model type"
-            tooltip="MACE-MP-0: materials & crystals (89 elements). MACE-OFF: organic molecules only — H, C, N, O, F, P, S, Cl, Br, I. Custom: your own .model checkpoint."
+            tooltip="MACE-MPA-0: materials & crystals, 89 elements — upstream's default. MACE-MP-0: the 2023 materials model, kept so earlier results can be reproduced. MACE-OFF: organic molecules only — H, C, N, O, F, P, S, Cl, Br, I. Custom: your own .model checkpoint (local or self-hosted only)."
           >
             <Select
               value={params.modelType}
@@ -210,15 +232,13 @@ export function ParameterPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MACE-MP-0">
-                  MACE-MP-0 — materials, 89 elements
-                </SelectItem>
-                <SelectItem value="MACE-OFF">
-                  MACE-OFF — organic molecules
-                </SelectItem>
-                <SelectItem value="custom">
-                  Custom — upload .model file
-                </SelectItem>
+                {MODELS.filter((m) => m.loader !== "checkpoint" || caps.customModels).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.loader === "checkpoint"
+                      ? "Custom — upload .model file"
+                      : `${m.label} — ${m.domain === "materials" ? `materials, ${m.elementCount} elements` : "organic molecules"}`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
@@ -236,13 +256,19 @@ export function ParameterPanel({
                   are outside its training domain.
                 </span>
               </p>
+              {notice && (
+                <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                  <strong className="font-semibold text-[var(--color-text-primary)]">Licence:</strong>{" "}
+                  {notice}
+                </p>
+              )}
               {unsupportedElements.length > 0 && (
                 <p className="flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-2 text-xs leading-relaxed text-[var(--color-error)]">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     This structure contains{" "}
                     <strong>{unsupportedElements.join(", ")}</strong>, which
-                    MACE-OFF does not support. Switch to MACE-MP-0 for this
+                    MACE-OFF does not support. Switch to MACE-MPA-0 for this
                     structure.
                   </span>
                 </p>
@@ -327,17 +353,24 @@ export function ParameterPanel({
               onValueChange={(v) =>
                 updateParam("modelSize", v as CalculationParams["modelSize"])
               }
-              disabled={isCustom}
+              disabled={isCustom || sizes.length <= 1}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="small">Small — fastest</SelectItem>
-                <SelectItem value="medium">Medium — balanced</SelectItem>
-                <SelectItem value="large">Large — most accurate</SelectItem>
+                {sizes.map((size) => (
+                  <SelectItem key={size} value={size}>
+                    {SIZE_LABELS[size] ?? size}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {!isCustom && sizes.length === 1 && (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {model?.label} is published in one size.
+              </p>
+            )}
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
@@ -457,18 +490,18 @@ export function ParameterPanel({
           </RadioGroup>
 
           <div className="border-t border-[var(--color-border-subtle)] pt-5">
-            {/* D3 dispersion — meaningful only for MACE-MP-0 */}
+            {/* D3 dispersion — meaningful only for the MACE-MP family */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Label htmlFor="dispersion" className="text-sm">
                   D3 dispersion correction
                 </Label>
-                <InfoTip text="Grimme D3 correction. Only meaningful for MACE-MP-0 — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
+                <InfoTip text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
               </div>
               <Switch
                 id="dispersion"
-                checked={params.dispersion && !isOFF && !isCustom}
-                disabled={isOFF || isCustom}
+                checked={params.dispersion && dispersionAllowed}
+                disabled={!dispersionAllowed}
                 onCheckedChange={(c) => updateParam("dispersion", c)}
               />
             </div>
@@ -494,8 +527,8 @@ export function ParameterPanel({
                   hint="Convergence: max force per atom (fmax). 0.05 for general use; tighten to 0.01 for production-quality geometries."
                   value={params.forceThreshold ?? 0.05}
                   onChange={(v) => updateParam("forceThreshold", v)}
-                  min={0.001}
-                  max={1}
+                  min={PARAMS.forceThreshold.min}
+                  max={PARAMS.forceThreshold.max}
                   step={0.01}
                 />
                 <NumberField
@@ -503,8 +536,8 @@ export function ParameterPanel({
                   hint="Upper bound on BFGS iterations; the run stops early once fmax is reached."
                   value={params.maxOptSteps ?? 500}
                   onChange={(v) => updateParam("maxOptSteps", v)}
-                  min={10}
-                  max={5000}
+                  min={PARAMS.maxOptSteps.min}
+                  max={maxOptSteps}
                 />
               </div>
             )}
@@ -554,8 +587,8 @@ export function ParameterPanel({
                   }
                   value={params.temperature ?? 300}
                   onChange={(v) => updateParam("temperature", v)}
-                  min={0}
-                  max={5000}
+                  min={PARAMS.temperature.min}
+                  max={PARAMS.temperature.max}
                 />
 
                 {(params.mdEnsemble ?? "NVT") === "NVT" && (
@@ -565,8 +598,8 @@ export function ParameterPanel({
                     hint="Langevin thermostat coupling strength"
                     value={params.friction ?? 0.005}
                     onChange={(v) => updateParam("friction", v)}
-                    min={0.0001}
-                    max={0.1}
+                    min={PARAMS.friction.min}
+                    max={PARAMS.friction.max}
                     step={0.001}
                   />
                 )}
@@ -577,8 +610,8 @@ export function ParameterPanel({
                     unit="GPa"
                     value={params.pressure ?? 0}
                     onChange={(v) => updateParam("pressure", v)}
-                    min={0}
-                    max={1000}
+                    min={PARAMS.pressure.min}
+                    max={PARAMS.pressure.max}
                   />
                 )}
 
@@ -590,16 +623,16 @@ export function ParameterPanel({
                     warning={timeStepWarning}
                     value={timeStepValue}
                     onChange={(v) => updateParam("timeStep", v)}
-                    min={0.1}
-                    max={4}
+                    min={PARAMS.timeStep.min}
+                    max={PARAMS.timeStep.max}
                     step={0.1}
                   />
                   <NumberField
                     label="MD steps"
                     value={params.mdSteps ?? 100}
                     onChange={(v) => updateParam("mdSteps", v)}
-                    min={1}
-                    max={100000}
+                    min={PARAMS.mdSteps.min}
+                    max={maxMdSteps}
                   />
                 </div>
               </div>

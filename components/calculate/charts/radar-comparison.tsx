@@ -53,7 +53,7 @@ export function RadarComparison({
   const valuesA = toValues(modelA);
   const valuesB = toValues(modelB);
 
-  const traces: any[] = [
+  const traces: Plotly.Data[] = [
     {
       type: "scatterpolar",
       r: [...valuesA, valuesA[0]],
@@ -76,7 +76,7 @@ export function RadarComparison({
     },
   ];
 
-  const layout: Record<string, any> = {
+  const layout: Partial<Plotly.Layout> = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
     font: {

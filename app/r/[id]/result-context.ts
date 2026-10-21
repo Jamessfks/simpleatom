@@ -30,6 +30,7 @@
  *     `SharedResult.params` is only what the browser asked for.
  */
 
+import { findModel } from "@/lib/contract";
 import type {
   CalculationParams,
   CalculationResult,
@@ -61,10 +62,15 @@ const FORCE_DECIMALS = 4;
  * Reference Conventions"), and someone arriving from a link has no way to know
  * which convention they are looking at unless it is stated.
  */
-const ENERGY_CONVENTIONS: Record<string, string> = {
-  "MACE-MP-0": "PBE(+U) DFT reference",
-  "MACE-OFF": "ωB97M-D3BJ reference",
+const CONVENTION_LABELS: Record<string, string> = {
+  mp: "PBE(+U) DFT reference",
+  off: "ωB97M-D3BJ reference",
 };
+
+function conventionLabel(modelType: string): string | null {
+  const model = findModel(modelType);
+  return model ? (CONVENTION_LABELS[model.energyConvention] ?? null) : null;
+}
 
 const CALCULATION_LABELS: Record<string, string> = {
   "single-point": "Single-point energy",
@@ -287,7 +293,7 @@ export function summarizeShared(shared: SharedResult): ResultSummary {
       : params.modelType
     : null;
   const convention = params.modelType
-    ? (ENERGY_CONVENTIONS[params.modelType] ?? null)
+    ? conventionLabel(params.modelType)
     : null;
 
   const headline = calculation

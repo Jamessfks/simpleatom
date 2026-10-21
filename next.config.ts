@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   // Acknowledge Turbopack (Next.js 16 default). Webpack config below applies when using --webpack.
   // Some browser bundles still reference Node built-ins in dead code; stub them.
   turbopack: {
@@ -41,6 +42,21 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Every route, embed included: baseline hardening that changes nothing
+        // a legitimate page relies on. A full Content-Security-Policy is a
+        // separate change (WEAS iframe blobs, Ketcher wasm, Plotly) — see
+        // docs/adr/0029 follow-ups.
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          },
+        ],
+      },
+      {
         // Everything except exactly /r/<id>/embed. The `$` matters: without it
         // a path that merely STARTS that way (`/r/x/embedded`, `/r/x/embed/y`)
         // would also lose the strict policy. Verified against Next's own route
@@ -66,6 +82,12 @@ const nextConfig: NextConfig = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
+    };
+    // Same alias Turbopack uses above; without it `next build --webpack`
+    // could not resolve react-plotly.js's import.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "plotly.js/dist/plotly": "plotly.js-dist-min",
     };
     return config;
   },

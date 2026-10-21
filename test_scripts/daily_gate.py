@@ -41,9 +41,12 @@ PROGRESS = ROOT / "docs" / "v2" / "progress.json"
 DEFECTS = ROOT / "docs" / "v2" / "defects.json"
 
 # Measured 2026-09-11 after ignoring .claude/worktrees/**/.next in
-# eslint.config.mjs. Before that fix ESLint OOMed and reported nothing, so the
-# lint gate was green-by-absence for a month. A number that only ever goes down.
-LINT_BASELINE = 33
+# eslint.config.mjs (before that ESLint OOMed and the gate was green-by-absence).
+# Re-measured 2026-10-20: eslint-config-next 16.4.2 added React-compiler rules
+# that scored the unchanged code at 40; fixing real defects among them (a
+# conditional hook, a component recreated each render, untyped Plotly code)
+# brought it to 15. A number that only ever goes down.
+LINT_BASELINE = 15
 
 # public/demo/silicon.cif — correct nearest-neighbour is a*sqrt(3)/4. If
 # parseCIF stops converting fractional coordinates this collapses to ~0.43 A

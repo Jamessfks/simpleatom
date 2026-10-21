@@ -40,6 +40,7 @@
 
 import type { Metadata } from "next";
 import { loadResult } from "@/lib/share";
+import { SharingUnavailableError } from "@/lib/supabase";
 import { MoleculeViewer3D } from "@/components/calculate/molecule-viewer-3d";
 import { hasStructure, summarizeShared } from "../result-context";
 
@@ -143,7 +144,20 @@ export default async function EmbeddedResultPage({
   const bordered = !flag(query["no-border"], false);
   const showCaption = flag(query["caption"], true);
 
-  const shared = await loadResult(id);
+  let shared: Awaited<ReturnType<typeof loadResult>>;
+  try {
+    shared = await loadResult(id);
+  } catch (error) {
+    if (!(error instanceof SharingUnavailableError)) throw error;
+    // An outage is not a missing result: say which one it is (R1).
+    return (
+      <EmbedMessage
+        bordered={bordered}
+        title="Sharing is unavailable right now"
+        detail="The MACE Link database could not be reached. The link is not known to be broken — try again later."
+      />
+    );
+  }
 
   if (!shared) {
     return (

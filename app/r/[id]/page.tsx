@@ -13,14 +13,30 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { loadResult } from "@/lib/share";
+import { SharingUnavailableError } from "@/lib/supabase";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { SharedResultView } from "./shared-result-view";
 import { summarizeShared } from "./result-context";
 
-const getShared = cache(loadResult);
+type Lookup =
+  | { state: "found"; shared: NonNullable<Awaited<ReturnType<typeof loadResult>>> }
+  | { state: "missing" }
+  | { state: "unavailable"; reason: string };
+
+/** One database read per request, shared by generateMetadata and the page. */
+const getShared = cache(async (id: string): Promise<Lookup> => {
+  try {
+    const shared = await loadResult(id);
+    return shared ? { state: "found", shared } : { state: "missing" };
+  } catch (error) {
+    if (error instanceof SharingUnavailableError) return { state: "unavailable", reason: error.message };
+    throw error;
+  }
+});
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -36,16 +52,16 @@ interface Props {
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const shared = await getShared(id);
+  const lookup = await getShared(id);
 
-  if (!shared) {
+  if (lookup.state !== "found") {
     return {
-      title: "Result not found",
+      title: lookup.state === "missing" ? "Result not found" : "Sharing unavailable",
       robots: { index: false, follow: false },
     };
   }
 
-  const summary = summarizeShared(shared);
+  const summary = summarizeShared(lookup.shared);
   const description = [
     summary.headline,
     summary.atomCount != null ? `${summary.atomCount} atoms` : null,
@@ -66,23 +82,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SharedResultPage({ params }: Props) {
   const { id } = await params;
-  const shared = await getShared(id);
+  const lookup = await getShared(id);
 
-  if (!shared) {
+  // A missing row is a real 404 (app/r/[id]/not-found.tsx); it used to render
+  // a "not found" page with HTTP 200.
+  if (lookup.state === "missing") notFound();
+
+  if (lookup.state === "unavailable") {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <SiteHeader />
         <main className="flex flex-1 items-center justify-center px-6 py-20">
           <div className="max-w-md space-y-4 text-center">
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              Result not found
+              Sharing is unavailable right now
             </h1>
             <p className="text-sm text-[var(--color-text-secondary)]">
               The shared result{" "}
-              <code className="font-mono text-[var(--color-accent-strong)]">
-                {id}
-              </code>{" "}
-              doesn&rsquo;t exist or has been removed.
+              <code className="font-mono text-[var(--color-accent-strong)]">{id}</code>{" "}
+              could not be loaded because the MACE Link database is not reachable. The link
+              itself is not known to be broken — try again later.
             </p>
             <Button asChild className="mt-2">
               <Link href="/calculate">Run a new calculation</Link>
@@ -94,5 +113,5 @@ export default async function SharedResultPage({ params }: Props) {
     );
   }
 
-  return <SharedResultView shared={shared} />;
+  return <SharedResultView shared={lookup.shared} />;
 }

@@ -36,14 +36,6 @@ export function BenchmarkForceBars({ result }: ForceBarsProps) {
     return result.results[0].models.map((m) => m.modelLabel);
   }, [result]);
 
-  if (result.results.length === 0) {
-    return (
-      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-6 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">No force data available.</p>
-      </Card>
-    );
-  }
-
   const structureNames = result.results.map((r) => r.structureName);
 
   const traces = modelLabels.map((label, mi) => ({
@@ -96,6 +88,17 @@ export function BenchmarkForceBars({ result }: ForceBarsProps) {
     }
     return rows;
   }, [result]);
+
+  // Every hook runs before this return. It used to sit above the useMemo, so a
+  // result going from empty to non-empty changed the number of hooks called
+  // and React threw (rules-of-hooks).
+  if (result.results.length === 0) {
+    return (
+      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-6 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">No force data available.</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -19,6 +19,8 @@
  * panel says so rather than guessing, and this page warns before the run.
  */
 
+import { MODELS, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Play, AlertTriangle, Info, Upload, X, File as FileIcon } from "lucide-react";
 import { MLPEG_CATALOG, type CatalogCategory, type CatalogEntry } from "@/lib/mlpeg-catalog";
@@ -59,18 +61,22 @@ interface ModelOption {
   family: string;
 }
 
-const MODEL_OPTIONS: ModelOption[] = [
-  { type: "MACE-MP-0", size: "small", label: "MACE-MP-0 (small)", family: "MACE-MP-0" },
-  { type: "MACE-MP-0", size: "medium", label: "MACE-MP-0 (medium)", family: "MACE-MP-0" },
-  { type: "MACE-MP-0", size: "large", label: "MACE-MP-0 (large)", family: "MACE-MP-0" },
-  { type: "MACE-OFF", size: "small", label: "MACE-OFF (small)", family: "MACE-OFF" },
-  { type: "MACE-OFF", size: "medium", label: "MACE-OFF (medium)", family: "MACE-OFF" },
-  { type: "MACE-OFF", size: "large", label: "MACE-OFF (large)", family: "MACE-OFF" },
-];
+/** Every foundation model × size the registry lists (mace-api/contract.json). */
+const MODEL_OPTIONS: ModelOption[] = MODELS.filter((m) => m.loader !== "checkpoint").flatMap((m) =>
+  Object.keys(m.sizes).map((size) => ({
+    type: m.id,
+    size: size as ModelSize,
+    label: `${m.label} (${size})`,
+    family: m.id,
+  })),
+);
 
-const MACE_OFF_ELEMENTS = new Set([
-  "H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I",
-]);
+/** Model groups in registry order, with the heading each group shows. */
+const MODEL_GROUPS = MODELS.filter((m) => m.loader !== "checkpoint").map((m) => ({
+  id: m.id,
+  heading: `${m.label} — ${m.summary}`,
+  notice: m.license.notice,
+}));
 
 /** One-line description for an MP entry, with its published value inline. */
 function mpEntryDescription(e: MpReferenceEntry): string {
@@ -107,7 +113,7 @@ const MP_CATEGORY: CatalogCategory = {
     formula: e.formula,
     atomCount: e.atomCount,
     elements: e.elements,
-    recommendedModel: "MACE-MP-0" as const,
+    recommendedModel: "MACE-MPA-0" as const,
     xyzData: e.xyzData,
   })),
 };
@@ -138,7 +144,8 @@ function isStructureCompatibleWithOFF(entry: CatalogEntry): boolean {
 
 export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
   const [selectedModels, setSelectedModels] = useState<Set<string>>(
-    new Set(["MACE-MP-0-small", "MACE-MP-0-medium"])
+    // The new materials default against the model it replaced.
+    new Set(["MACE-MPA-0-medium", "MACE-MP-0-medium"])
   );
   const [selectedStructures, setSelectedStructures] = useState<Set<string>>(
     new Set(ALL_CATEGORIES.flatMap((c) => c.entries.map((e) => e.id)))
@@ -213,13 +220,13 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
 
   const hasAnyOFF = useMemo(() => {
     return MODEL_OPTIONS.some(
-      (m) => m.family === "MACE-OFF" && selectedModels.has(modelKey(m))
+      (m) => isMaceOffModel(m.type) && selectedModels.has(modelKey(m))
     );
   }, [selectedModels]);
 
   const hasAnyMP0 = useMemo(() => {
     return MODEL_OPTIONS.some(
-      (m) => m.family === "MACE-MP-0" && selectedModels.has(modelKey(m))
+      (m) => isMaterialsModel(m.type) && selectedModels.has(modelKey(m))
     );
   }, [selectedModels]);
 
@@ -369,63 +376,38 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
             </span>
           </h3>
 
-          {/* MACE-MP-0 */}
-          <div className="mb-3">
-            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-              MACE-MP-0 — Materials (89 elements)
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {MODEL_OPTIONS.filter((m) => m.family === "MACE-MP-0").map((m) => {
-                const key = modelKey(m);
-                const checked = selectedModels.has(key);
-                return (
-                  <button
-                    key={key}
-                    role="checkbox"
-                    aria-checked={checked}
-                    aria-label={`Select ${m.label}`}
-                    onClick={() => toggleModel(key)}
-                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
-                      checked
-                        ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)]"
-                        : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]"
-                    }`}
-                  >
-                    {checked ? "✓ " : ""}{m.size}
-                  </button>
-                );
-              })}
+          {MODEL_GROUPS.map((group) => (
+            <div key={group.id} className="mb-3">
+              <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                {group.heading}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {MODEL_OPTIONS.filter((m) => m.family === group.id).map((m) => {
+                  const key = modelKey(m);
+                  const checked = selectedModels.has(key);
+                  return (
+                    <button
+                      key={key}
+                      role="checkbox"
+                      aria-checked={checked}
+                      aria-label={`Select ${m.label}`}
+                      onClick={() => toggleModel(key)}
+                      className={`rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
+                        checked
+                          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)]"
+                          : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]"
+                      }`}
+                    >
+                      {checked ? "✓ " : ""}{m.size}
+                    </button>
+                  );
+                })}
+              </div>
+              {group.notice && (
+                <p className="mt-1.5 text-xs text-[var(--color-text-secondary)]">{group.notice}</p>
+              )}
             </div>
-          </div>
-
-          {/* MACE-OFF */}
-          <div className="mb-3">
-            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-              MACE-OFF — Organic (H, C, N, O, F, P, S, Cl, Br, I)
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {MODEL_OPTIONS.filter((m) => m.family === "MACE-OFF").map((m) => {
-                const key = modelKey(m);
-                const checked = selectedModels.has(key);
-                return (
-                  <button
-                    key={key}
-                    role="checkbox"
-                    aria-checked={checked}
-                    aria-label={`Select ${m.label}`}
-                    onClick={() => toggleModel(key)}
-                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
-                      checked
-                        ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)]"
-                        : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:text-[var(--color-text-secondary)]"
-                    }`}
-                  >
-                    {checked ? "✓ " : ""}{m.size}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          ))}
 
           {/* Custom model upload */}
           <div className="mb-3">

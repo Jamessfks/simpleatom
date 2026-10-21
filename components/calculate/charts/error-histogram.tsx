@@ -43,17 +43,17 @@ export function ErrorHistogram({
     errors.reduce((s, v) => s + (v - mean) ** 2, 0) / errors.length;
   const std = Math.sqrt(variance);
 
-  const traces: any[] = [
-    {
-      x: errors,
-      type: "histogram",
-      name: "Errors",
-      marker: { color, opacity: 0.7 },
-      nbinsx: Math.min(50, Math.max(10, Math.floor(Math.sqrt(errors.length)))),
-    },
-  ];
+  // `nbinsx` is a real histogram attribute that @types/plotly.js omits.
+  const histogram: Partial<Plotly.PlotData> & { nbinsx: number } = {
+    x: errors,
+    type: "histogram",
+    name: "Errors",
+    marker: { color, opacity: 0.7 },
+    nbinsx: Math.min(50, Math.max(10, Math.floor(Math.sqrt(errors.length)))),
+  };
+  const traces: Plotly.Data[] = [histogram];
 
-  const layout: Record<string, any> = {
+  const layout: Partial<Plotly.Layout> = {
     ...BASE_LAYOUT,
     title: { text: title, font: { size: 13, color: "#5C574E" } },
     xaxis: {

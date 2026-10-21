@@ -23,7 +23,7 @@
  */
 
 import { nanoid } from "nanoid";
-import { supabase } from "@/lib/supabase";
+import { getSupabase, SharingUnavailableError } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/site";
 import type { CalculationResult, CalculationParams, SharedResult } from "@/types/mace";
 
@@ -35,7 +35,7 @@ export async function saveResult(
 ): Promise<{ id: string; url: string }> {
   const id = nanoid(8);
 
-  const { error } = await supabase.from("shared_results").insert({
+  const { error } = await getSupabase().from("shared_results").insert({
     id,
     result,
     params,
@@ -62,20 +62,34 @@ export function embedPath(id: string): string {
   return `/r/${id}/embed`;
 }
 
+/** Shared-result ids: nanoid(8) today; anything else is not a row we wrote. */
+const SHARE_ID = /^[A-Za-z0-9_-]{6,32}$/;
+
 /**
- * Load a previously shared result by ID. Returns null if not found.
+ * Load a previously shared result by ID.
+ *
+ * Returns null ONLY when the row does not exist. Any other failure — sharing
+ * not configured, the database paused or unreachable — throws
+ * SharingUnavailableError. Every error used to map to null, so an outage
+ * rendered "this result doesn't exist" for links that were fine (R1).
  *
  * Normalizes the stored payload on the way out — see `normalizeSharedResult()`
  * for exactly what that means and, more importantly, what it does not.
  */
 export async function loadResult(id: string): Promise<SharedResult | null> {
-  const { data, error } = await supabase
+  if (!SHARE_ID.test(id)) return null;
+  const { data, error } = await getSupabase()
     .from("shared_results")
     .select("id, result, params, filename, created_at")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    throw new SharingUnavailableError(
+      `The MACE Link database could not be reached (${error.message || "unknown error"}).`,
+    );
+  }
+  if (!data) return null;
 
   return normalizeSharedResult(data as SharedResult);
 }

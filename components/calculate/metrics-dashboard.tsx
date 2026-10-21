@@ -26,6 +26,7 @@
  *   conventions (CLAUDE.md, "Energy Reference Conventions").
  */
 
+import { CONTRACT, findModel, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
 import { useState, useMemo } from "react";
 import {
   BarChart3,
@@ -100,10 +101,22 @@ const MEV_DECIMALS = 1; // meV, meV/Å, meV/atom — accuracy metrics
  * (CLAUDE.md, "Energy Reference Conventions"). Ranges are typical orders of
  * magnitude, not hard bounds — flag, don't block.
  */
-const ENERGY_CONVENTIONS: Record<string, { method: string; range: [number, number] }> = {
-  "MACE-MP-0": { method: "PBE(+U) DFT reference", range: [-15, -1] },
-  "MACE-OFF": { method: "ωB97M-D3BJ reference", range: [-600, -100] },
+const CONVENTION_METHODS: Record<string, string> = {
+  mp: "PBE(+U) DFT reference",
+  off: "ωB97M-D3BJ reference",
 };
+
+/** The reference convention a model's energies are on, from the registry. */
+function energyConventionFor(
+  modelType: string | undefined,
+): { method: string; range: [number, number] } | undefined {
+  const model = findModel(modelType);
+  if (!model) return undefined;
+  const typical = CONTRACT.energyConventions[model.energyConvention].typical;
+  const method = CONVENTION_METHODS[model.energyConvention];
+  if (!typical || !method) return undefined;
+  return { method, range: [typical.minEvPerAtom, typical.maxEvPerAtom] };
+}
 
 // ---------------------------------------------------------------------------
 // Accuracy metric computation
@@ -426,7 +439,7 @@ function SummaryTab({
 }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const convention = modelType ? ENERGY_CONVENTIONS[modelType] : undefined;
+  const convention = energyConventionFor(modelType);
   const ePerAtomNum = result.energy != null && atomCount > 0 ? result.energy / atomCount : null;
   const energyInRange =
     convention && ePerAtomNum != null
@@ -1316,6 +1329,7 @@ const REPO_URL = "https://github.com/Jamessfks/simpleatom";
  * regardless of which label was requested, so both point at the same repo.
  */
 const UPSTREAM_WEIGHTS_REPO: Record<string, string> = {
+  "MACE-MPA-0": "https://github.com/ACEsuit/mace-foundations",
   "MACE-MP-0": "https://github.com/ACEsuit/mace-foundations/releases",
   "MACE-OFF": "https://github.com/ACEsuit/mace-off",
   "MACE-OFF23": "https://github.com/ACEsuit/mace-off",
@@ -1687,7 +1701,7 @@ function PropertyRows({ rows }: { rows: { label: string; value: React.ReactNode 
 function EnergyReferenceNote({ result }: { result: CalculationResult }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const conv = modelType ? ENERGY_CONVENTIONS[modelType] : undefined;
+  const conv = energyConventionFor(modelType);
 
   return (
     <div className="rounded-lg border border-border bg-muted px-4 py-3">
@@ -1706,20 +1720,20 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         ) : modelType === "custom" ? (
           <>
             This is a custom checkpoint &mdash; its reference convention depends on how it was
-            trained and is not necessarily comparable to MACE-MP-0 or MACE-OFF energies.
+            trained and is not necessarily comparable to MACE-MP or MACE-OFF energies.
           </>
         ) : (
           <>Absolute values depend on the reference used to train the model that produced them.</>
         )}{" "}
         Totals from a different model or reference state are never directly comparable &mdash;
         only compare energies produced by the same model.{" "}
-        {modelType === "MACE-MP-0" && (
+        {isMaterialsModel(modelType) && (
           <>
             For solids, cohesive energy = E(bulk)/N &minus; E(isolated atom); subtract
             isolated-atom energies for your elements to get a physically comparable number.
           </>
         )}
-        {modelType === "MACE-OFF" && (
+        {isMaceOffModel(modelType) && (
           <>
             For molecules, relative energies between conformers of the same composition are
             physically meaningful; absolute totals are not.

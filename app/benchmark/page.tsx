@@ -10,7 +10,7 @@
  * calculation status is not streamed.
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { FlaskConical } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -46,7 +46,9 @@ export default function BenchmarkPage() {
   const [models, setModels] = useState<SelectedModel[]>([]);
   const [structureIds, setStructureIds] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const startTimeRef = useRef(Date.now());
+  // Set when a run starts (an event handler), so render never reads a ref or
+  // calls the impure Date.now().
+  const [startTime, setStartTime] = useState(0);
 
   const handleRun = useCallback(
     async (
@@ -61,7 +63,8 @@ export default function BenchmarkPage() {
         selectedIds.length + (userStructureFiles?.length ?? 0);
       setTotal(selectedModels.length * structureCount);
       setPhase("running");
-      startTimeRef.current = Date.now();
+      const runStart = Date.now();
+      setStartTime(runStart);
 
       try {
         const payload = {
@@ -117,7 +120,7 @@ export default function BenchmarkPage() {
             totalCalculations: selectedModels.length * selectedIds.length,
             successCount: 0,
             errorCount: selectedModels.length * selectedIds.length,
-            totalTime: (Date.now() - startTimeRef.current) / 1000,
+            totalTime: (Date.now() - runStart) / 1000,
           },
         });
         setPhase("results");
@@ -172,7 +175,7 @@ export default function BenchmarkPage() {
               structureIds={structureIds}
               structureNames={structureNameMap}
               total={total}
-              startTime={startTimeRef.current}
+              startTime={startTime}
             />
           )}
 

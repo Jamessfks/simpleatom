@@ -36,7 +36,7 @@ export function EnergyConvergence({
 }: EnergyConvergenceProps) {
   if (energies.length === 0) return null;
 
-  const traces: any[] = [
+  const traces: Plotly.Data[] = [
     {
       x: steps,
       y: energies,
@@ -66,7 +66,7 @@ export function EnergyConvergence({
   const eMax = Math.max(...energies);
   const mean = energies.reduce((s, v) => s + v, 0) / energies.length;
 
-  const layout: Record<string, any> = {
+  const layout: Partial<Plotly.Layout> = {
     ...BASE_LAYOUT,
     title: { text: title, font: { size: 13, color: "#5C574E" } },
     xaxis: {

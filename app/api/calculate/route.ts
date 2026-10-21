@@ -1,267 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { CalculationResult } from "@/types/mace";
+import {
+  APP_VERSION,
+  checkCalculationParams,
+  customModelsAllowed,
+  profile,
+  serverProfileName,
+} from "@/lib/contract";
+import {
+  ApiError,
+  MACE_API_URL,
+  calculate,
+  errorResponse,
+  parseParams,
+} from "@/lib/server/backend";
 
-const MACE_API_URL = (() => {
-  const url = process.env.MACE_API_URL?.trim();
-  if (!url) return undefined;
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return `https://${url}`;
-  }
-  return url;
-})();
-
-/**
- * Calculation types the Python backend actually implements.
- * Kept in sync with SUPPORTED_CALCULATION_TYPES in mace-api/calculate.py.
- *
- * This check is a fast, friendly mirror — NOT the security boundary. The
- * backend validates independently, because /api/calculate and the hosted MACE
- * API can both be called directly without going through this route.
- */
-const SUPPORTED_CALCULATION_TYPES = [
-  "single-point",
-  "geometry-opt",
-  "molecular-dynamics",
-] as const;
-
-/** Types the UI type system knows about but the backend cannot compute. */
-const UNIMPLEMENTED_HINTS: Record<string, string> = {
-  phonon:
-    "Phonon/vibrational analysis is not implemented in SimpleAtom. It must be run through an external workflow on a fully converged geometry.",
-};
-
-/**
- * Returns an error message if the requested calculation type is not
- * implemented, or null if the request may proceed. An absent params payload
- * is allowed — the backend defaults to a single-point calculation.
- */
-function validateCalculationParams(paramsStr: unknown): string | null {
-  if (typeof paramsStr !== "string" || paramsStr.trim() === "") return null;
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(paramsStr);
-  } catch {
-    return "Invalid params: expected a JSON object.";
-  }
-  if (typeof parsed !== "object" || parsed === null) {
-    return "Invalid params: expected a JSON object.";
-  }
-
-  const raw = (parsed as { calculationType?: unknown }).calculationType;
-  if (raw === undefined || raw === null || raw === "") return null;
-
-  const supported = SUPPORTED_CALCULATION_TYPES.join(", ");
-  if (typeof raw !== "string") {
-    return `Invalid calculationType: expected a string. Supported types: ${supported}.`;
-  }
-
-  const calcType = raw.trim();
-  if ((SUPPORTED_CALCULATION_TYPES as readonly string[]).includes(calcType)) {
-    return null;
-  }
-
-  const hint = UNIMPLEMENTED_HINTS[calcType.toLowerCase()];
-  return (
-    `Unsupported calculationType '${calcType}'. Supported types: ${supported}.` +
-    (hint ? ` ${hint}` : "")
-  );
-}
+export const runtime = "nodejs";
+// Vercel's ceiling for this function. The backend's own time budget (240 s on
+// the hosted profile) ends a long run with an honest partial result first.
+export const maxDuration = 300;
 
 /**
  * MACE Calculation API
  * POST /api/calculate
  *
  * Accepts multipart/form-data with:
- * - files: structure files (.xyz, .cif, etc.)
- * - params: JSON string of CalculationParams
+ * - files: one structure file (.xyz, .extxyz, .cif, .poscar/.vasp/.contcar, .pdb)
+ * - params: JSON object (CalculationParams)
+ * - model: optional custom .model checkpoint (local / self-hosted only)
  *
- * Mode selection:
- * 1. MACE_API_URL set → forward to remote backend (e.g. Hugging Face Spaces)
- * 2. MACE_API_URL not set → run MACE locally via Python subprocess
- *    (requires Python + mace-torch + ase installed on the machine)
+ * Mode selection (docs/adr/0001):
+ * 1. MACE_API_URL set → forward to the hosted backend (Hugging Face Space)
+ * 2. MACE_API_URL not set → run MACE on this machine via calculate_local.py
+ *
+ * The checks here mirror mace-api/contract.py so a bad request fails before an
+ * upload or a subprocess. They are not the security boundary — the backend
+ * validates everything again, because it can be called directly.
  */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const files = formData.getAll("files") as File[];
-    const paramsStr = formData.get("params") as string;
+    const profileName = serverProfileName();
+    const form = await request.formData();
+    const files = form.getAll("files").filter((f): f is File => f instanceof File);
+    if (files.length === 0) {
+      throw new ApiError("No structure file provided.", 400, "no_files", "files");
+    }
+    const modelEntry = form.get("model");
+    const model = modelEntry instanceof File ? modelEntry : null;
+    const params = parseParams(form.get("params"));
 
-    if (!files || files.length === 0) {
-      return NextResponse.json(
-        { error: "No files provided" },
-        { status: 400 }
-      );
+    const violation = checkCalculationParams(params, profileName, model !== null);
+    if (violation) {
+      throw new ApiError(violation.message, violation.status, violation.code, violation.field);
     }
 
-    // Reject unimplemented calculation types before spending any time on
-    // subprocesses or model loading. Silently running something else would
-    // return a plausible-looking result for a calculation that never ran.
-    const paramsError = validateCalculationParams(paramsStr);
-    if (paramsError) {
-      return NextResponse.json({ error: paramsError }, { status: 400 });
-    }
-
-    const modelFile = formData.get("model") as File | null;
-
-    // ── Remote backend (Hugging Face Spaces / any hosted MACE API) ──
-    if (MACE_API_URL) {
-      const maceFormData = new FormData();
-      files.forEach((file) => maceFormData.append("files", file));
-      maceFormData.append("params", paramsStr);
-      if (modelFile) {
-        maceFormData.append("model", modelFile);
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-
-      try {
-        const response = await fetch(`${MACE_API_URL}/calculate`, {
-          method: "POST",
-          body: maceFormData,
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const err = await response.text();
-          throw new Error(err || `MACE API error: ${response.status}`);
-        }
-
-        const data: CalculationResult = await response.json();
-        // FIX: remote API may return HTTP 200 with status:"error" → surface it
-        if (data.status === "error") {
-          throw new Error(data.message || "MACE API returned an error");
-        }
-        return NextResponse.json(data);
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err instanceof Error) throw err;
-        throw new Error("MACE API request failed");
-      }
-    }
-
-    // ── Local mode: run MACE on this machine via Python subprocess ──
-    const { writeFile, mkdtemp, unlink, rmdir } = await import("node:fs/promises");
-    const { join } = await import("node:path");
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const execFileAsync = promisify(execFile);
-    const os = await import("node:os");
-
-    // Write uploaded file to a temp directory
-    const tmpDir = await mkdtemp(join(os.tmpdir(), "mace-"));
-    const file = files[0];
-    const tmpPath = join(tmpDir, file.name);
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(tmpPath, fileBuffer);
-
-    // Handle custom model file if provided
-    let modelPath: string | undefined;
-    if (modelFile) {
-      modelPath = join(tmpDir, modelFile.name);
-      const modelBuffer = Buffer.from(await modelFile.arrayBuffer());
-      await writeFile(modelPath, modelBuffer);
-    }
-
-    // Path to the local Python calculation script
-    const scriptPath = join(process.cwd(), "mace-api", "calculate_local.py");
-
-    try {
-      const args = [scriptPath, tmpPath, paramsStr];
-      if (modelPath) {
-        args.push("--model-path", modelPath);
-      }
-
-      let stdout: string;
-      let stderr: string;
-      try {
-        const result = await execFileAsync(
-          "python3",
-          args,
-          {
-            timeout: 60 * 60 * 1000,
-            maxBuffer: 50 * 1024 * 1024,
-            env: { ...process.env, PYTHONUNBUFFERED: "1", KMP_DUPLICATE_LIB_OK: "TRUE" },
-          }
-        );
-        stdout = result.stdout;
-        stderr = result.stderr;
-      } catch (execErr: any) {
-        // execFile throws on non-zero exit; the Python script may have
-        // printed a JSON error object to stdout before exiting
-        stdout = execErr.stdout ?? "";
-        stderr = execErr.stderr ?? "";
-
-        const jsonStart = stdout.indexOf("{");
-        if (jsonStart !== -1) {
-          try {
-            const errData = JSON.parse(stdout.slice(jsonStart));
-            if (errData.message || errData.error) {
-              throw new Error(errData.message || errData.error);
-            }
-          } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) {
-              // not valid JSON — fall through
-            } else {
-              throw parseErr;
-            }
-          }
-        }
-
-        // Extract a human-readable message from stderr
-        const stderrTail = stderr.trim().split("\n").pop() ?? "";
-        const msg = stderrTail || stdout.trim().slice(0, 300) || "MACE calculation failed";
-        throw new Error(msg);
-      }
-
-      if (stderr) {
-        console.warn("[MACE local stderr]", stderr.slice(0, 500));
-      }
-
-      const jsonStart = stdout.indexOf("{");
-      if (jsonStart === -1) {
-        throw new Error(stdout || "No JSON output from MACE");
-      }
-      const data: CalculationResult = JSON.parse(stdout.slice(jsonStart));
-      // FIX: Python script may exit 0 but return status:"error" → surface it
-      if (data.status === "error") {
-        throw new Error(data.message || "MACE calculation returned an error");
-      }
-      return NextResponse.json(data);
-    } finally {
-      // Cleanup temp files
-      try {
-        await unlink(tmpPath);
-        if (modelPath) {
-          try { await unlink(modelPath); } catch {}
-        }
-        await rmdir(tmpDir);
-      } catch {
-        // ignore cleanup errors
-      }
-    }
-  } catch (error) {
-    console.error("Calculation error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Calculation failed" },
-      { status: 500 }
+    const result = await calculate(
+      { data: files[0], name: files[0].name },
+      params,
+      {
+        profile: profileName,
+        model: model ? { data: model, name: model.name } : null,
+        // A closed tab stops the work: the abort reaches the fetch to the
+        // backend, or kills the local Python child.
+        signal: request.signal,
+        timeoutMs: (maxDuration - 10) * 1000,
+      },
     );
+    return NextResponse.json(result);
+  } catch (error) {
+    return errorResponse(error);
   }
 }
 
 /**
- * GET /api/calculate - returns API info
+ * GET /api/calculate — what this deployment will compute.
  */
 export async function GET() {
+  const profileName = serverProfileName();
+  const limits = Object.fromEntries(
+    Object.entries(profile(profileName)).filter(([key]) => key !== "description"),
+  );
   return NextResponse.json({
-    name: "MACE Calculation API",
-    version: "1.0.0",
+    name: "SimpleAtom MACE API",
+    version: APP_VERSION,
     mode: MACE_API_URL ? "remote" : "local",
-    endpoints: {
-      POST: "/api/calculate - Submit calculation",
-    },
-    status: "operational",
+    profile: profileName,
+    customModels: customModelsAllowed(profileName),
+    limits,
   });
 }

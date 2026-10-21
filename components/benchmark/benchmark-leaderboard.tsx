@@ -34,6 +34,19 @@ interface LeaderboardProps {
   result: BenchmarkResult;
 }
 
+/**
+ * Sort indicator. Defined at module scope: declared inside the component it
+ * was a new component type on every render, so React remounted it each time.
+ */
+function SortIcon({ k, active, dir }: { k: SortKey; active: SortKey; dir: SortDir }) {
+  if (active !== k) return null;
+  return dir === "asc" ? (
+    <ChevronUp className="inline h-3 w-3" />
+  ) : (
+    <ChevronDown className="inline h-3 w-3" />
+  );
+}
+
 export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
   const [sortKey, setSortKey] = useState<SortKey>("structure");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -91,15 +104,6 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
     }
   };
 
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k) return null;
-    return sortDir === "asc" ? (
-      <ChevronUp className="inline h-3 w-3" />
-    ) : (
-      <ChevronDown className="inline h-3 w-3" />
-    );
-  };
-
   const lowestEnergyPerRow = (row: BenchmarkStructureResult): number | null => {
     const energies = row.models
       .filter((m) => m.status === "success" && m.energyPerAtom != null)
@@ -135,19 +139,19 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
               className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
               onClick={() => handleSort("structure")}
             >
-              Structure <SortIcon k="structure" />
+              Structure <SortIcon k="structure" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
               className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
               onClick={() => handleSort("category")}
             >
-              Category <SortIcon k="category" />
+              Category <SortIcon k="category" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
               className="h-auto cursor-pointer px-3 py-2.5 text-right text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
               onClick={() => handleSort("atoms")}
             >
-              Atoms <SortIcon k="atoms" />
+              Atoms <SortIcon k="atoms" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
               className="h-auto whitespace-normal px-3 py-2.5 text-right"
@@ -167,14 +171,14 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
               >
                 <span style={{ color: MODEL_COLORS[i] }}>{label}</span>{" "}
                 <span className="text-[var(--color-text-muted)]">(E/atom)</span>{" "}
-                <SortIcon k={`model-${i}`} />
+                <SortIcon k={`model-${i}`} active={sortKey} dir={sortDir} />
               </TableHead>
             ))}
             <TableHead
               className="h-auto cursor-pointer px-3 py-2.5 text-right text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
               onClick={() => handleSort("deltaE")}
             >
-              ΔE<sub>max</sub> <SortIcon k="deltaE" />
+              ΔE<sub>max</sub> <SortIcon k="deltaE" active={sortKey} dir={sortDir} />
             </TableHead>
           </TableRow>
         </TableHeader>

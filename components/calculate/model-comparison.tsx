@@ -99,7 +99,6 @@ export function ModelComparison({
 
   const customRms = computeRmsForce(customResult.forces);
   const foundationRms = computeRmsForce(foundationResult.forces);
-  const atomCount = customResult.symbols?.length ?? 0;
 
   const deltaE =
     customResult.energy != null && foundationResult.energy != null

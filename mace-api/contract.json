@@ -113,7 +113,7 @@
       },
       "timeBudgetSeconds": 240,
       "maxSmilesLength": 500,
-      "maxBenchmarkStructures": 20,
+      "maxBenchmarkStructures": 30,
       "maxBenchmarkUploads": 5,
       "trajectoryFloatBudget": 150000,
       "maxTrajectoryFrames": 500

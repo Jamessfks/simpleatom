@@ -39,19 +39,17 @@ interface ParityPlotProps {
 /** Compute basic regression statistics. */
 function computeStats(ref: number[], pred: number[]) {
   const n = ref.length;
-  if (n === 0) return { mae: 0, rmse: 0, r2: 0 };
+  if (n === 0) return { mae: 0, rmse: 0, r2: null };
 
   let sumAbsErr = 0;
   let sumSqErr = 0;
   let sumRef = 0;
-  let sumRefSq = 0;
 
   for (let i = 0; i < n; i++) {
     const err = pred[i] - ref[i];
     sumAbsErr += Math.abs(err);
     sumSqErr += err * err;
     sumRef += ref[i];
-    sumRefSq += ref[i] * ref[i];
   }
 
   const mae = sumAbsErr / n;
@@ -64,7 +62,9 @@ function computeStats(ref: number[], pred: number[]) {
     ssTot += (ref[i] - meanRef) ** 2;
     ssRes += (pred[i] - ref[i]) ** 2;
   }
-  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
+  // With zero spread in the references R² is undefined: reporting 1 would
+  // claim a perfect fit for predictions that may all be wrong.
+  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : ssRes === 0 ? 1 : null;
 
   return { mae, rmse, r2 };
 }
@@ -86,7 +86,7 @@ export function ParityPlot({
   const axMin = dataMin - pad;
   const axMax = dataMax + pad;
 
-  const traces: any[] = [];
+  const traces: Plotly.Data[] = [];
 
   if (elements) {
     const uniqueElements = [...new Set(elements)];
@@ -127,7 +127,7 @@ export function ParityPlot({
     showlegend: false,
   });
 
-  const layout: Record<string, any> = {
+  const layout: Partial<Plotly.Layout> = {
     ...BASE_LAYOUT,
     title: { text: title, font: { size: 13, color: "#5C574E" } },
     xaxis: {
@@ -148,7 +148,7 @@ export function ParityPlot({
         y: 0.98,
         xref: "paper",
         yref: "paper",
-        text: `R\u00B2 = ${stats.r2.toFixed(4)}<br>MAE = ${stats.mae.toFixed(4)}<br>RMSE = ${stats.rmse.toFixed(4)}`,
+        text: `R\u00B2 = ${stats.r2 === null ? "n/a" : stats.r2.toFixed(4)}<br>MAE = ${stats.mae.toFixed(4)}<br>RMSE = ${stats.rmse.toFixed(4)}`,
         showarrow: false,
         font: { family: "Geist Mono, monospace", size: 10, color: "#5C574E" },
         bgcolor: "rgba(255,255,255,0.85)",

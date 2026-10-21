@@ -265,7 +265,7 @@ function EntryRow({
         <p className="mt-0.5 truncate text-[var(--color-text-muted)]">{entry.description}</p>
       </div>
       <span className="shrink-0 rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent-primary)]/70">
-        {entry.recommendedModel === "MACE-MP-0" ? "MP" : "OFF"}
+        {entry.recommendedModel === "MACE-OFF" ? "OFF" : "MPA"}
       </span>
     </button>
   );
@@ -299,7 +299,7 @@ function EntryRow({
  *
  * MODEL RECOMMENDATIONS:
  *   Each entry has a recommendedModel field:
- *   - "MACE-MP-0" for bulk crystals and surfaces (materials)
+ *   - "MACE-MPA-0" for bulk crystals and surfaces (materials)
  *   - "MACE-OFF" for molecules and non-covalent systems (organics)
  *   Shown as "MP" or "OFF" badge in the UI.
  *
@@ -318,7 +318,7 @@ function EntryRow({
  *        formula: "Chemical formula",
  *        atomCount: N,
  *        elements: ["El1", "El2"],
- *        recommendedModel: "MACE-MP-0" or "MACE-OFF",
+ *        recommendedModel: "MACE-MPA-0" or "MACE-OFF",
  *        xyzData: `N\nComment\nEl1 x y z\n...`,
  *      }
  *   3. The entry will automatically appear in the UI.
