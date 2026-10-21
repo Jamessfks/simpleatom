@@ -287,8 +287,12 @@ export function SharedResultView({ shared }: Props) {
         {/* ── Results dashboard (reused verbatim) ── */}
         <MetricsDashboard result={result} filename={filename} />
 
-        {/* ── Share surfaces: embed + citation ── */}
-        <div className="grid gap-4 lg:grid-cols-2">
+        {/* ── Share surfaces: embed + citation ──
+            grid-cols-1 is load-bearing. Without it the phone layout gets an
+            implicit `auto` column, which grows to the longest unbreakable
+            <pre> line (the page measured 724 px wide at 375) instead of letting
+            the <pre> scroll inside its card. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Embed */}
           <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-5">
             <div className="flex items-center gap-2">
