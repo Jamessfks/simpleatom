@@ -53,6 +53,7 @@ import {
   type ParsedStructure,
 } from "@/lib/parse-structure";
 import { Badge } from "@/components/ui/badge";
+import { Formula } from "@/components/ui/formula";
 
 // ---------------------------------------------------------------------------
 // Warning thresholds
@@ -195,7 +196,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
         {/* Formula + atom count header */}
         <div className="mb-2 flex items-center gap-3">
           <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-            {parsed.empiricalFormula}
+            <Formula text={parsed.empiricalFormula} />
           </span>
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums ${countColor}`}>
             {atomCount.toLocaleString()} atoms

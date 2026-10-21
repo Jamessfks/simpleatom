@@ -17,6 +17,7 @@ import { findModel } from "@/lib/contract";
 import type { Capabilities } from "@/lib/use-capabilities";
 import type { ParsedStructure } from "@/lib/parse-structure";
 import type { CalculationParams } from "@/types/mace";
+import { Formula } from "@/components/ui/formula";
 
 interface RunLedgerProps {
   params: CalculationParams;
@@ -107,7 +108,7 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Next run</h2>
             <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
-              {structure.empiricalFormula} ({structure.atomCount} atoms), {modelText}, {calc},{" "}
+              <Formula text={structure.empiricalFormula} /> ({structure.atomCount} atoms), {modelText}, {calc},{" "}
               <span className="font-mono">{precision.dtype}</span>
             </p>
           </div>
@@ -149,7 +150,7 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
       {structure ? (
         <dl className="mt-4 divide-y divide-[var(--color-border-subtle)]">
           <Row term="Structure">
-            <span className="font-medium">{structure.empiricalFormula}</span>
+            <span className="font-medium"><Formula text={structure.empiricalFormula} /></span>
             <span className="text-[var(--color-text-secondary)]">
               , {structure.atomCount} atoms, {structure.isPeriodic ? "periodic cell" : "isolated molecule"}
             </span>

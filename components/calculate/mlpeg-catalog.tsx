@@ -49,6 +49,7 @@ import {
   type CatalogEntry,
   type CatalogCategory,
 } from "@/lib/mlpeg-catalog";
+import { Formula } from "@/components/ui/formula";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -254,7 +255,7 @@ function EntryRow({
       <Atom className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-strong)]" strokeWidth={1.75} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-[var(--color-text-primary)]">{entry.name}</span>
+          <span className="font-semibold text-[var(--color-text-primary)]"><Formula text={entry.name} /></span>
           <span className="rounded bg-[var(--color-accent-primary)]/10 px-1.5 py-0.5 text-xs text-[var(--color-accent-strong)]">
             {entry.formula}
           </span>

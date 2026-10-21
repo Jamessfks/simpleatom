@@ -43,7 +43,8 @@ The four pieces that already won blind comparisons must not regress: viewer rend
 * the run summary and numbered steps;
 * hit areas: a `touch-target` utility for icon controls, plus `max-sm:`/`pointer-coarse:` minimums in the shared primitives;
 * a skip link and a solid focus ring;
-* card hover lifts and coloured decorative card edges removed (severity edges kept on validation).
+* card hover lifts and coloured decorative card edges removed (severity edges kept on validation);
+* chemical formulas rendered with legible subscripts (`components/ui/formula.tsx`).
 
 **Deferred:** moving the semantic tokens into Tailwind `@theme` and removing the arbitrary `[var(--color-…)]` classes (703 remain) and hex literals (137 remain in `.tsx`). This is a mechanical codemod with no visible change, so it gets its own PR.
 
@@ -52,6 +53,12 @@ The four pieces that already won blind comparisons must not regress: viewer rend
 Blind `design-critic` review of production versus the candidate, at 1440 and 375, against schrodinger.com captured the same day:
 
 * **First run:** the candidate won 8 of 9 screens. It lost the desktop results fold, because the full summary pushed the energy below it. That was fixed by folding the summary after a run; the energy now ends at y = 767 px in a 900 px viewport.
+* **Re-review** of that screen plus the two phone screens the critic scored lowest: the candidate won all three (results fold 7 vs 5; phone results 6 vs 2; phone benchmark 6 vs 3).
+* **Follow-ups the re-review named, all done:**
+  * formula subscripts rendered at about 6 px; they are now real `<sub>` elements at 12 px or larger;
+  * on a phone, a finished result now scrolls into view;
+  * the benchmark Run row is sticky;
+  * the phone export row is a 2 × 2 grid.
 
 Measured on 2026-10-21 against the local build:
 

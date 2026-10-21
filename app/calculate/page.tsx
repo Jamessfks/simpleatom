@@ -262,6 +262,7 @@ function CalculatePageInner() {
   const [job, setJob] = useState<JobView | null>(null);
   const caps = useCapabilities();
   const runAbort = useRef<AbortController | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -342,6 +343,19 @@ function CalculatePageInner() {
       loadDemoStructure();
     }
   }, [searchParams, loadDemoStructure, uploadedFiles.length]);
+
+  // On a single-column layout the result renders below the whole
+  // configuration. When a run finishes and its result is not on screen, bring
+  // it into view (instantly under reduced motion).
+  useEffect(() => {
+    if (!result || isCalculating) return;
+    const el = resultsRef.current;
+    if (!el) return;
+    const { top } = el.getBoundingClientRect();
+    if (top >= 0 && top < window.innerHeight * 0.6) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [result, isCalculating]);
 
   useEffect(() => {
     if (!isCalculating) {
@@ -684,7 +698,7 @@ function CalculatePageInner() {
 
                 {/* Results */}
                 {result && !isCalculating && (
-                  <div className="animate-fade-in-up space-y-6">
+                  <div ref={resultsRef} className="animate-fade-in-up scroll-mt-20 space-y-6">
                     <MetricsDashboard
                       result={result}
                       filename={uploadedFiles[0]?.name}
@@ -704,13 +718,13 @@ function CalculatePageInner() {
                             {isSharing ? "Sharing…" : "Share result"}
                           </Button>
                         ) : (
-                          <div className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5">
+                          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5 max-sm:col-span-2">
                             <Share2 className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" />
                             <a
                               href={shareUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
+                              className="min-w-0 truncate font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
                             >
                               {shareUrl}
                             </a>

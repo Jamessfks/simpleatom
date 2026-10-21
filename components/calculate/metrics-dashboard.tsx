@@ -352,7 +352,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             </Badge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2">
           {actions}
           <PDFReportButton result={result} />
           <Separator orientation="vertical" className="hidden h-6 sm:block" />
@@ -715,12 +715,12 @@ function ResultsToc({
   return (
     <nav
       aria-label="Sections on this tab"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:py-0 pointer-coarse:py-0"
+      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:gap-x-4 max-sm:py-0 pointer-coarse:py-0"
     >
       <span>On this tab:</span>
       {links.map((s, i) => (
         <span key={s.id} className="flex items-center gap-1.5">
-          {i > 0 && <span aria-hidden="true">·</span>}
+          {i > 0 && <span aria-hidden="true" className="max-sm:hidden">·</span>}
           <a
             href={`#${s.id}`}
             className="inline-flex items-center rounded text-[var(--color-accent-strong)] underline-offset-2 hover:underline max-sm:min-h-11 pointer-coarse:min-h-11"
@@ -1595,7 +1595,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     rows.push({
       label: "Source commit",
       value: (
-        <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+        <span className="inline-flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <HashValue value={code.gitCommit} label="git commit" prefixChars={7} />
           <a
             href={`${REPO_URL}/commit/${code.gitCommit}`}

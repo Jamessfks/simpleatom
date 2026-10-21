@@ -39,6 +39,7 @@ import {
 } from "@/lib/parse-structure";
 import { WeasViewer } from "./weas-viewer";
 import { Button } from "@/components/ui/button";
+import { Formula } from "@/components/ui/formula";
 
 /** Viewer engine for the preview. WEAS is default (ml-peg compatible). */
 type PreviewEngine = "weas" | "3dmol";
@@ -262,7 +263,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
                 {/* Formula + atom count */}
                 <div className="flex items-center gap-3 font-mono">
                   <span className="text-sm font-bold text-[var(--color-text-primary)]">
-                    {parsed.empiricalFormula}
+                    <Formula text={parsed.empiricalFormula} />
                   </span>
                   <span className="text-xs text-[var(--color-text-secondary)]">
                     {parsed.atomCount} atoms

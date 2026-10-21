@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { ModelType, ModelSize } from "@/types/mace";
+import { Formula } from "@/components/ui/formula";
 
 export interface SelectedModel {
   type: ModelType;
@@ -599,7 +600,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                               isDisabled ? "cursor-not-allowed" : "cursor-pointer"
                             }`}
                           >
-                            {entry.name}
+                            <Formula text={entry.name} />
                           </Label>
                           <span className="ml-auto font-mono text-xs text-[var(--color-text-muted)]">
                             {entry.formula}
@@ -671,7 +672,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
       </div>
 
       {/* Run button */}
-      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--color-border-subtle)] pt-5">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-6 mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-b-xl border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-6 py-4">
         <Button
           onClick={handleRun}
           disabled={!canRun || isRunning}

@@ -37,8 +37,13 @@ export function PDFReportButton({ result }: PDFReportButtonProps) {
 
   return (
     <Button onClick={handleDownload} disabled={loading} variant="outline" size="sm">
-      <FileText className="h-3.5 w-3.5" />
-      {loading ? "Generating…" : "Download PDF report"}
+      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+      {loading ? "Generating…" : (
+        <>
+          <span className="sm:hidden">PDF report</span>
+          <span className="max-sm:hidden">Download PDF report</span>
+        </>
+      )}
     </Button>
   );
 }
