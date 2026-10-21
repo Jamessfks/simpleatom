@@ -116,16 +116,16 @@ def validate_result(result: dict) -> dict:
             issues.append(f"Energy is {energy} (NaN or Inf)")
         elif e_per_atom < e_min:
             warnings_list.append(
-                f"Energy/atom = {e_per_atom:.4f} eV is unusually low "
+                f"Energy/atom = {e_per_atom:.4f} eV/atom is unusually low "
                 f"(< {e_min} eV/atom for {model_type}). Check structure."
             )
         elif e_per_atom > e_max:
             issues.append(
-                f"Energy/atom = {e_per_atom:.4f} eV is unphysically high "
+                f"Energy/atom = {e_per_atom:.4f} eV/atom is unphysically high "
                 f"(> {e_max} eV/atom). Structure likely has issues."
             )
         else:
-            info.append(f"Energy/atom = {e_per_atom:.4f} eV — within reasonable range for {model_type}")
+            info.append(f"Energy/atom = {e_per_atom:.4f} eV/atom — within reasonable range for {model_type}")
 
     # --- Force validation ---
     if forces is not None:
@@ -145,12 +145,12 @@ def validate_result(result: dict) -> dict:
             if max_force > FORCE_MAX_CRITICAL:
                 issues.append(
                     f"Max force = {max_force:.2f} eV/Å is extremely large "
-                    f"(> {FORCE_MAX_CRITICAL}). Atoms likely overlapping."
+                    f"(> {FORCE_MAX_CRITICAL} eV/Å). Atoms likely overlapping."
                 )
             elif max_force > FORCE_MAX_REASONABLE:
                 warnings_list.append(
                     f"Max force = {max_force:.2f} eV/Å is large "
-                    f"(> {FORCE_MAX_REASONABLE}). Structure may have close contacts."
+                    f"(> {FORCE_MAX_REASONABLE} eV/Å). Structure may have close contacts."
                 )
             else:
                 info.append(f"Max force = {max_force:.4f} eV/Å, RMS = {rms_force:.4f} eV/Å — reasonable")
