@@ -210,6 +210,33 @@ class TestCliGuards(unittest.TestCase):
                            "limit_exceeded", env={"SIMPLEATOM_PROFILE": "hosted"})
 
 
+class TestSharedFixtures(unittest.TestCase):
+    """
+    test/fixtures/contract-requests.json is checked here against
+    calculate.validate_request() and in test/contract.test.ts against the
+    TypeScript mirror. Both must give the same outcome for every case.
+    """
+
+    def test_every_fixture(self):
+        import calculate
+
+        data = json.loads((REPO_ROOT / "test" / "fixtures" / "contract-requests.json").read_text())
+        previous = os.environ.pop("ALLOW_CUSTOM_MODELS", None)
+        try:
+            for case in data["cases"]:
+                with self.subTest(case["name"]):
+                    try:
+                        calculate.validate_request(dict(case["params"]),
+                                                   case.get("hasModelFile", False), case["profile"])
+                        outcome = "ok"
+                    except ContractError as exc:
+                        outcome = exc.code
+                    self.assertEqual(outcome, case["expect"])
+        finally:
+            if previous is not None:
+                os.environ["ALLOW_CUSTOM_MODELS"] = previous
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np

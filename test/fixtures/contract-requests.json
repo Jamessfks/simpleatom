@@ -1,0 +1,213 @@
+{
+  "$comment": "Request-level contract cases. Each is checked by BOTH mace-api/contract.py (test_scripts/test_backend_contract.py) and lib/contract.ts (test/contract.test.ts); the two must agree on every outcome, so the UI never refuses what the backend accepts or offers what it refuses.",
+  "cases": [
+    {
+      "name": "empty request uses the defaults",
+      "profile": "hosted",
+      "params": {},
+      "expect": "ok"
+    },
+    {
+      "name": "MPA-0 medium",
+      "profile": "hosted",
+      "params": {
+        "modelType": "MACE-MPA-0",
+        "modelSize": "medium"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "MPA-0 has no small",
+      "profile": "hosted",
+      "params": {
+        "modelType": "MACE-MPA-0",
+        "modelSize": "small"
+      },
+      "expect": "unsupported_model_size"
+    },
+    {
+      "name": "MACE-OFF23 alias",
+      "profile": "hosted",
+      "params": {
+        "modelType": "MACE-OFF23",
+        "modelSize": "small"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "phonon is refused",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "phonon"
+      },
+      "expect": "unsupported_calculation"
+    },
+    {
+      "name": "unknown model",
+      "profile": "hosted",
+      "params": {
+        "modelType": "MACE-MP"
+      },
+      "expect": "unsupported_model"
+    },
+    {
+      "name": "custom without a checkpoint",
+      "profile": "local",
+      "params": {
+        "modelType": "custom"
+      },
+      "expect": "custom_model_missing"
+    },
+    {
+      "name": "custom checkpoint on hosted",
+      "profile": "hosted",
+      "params": {},
+      "hasModelFile": true,
+      "expect": "custom_models_disabled"
+    },
+    {
+      "name": "custom checkpoint locally",
+      "profile": "local",
+      "params": {},
+      "hasModelFile": true,
+      "expect": "ok"
+    },
+    {
+      "name": "URL as a model size",
+      "profile": "hosted",
+      "params": {
+        "modelType": "MACE-MP-0",
+        "modelSize": "https://example.invalid/x.model"
+      },
+      "expect": "unsupported_model_size"
+    },
+    {
+      "name": "bad precision",
+      "profile": "hosted",
+      "params": {
+        "precision": "float16"
+      },
+      "expect": "unsupported_precision"
+    },
+    {
+      "name": "bad device",
+      "profile": "hosted",
+      "params": {
+        "device": "tpu"
+      },
+      "expect": "unsupported_device"
+    },
+    {
+      "name": "string false is a boolean",
+      "profile": "hosted",
+      "params": {
+        "dispersion": "false"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "yes is not a boolean",
+      "profile": "hosted",
+      "params": {
+        "dispersion": "yes"
+      },
+      "expect": "invalid_boolean"
+    },
+    {
+      "name": "negative seed",
+      "profile": "hosted",
+      "params": {
+        "seed": -1
+      },
+      "expect": "out_of_range"
+    },
+    {
+      "name": "unknown ensemble",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "mdEnsemble": "NPH"
+      },
+      "expect": "unsupported_mdEnsemble"
+    },
+    {
+      "name": "ensemble ignored for a single-point",
+      "profile": "hosted",
+      "params": {
+        "mdEnsemble": "NPH"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "timestep out of range",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": 10
+      },
+      "expect": "out_of_range"
+    },
+    {
+      "name": "NaN timestep",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": "NaN"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "fractional step count",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "mdSteps": 10.5
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "MD steps over the hosted cap",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "mdSteps": 20000
+      },
+      "expect": "limit_exceeded"
+    },
+    {
+      "name": "MD steps fine locally",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "mdSteps": 20000
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "stray MD field on a single-point",
+      "profile": "hosted",
+      "params": {
+        "mdSteps": 999999999
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "opt steps over the hosted cap",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "geometry-opt",
+        "maxOptSteps": 3000
+      },
+      "expect": "limit_exceeded"
+    },
+    {
+      "name": "fmax too loose",
+      "profile": "hosted",
+      "params": {
+        "calculationType": "geometry-opt",
+        "forceThreshold": 5
+      },
+      "expect": "out_of_range"
+    }
+  ]
+}

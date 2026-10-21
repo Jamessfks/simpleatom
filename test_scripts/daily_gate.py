@@ -180,6 +180,36 @@ def gate_provenance() -> Result:
     return Result("provenance-tests", True, f"{ran} tests OK")
 
 
+# Minimum test counts for the suites added in v2.2.0. Like the provenance
+# count, a drop below these is a regression (deleted or skipped tests).
+SUITES = [
+    ("contract-tests", "test_backend_contract.py", 20),
+    ("science-regressions", "test_science_regressions.py", 9),
+]
+
+
+def gate_suites() -> list[Result]:
+    results = []
+    for name, pattern, minimum in SUITES:
+        try:
+            p = run([sys.executable, "-m", "unittest", "discover",
+                     "-s", "test_scripts", "-p", pattern], timeout=1800)
+        except subprocess.TimeoutExpired:
+            results.append(Result(name, False, f"{pattern} timed out"))
+            continue
+        out = p.stdout + p.stderr
+        m = re.search(r"Ran (\d+) tests?", out)
+        ran = int(m.group(1)) if m else 0
+        if p.returncode != 0:
+            fails = re.findall(r"^(FAIL|ERROR): (\S+)", out, re.M)
+            results.append(Result(name, False, f"{ran} tests, FAILED: " + ", ".join(n for _, n in fails[:4])))
+        elif ran < minimum:
+            results.append(Result(name, False, f"only {ran} tests ran, expected at least {minimum}"))
+        else:
+            results.append(Result(name, True, f"{ran} tests OK"))
+    return results
+
+
 def gate_guards() -> list[Result]:
     results = []
     demo = ROOT / "public" / "demo" / "ethanol.xyz"
@@ -404,6 +434,7 @@ def main() -> int:
     gates.append(gate_lint())
     gates.append(gate_validator())
     gates.append(gate_provenance())
+    gates.extend(gate_suites())
     gates.extend(gate_guards())
     gates.append(gate_silicon_fixture())
 

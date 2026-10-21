@@ -125,11 +125,11 @@ def resolve_seed(raw) -> int:
                             code="invalid_number", field="seed")
     if seed < 0:
         raise ContractError(f"Invalid seed: must be non-negative, got {seed}.",
-                            code="invalid_number", field="seed")
+                            code="out_of_range", field="seed")
     if seed > _CONTRACT["params"]["seed"]["max"]:
         raise ContractError(
             f"Invalid seed: must be at most {_CONTRACT['params']['seed']['max']}, got {seed}.",
-            code="invalid_number", field="seed")
+            code="out_of_range", field="seed")
     return seed
 
 

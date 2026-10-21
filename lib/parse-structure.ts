@@ -76,8 +76,16 @@ export interface ParsedStructure {
  * Only the first frame is parsed for multi-frame files.
  */
 export async function parseStructureFile(file: File): Promise<ParsedStructure> {
-  const text = await readFileAsText(file);
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return parseStructureText(await file.text(), file.name);
+}
+
+/**
+ * Parse structure text, choosing the format from the filename's extension.
+ * Pure — no File, no DOM — so it can be tested directly against fixtures
+ * (test/parse-structure.test.ts checks public/demo/silicon.cif).
+ */
+export function parseStructureText(text: string, filename: string): ParsedStructure {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
 
   let symbols: string[];
   let positions: number[][];
@@ -126,7 +134,7 @@ export async function parseStructureFile(file: File): Promise<ParsedStructure> {
     lattice,
     isPeriodic: hasPositiveVolume(lattice),
     frameCount,
-    filename: file.name,
+    filename,
     referenceEnergy,
     referenceForces,
   };
@@ -512,16 +520,6 @@ function parsePOSCAR(text: string): {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Read a File as text using FileReader (returns a Promise). */
-function readFileAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsText(file);
-  });
-}
 
 /** Count atoms per element, e.g. { C: 9, H: 8, O: 4 }. */
 function countElements(symbols: string[]): Record<string, number> {

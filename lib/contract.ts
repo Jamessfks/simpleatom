@@ -211,16 +211,15 @@ export function checkCalculationParams(
   for (const [field, choices] of [
     ["precision", CONTRACT.precisions],
     ["device", CONTRACT.devices],
-    ["mdEnsemble", CONTRACT.mdEnsembles],
   ] as const) {
     const raw = params[field];
     if (raw !== undefined && raw !== null && raw !== "" && !(choices as readonly unknown[]).includes(raw)) {
       return violation(`unsupported_${field}`, `Unsupported ${field} '${String(raw)}'.`, field);
     }
   }
-  const dispersion = params.dispersion;
   // Same rule as contract.resolve_bool(): a real boolean, or the strings
   // "true"/"false"; anything else is refused.
+  const dispersion = params.dispersion;
   const dispersionText = typeof dispersion === "string" ? dispersion.trim().toLowerCase() : null;
   if (
     dispersion !== undefined &&
@@ -232,7 +231,22 @@ export function checkCalculationParams(
     return violation("invalid_boolean", "Invalid dispersion: expected true or false.", "dispersion");
   }
 
-  for (const field of Object.keys(PARAMS) as NumericParam[]) {
+  // Only the fields this calculation type reads are checked — exactly what
+  // calculate._resolve_run_params() resolves — so a stray mdSteps on a
+  // single-point is ignored here just as it is by the backend.
+  const calc = typeof calcType === "string" && calcType.trim() ? calcType.trim() : "single-point";
+  const ensemble = params.mdEnsemble;
+  if (calc === "molecular-dynamics" && ensemble !== undefined && ensemble !== null && ensemble !== "" &&
+      !(CONTRACT.mdEnsembles as readonly unknown[]).includes(ensemble)) {
+    return violation("unsupported_mdEnsemble", `Unsupported mdEnsemble '${String(ensemble)}'.`, "mdEnsemble");
+  }
+  const fields: NumericParam[] = ["seed"];
+  if (calc === "geometry-opt") fields.push("forceThreshold", "maxOptSteps");
+  if (calc === "molecular-dynamics") {
+    fields.push("temperature", "timeStep", "friction", "mdSteps");
+    if (ensemble === "NPT") fields.push("pressure");
+  }
+  for (const field of fields) {
     const problem = checkNumber(params, field);
     if (problem) return problem;
   }

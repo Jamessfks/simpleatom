@@ -1,0 +1,19 @@
+# Routine updates for the JavaScript stack, GitHub Actions and the base image.
+# The scientific Python stack (mace-torch, torch, ase, e3nn, numpy) is NOT
+# updated here: every bump there must pass the validator and the
+# translation-invariance gate first (docs/adr/0025).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directory: /mace-api
+    schedule: { interval: monthly }
