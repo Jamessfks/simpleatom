@@ -83,6 +83,7 @@ nav:
       - "0027 — Release path: security fixes ship by PR; `daily` is adopted on a cadence": adr/0027-release-path.md
       - "0028 — One documentation source per audience": adr/0028-documentation-architecture.md
       - "0029 — App-surface finish bar: schrodinger.com discipline, landing layout frozen": adr/0029-app-finish-bar.md
+      - "0030 — Stay on mace-torch 0.3.x until a published v1.0 passes the engine-parity gate": adr/0030-mace-v1-migration.md
       - Template: adr/template.md
   - Audits:
       - 2026-10-20: audits/2026-10-20.md
