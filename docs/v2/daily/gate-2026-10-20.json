@@ -1,0 +1,155 @@
+{
+  "date": "2026-10-20",
+  "ranAt": "2026-10-21T00:32:21+00:00",
+  "repo": {
+    "branch": "v2.2",
+    "head": "8629609",
+    "dirty": false
+  },
+  "score": {
+    "won": 4,
+    "total": 13
+  },
+  "gates": [
+    {
+      "name": "build",
+      "ok": false,
+      "detail": "next build FAILED: Error: Failed to collect page data for /r/[id]/embed /     at ignore-listed frames { /   type: 'Error' / }",
+      "fix": "A type error blocks every other piece. Fix before judging anything."
+    },
+    {
+      "name": "lint",
+      "ok": true,
+      "detail": "33 problems (baseline 33)",
+      "fix": ""
+    },
+    {
+      "name": "validator",
+      "ok": true,
+      "detail": "all_passed: true",
+      "fix": ""
+    },
+    {
+      "name": "provenance-tests",
+      "ok": true,
+      "detail": "40 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "guard:phonon",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:custom-no-ckpt",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:bad-model",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "fixture:silicon",
+      "ok": true,
+      "detail": "nearest neighbour 2.3516 A",
+      "fix": ""
+    }
+  ],
+  "bars": [],
+  "queue": [
+    {
+      "kind": "GATE",
+      "item": "build: next build FAILED: Error: Failed to collect page data for /r/[id]/embed /     at ignore-listed frames { /   type: 'Error' / }  -> A type error blocks every other piece. Fix before judging anything."
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D4 MEDIUM  mace-api/main.py returns HTTP 500 instead of 400 for a rejected calculationType, so the hosted FastAPI path reports a server fault for what is correct input validation. The refusal itself works; only the status is wrong.  [mace-api/main.py]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D5 MEDIUM  Geometry-opt trajectories contain a duplicated frame 0 with off-by-one step labels, so the result message and the trajectory it ships contradict each other.  [mace-api/calculate.py _run_geometry_opt]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D6 MEDIUM  Upstream computes stress on every call and SimpleAtom discards it; properties.pressure is declared in the type and never populated. Materials Project shows a unit on every value it prints \u2014 a declared field that is always null is the opposite of that.  [mace-api/calculate.py, types/mace.ts]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D7 MEDIUM  lattice and properties.volume are declared non-nullable in TypeScript but the backend sends null for both on non-periodic systems. The type asserts something the API does not guarantee.  [types/mace.ts, mace-api/calculate.py]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D8 MEDIUM  ASE's get_temperature() divides by 3N even with centre-of-mass momentum pinned, so reported MD temperature reads about 11 percent low for a 9-atom molecule. The MD chart shows it as-is, with no note.  [mace-api/calculate.py MD path, components/calculate/trajectory/]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D9 MEDIUM  The force-arrow scale silently differs between models \u2014 0.82 vs 1.0 A per eV/A on the same geometry \u2014 so two results for one molecule render non-comparable arrow lengths with no indication of the change.  [components/calculate/molecule-viewer-3d.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D10 MEDIUM  21 interactive targets are under 44x44 and nav links are 17px tall, so the site fails the platform minimum touch target on mobile. Partly addressed inside the viewer; unaddressed elsewhere.  [site-wide; components/site-header.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D11 LOW  Force arrows are drawn for hidden C-H hydrogens, leaving arrows with no visible atom at their base.  [components/calculate/molecule-viewer-3d.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D12 LOW  components/ui/card.tsx CardHeader is a bare grid with no explicit columns unless a CardAction child is present \u2014 the same unsafe pattern that caused the /calculate mobile overflow, one level deeper. ResultsSkeleton has it too, currently inert.  [components/ui/card.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D13 LOW  The green selection shell in the viewer is nearly invisible \u2014 delta-G of only +2 while R and B drop 13.  [components/calculate/molecule-viewer-3d.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D14 LOW  Installed mace-torch is 0.3.15 while the reference-conformance bar is pinned at ACEsuit/mace v0.3.16, so conformance findings are being judged against a version the local environment is not running.  [requirements.txt, local env]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D15 LOW  Audit findings 6, 9 and 12 from docs/v2/audit-vs-acesuit.md were never closed out. Findings 7, 10 and 11 are recorded as done.  [docs/v2/audit-vs-acesuit.md]"
+    },
+    {
+      "kind": "LOSING",
+      "item": "viewer-chrome r3 vs Rowan viewer embed  gap: REGRESSION I shipped: Hide C-H now scales the molecule UP 1.44x and CLIPS at both canvas edges (bbox 0 to 1327 on a 1328px canvas). It previ"
+    },
+    {
+      "kind": "LOSING",
+      "item": "landing r5 vs rowansci.com homepage  gap: Layout numbers confirmed exact. Loses on content: the hero ends in a 4-line 12px monospace gesture manual (y702-766), the lowest element abo"
+    },
+    {
+      "kind": "LOSING",
+      "item": "provenance r2 vs Materials Project 'Property Origins' section  gap: Content verified real \u2014 the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCT"
+    },
+    {
+      "kind": "OPEN",
+      "item": "config r1 vs Rowan feature pages + docs  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "honesty r1 vs The code itself \u2014 every claim must survive inspection  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "reference-conformance r1 vs ACEsuit/mace v0.3.16  \u2014 never judged"
+    },
+    {
+      "kind": "NEVER",
+      "item": "share r0 vs Rowan iframe2 embed  \u2014 Load both embeds side by side. Which is the better shareable artifact?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "benchmark r0 vs Materials Project published formation energies  \u2014 Numeric. Do SimpleAtom's MACE-MP-0 formation energies agree with MP within a stated tolerance?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "mobile r0 vs rowansci.com at 375px  \u2014 Blind screenshot at 375px. Which survives the phone better?"
+    }
+  ],
+  "allGatesGreen": false
+}
