@@ -1,7 +1,7 @@
 {
   "version": "2.2.0",
   "branch": "v2.2",
-  "updated": "2026-10-20",
+  "updated": "2026-10-21",
   "bars": [
     {
       "name": "Rowan",
@@ -53,7 +53,7 @@
       "status": "won",
       "rounds": 5,
       "verdict": "WON — critic picked ours over Rowan",
-      "gap": "Arrows ON vs OFF give an identical bbox to the pixel, centroid moving 0.02px. Fill 0.8106, tighter than the bar ~0.74. Reset view restores byte-identically. Remaining: the arrow scale silently differs between models (0.82 vs 1.0 A per eV/A on the same geometry), so two results of one molecule have non-comparable arrow lengths."
+      "gap": "Arrows ON vs OFF give an identical bbox to the pixel, centroid moving 0.02px. Fill 0.8106, tighter than the bar ~0.74. Reset view restores byte-identically. D9 fixed in 5985bee: the arrow scale now comes from the geometry, so MP-0 and OFF on one ethanol both draw at 1.0 A per eV/A (was 1.0 vs 0.50), and a cut by the screen ceiling is named in the legend. Re-measured 2026-10-21 at 766x520: fill 0.8106, arrows on/off 0 px, reset byte-identical — unchanged."
     },
     {
       "id": "viewer-interact",
@@ -66,7 +66,7 @@
       "status": "won",
       "rounds": 1,
       "verdict": "WON — critic picked ours over Rowan",
-      "gap": "Every value hand-checked against the raw xyz and correct to displayed precision. The honesty path works: a non-bonded pair reads Distance with 3Dmol perceived no bond here. The bar makes no bonded/non-bonded distinction and does not name the angle vertex. Remaining: the green selection shell is nearly invisible — delta-G of only +2 while R and B drop 13."
+      "gap": "Every value hand-checked against the raw xyz and correct to displayed precision. The honesty path works: a non-bonded pair reads Distance with 3Dmol perceived no bond here. The bar makes no bonded/non-bonded distinction and does not name the angle vertex. D13 fixed in 5985bee: the translucent shell (invisible over the page, ring (243,240,232) -> (235,235,228)) is replaced by an opaque green atom 0.10 A larger; same ring now (29,56,31). C2–O3 still reads 1.417 A against 1.4169 A."
     },
     {
       "id": "viewer-chrome",
@@ -79,7 +79,7 @@
       "status": "building",
       "rounds": 3,
       "verdict": "Round 2: LOST to Rowan — and Hide C-H regressed",
-      "gap": "REGRESSION I shipped: Hide C-H now scales the molecule UP 1.44x and CLIPS at both canvas edges (bbox 0 to 1327 on a 1328px canvas). It previously shrank 0.806 to 0.591. Spin no longer clips at any angle, but apparent size is NOT constant: 843px static vs 593-663px spinning, so toggling rotate resizes 27-30%."
+      "gap": "Hide C-H regression fixed in 5985bee: the fit, spin sweep and arrow ceiling now include hidden atoms, so Hide C-H changes px/A by 0.0% (was +41.4% at 766x520, +14.5% at 291x291), moves no remaining atom, keeps the arrow scale, and clips nothing; rotate with C-H hidden lands at the same zoom as without (was a further step down). Remaining: at 766x520, turning on rotate still pulls the frame back 1.05%, because the sweep ceiling binds slightly in that box (0% at 291x291). Not re-judged blind since round 3."
     },
     {
       "id": "landing",
