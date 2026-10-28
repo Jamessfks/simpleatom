@@ -9,8 +9,10 @@
 #   uv pip compile mace-api/requirements.in --python-version 3.11 \
 #     --python-platform x86_64-manylinux_2_28 \
 #     --extra-index-url https://download.pytorch.org/whl/cpu \
-#     --index-strategy unsafe-best-match --generate-hashes \
+#     --index-strategy unsafe-best-match --generate-hashes --emit-index-url \
 #     -o mace-api/requirements.lock.txt
+# --emit-index-url is required: without it the lock does not name the PyTorch
+# index, and `pip install -r requirements.lock.txt` cannot find torch==2.10.0+cpu.
 # A mace-torch bump must pass test_scripts/test_translation_invariance.py and
 # the validator before it merges.
 
