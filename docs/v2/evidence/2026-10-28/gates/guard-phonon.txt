@@ -1,0 +1,3 @@
+$ python mace-api/calculate_local.py public/demo/ethanol.xyz {"calculationType":"phonon"}
+{"status": "error", "message": "Unsupported calculationType 'phonon'. Supported types: single-point, geometry-opt, molecular-dynamics. Phonon/vibrational analysis is not implemented in SimpleAtom. It must be run through an external workflow on a fully converged geometry.", "error": {"code": "unsupported_calculation", "message": "Unsupported calculationType 'phonon'. Supported types: single-point, geometry-opt, molecular-dynamics. Phonon/vibrational analysis is not implemented in SimpleAtom. It must be run through an external workflow on a fully converged geometry.", "field": "calculationType", "status": 400}}
+[exit 1]

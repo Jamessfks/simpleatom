@@ -1,0 +1,13 @@
+profile hosted
+GET /capabilities {"appVersion": "2.2.0", "profile": "hosted", "customModels": false, "limits": {"customModels": false, "maxUploadBytes": 2000000, "maxModelUploadBytes": 0, "maxAtoms": {"single-point": 5000, "geometry-opt": 500, "molecular-dynamics": 1000}, "maxOptSteps": 2000, "maxMdSteps": 10000, "maxAtomSteps": {"geometry-opt": 500000, "molecular-dynamics": 2000000}, "timeBudgetSeconds": 240, "maxSmilesLength": 
+GET /health {'status': 'ok', 'service': 'mace-api', 'version': '2.2.0', 'profile': 'hosted', 'gitCommit': 'daed8bc588697a6d03bf735f572f4a2d4fd374c2'}
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+POST /calculate 200
+  /calculate success params.device= cpu requestedDevice= None warnings= None manifest.runtime.device= cpu timeTaken= 0.151 timing= {'timeTaken': 0.151}
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+POST /v1/jobs 202 {"jobId": "h3IXjvmqKgezpHijsTrdew", "status": "queued", "progress": {}, "queuePosition": 0, "createdAt": 1793212856.554035, "startedAt": null, "finishedAt": null}
+job keys ['createdAt', 'finishedAt', 'jobId', 'progress', 'queuePosition', 'result', 'startedAt', 'status'] status succeeded
+  /v1/jobs success params.device= cpu requestedDevice= None warnings= None manifest.runtime.device= cpu timeTaken= 0.189 timing= {'timeTaken': 0.189}

@@ -1,0 +1,272 @@
+{
+  "env": {
+    "machine": "Apple M4 Pro",
+    "threads": 2,
+    "python": "3.11.15",
+    "torch": "2.10.0",
+    "ase": "3.27.0",
+    "mace-torch": "0.3.16"
+  },
+  "vib": {
+    "water/small": {
+      "nAtoms": 3,
+      "optConverged": true,
+      "optSeconds": 0.34,
+      "fmaxAfter": 0.0006530814419722364,
+      "hessianSeconds": 0.151,
+      "hessianShape": [
+        9,
+        3,
+        3
+      ],
+      "fdSeconds": 0.13,
+      "fdForceCalls": 19,
+      "nVib": 3,
+      "expected3N6": 3,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 0.9475161413245132,
+      "medianAbsDeltaCm": 0.5041376800277249,
+      "lowestRealCm": 1632.6840663121995,
+      "highestCm": 3948.439787707201,
+      "harmonicHessianCm": [
+        1632.6840663121995,
+        3844.250743834874,
+        3948.439787707201
+      ],
+      "harmonicFDCm": [
+        1631.736550170875,
+        3844.7052413511187,
+        3948.943925387229
+      ],
+      "ZPE_eV": 0.5842987523377232,
+      "S_298_JmolK": 188.675213645647,
+      "H_298_minus_E_eV": 0.6871457250919344
+    },
+    "ethanol/small": {
+      "nAtoms": 9,
+      "optConverged": true,
+      "optSeconds": 0.94,
+      "fmaxAfter": 0.0009703502354945681,
+      "hessianSeconds": 0.383,
+      "hessianShape": [
+        27,
+        9,
+        3
+      ],
+      "fdSeconds": 0.68,
+      "fdForceCalls": 55,
+      "nVib": 21,
+      "expected3N6": 21,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 1.1902369388417355,
+      "medianAbsDeltaCm": 0.18566558690645252,
+      "lowestRealCm": 247.86712603440972,
+      "highestCm": 3869.33108489638
+    },
+    "caffeine/small": {
+      "nAtoms": 24,
+      "optConverged": true,
+      "optSeconds": 1.61,
+      "fmaxAfter": 0.0008506960925036987,
+      "hessianSeconds": 2.022,
+      "hessianShape": [
+        72,
+        24,
+        3
+      ],
+      "fdSeconds": 4.7,
+      "fdForceCalls": 145,
+      "nVib": 66,
+      "expected3N6": 66,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 3.255657104873002,
+      "medianAbsDeltaCm": 0.10168953575941941,
+      "lowestRealCm": 60.502006638358296,
+      "highestCm": 3280.384058885815
+    },
+    "ibuprofen/small": {
+      "nAtoms": 33,
+      "optConverged": true,
+      "optSeconds": 8.84,
+      "fmaxAfter": 0.0009569977552742943,
+      "hessianSeconds": 5.645,
+      "hessianShape": [
+        99,
+        33,
+        3
+      ],
+      "fdSeconds": 8.78,
+      "fdForceCalls": 199,
+      "nVib": 93,
+      "expected3N6": 93,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 1.2237922337267264,
+      "medianAbsDeltaCm": 0.09999640291482592,
+      "lowestRealCm": 21.65445685162796,
+      "highestCm": 3813.353860695889
+    },
+    "cholesterol/small": {
+      "nAtoms": 74,
+      "optConverged": true,
+      "optSeconds": 37.87,
+      "fmaxAfter": 0.00099634915499554,
+      "hessianSeconds": 36.772,
+      "hessianShape": [
+        222,
+        74,
+        3
+      ],
+      "fdSeconds": 44.12,
+      "fdForceCalls": 445,
+      "nVib": 216,
+      "expected3N6": 216,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 3.9347545791251832,
+      "medianAbsDeltaCm": 0.1128837300331611,
+      "lowestRealCm": 15.945527837808383,
+      "highestCm": 3862.9095553688085
+    },
+    "water/medium": {
+      "nAtoms": 3,
+      "optConverged": true,
+      "optSeconds": 0.16,
+      "fmaxAfter": 0.0007855497992680371,
+      "hessianSeconds": 0.196,
+      "hessianShape": [
+        9,
+        3,
+        3
+      ],
+      "fdSeconds": 0.33,
+      "fdForceCalls": 19,
+      "nVib": 3,
+      "expected3N6": 3,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 0.859983589189369,
+      "medianAbsDeltaCm": 0.5297492757522377,
+      "lowestRealCm": 1628.1181120009321,
+      "highestCm": 3941.313616916355,
+      "harmonicHessianCm": [
+        1628.1181120009321,
+        3855.2103185242495,
+        3941.313616916355
+      ],
+      "harmonicFDCm": [
+        1627.2581284117427,
+        3855.732796435519,
+        3941.843366192107
+      ],
+      "ZPE_eV": 0.5842533400002353,
+      "S_298_JmolK": 188.67769678116142,
+      "H_298_minus_E_eV": 0.6871018024673057
+    },
+    "ethanol/medium": {
+      "nAtoms": 9,
+      "optConverged": true,
+      "optSeconds": 2.87,
+      "fmaxAfter": 0.0008376829740009121,
+      "hessianSeconds": 1.445,
+      "hessianShape": [
+        27,
+        9,
+        3
+      ],
+      "fdSeconds": 2.31,
+      "fdForceCalls": 55,
+      "nVib": 21,
+      "expected3N6": 21,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 1.087863411872604,
+      "medianAbsDeltaCm": 0.177529261214886,
+      "lowestRealCm": 257.406467755977,
+      "highestCm": 3865.102935991144
+    },
+    "caffeine/medium": {
+      "nAtoms": 24,
+      "optConverged": true,
+      "optSeconds": 5.11,
+      "fmaxAfter": 0.0009918393608376581,
+      "hessianSeconds": 14.069,
+      "hessianShape": [
+        72,
+        24,
+        3
+      ],
+      "fdSeconds": 17.77,
+      "fdForceCalls": 145,
+      "nVib": 66,
+      "expected3N6": 66,
+      "imagHessian": 0,
+      "imagFD": 0,
+      "maxAbsDeltaCm": 10.916025101217151,
+      "medianAbsDeltaCm": 0.08670401763299651,
+      "lowestRealCm": 17.059782982805032,
+      "highestCm": 3268.0071435454875
+    }
+  },
+  "cell": {
+    "medium-mpa-0/1x1x1": {
+      "nAtoms": 8,
+      "converged": true,
+      "relaxSeconds": 0.63,
+      "a_relaxed_A": 5.467433305520968,
+      "stressAsymMaxEvA3": 0.0,
+      "eosSeconds": 1.24,
+      "eosPoints": 11,
+      "B_GPa": 86.56770222991302,
+      "a_from_eos_A": 5.46740317049888
+    },
+    "medium-mpa-0/2x2x2": {
+      "nAtoms": 64,
+      "converged": true,
+      "relaxSeconds": 4.58,
+      "a_relaxed_A": 5.467289167598689,
+      "stressAsymMaxEvA3": 0.0,
+      "eosSeconds": 5.05,
+      "eosPoints": 11,
+      "B_GPa": 86.56753243194288,
+      "a_from_eos_A": 5.467402582478418
+    },
+    "medium/1x1x1": {
+      "nAtoms": 8,
+      "converged": true,
+      "relaxSeconds": 0.36,
+      "a_relaxed_A": 5.455347113200524,
+      "stressAsymMaxEvA3": 0.0,
+      "eosSeconds": 1.11,
+      "eosPoints": 11,
+      "B_GPa": 74.56186548843291,
+      "a_from_eos_A": 5.455567399524249
+    },
+    "medium/2x2x2": {
+      "nAtoms": 64,
+      "converged": true,
+      "relaxSeconds": 4.03,
+      "a_relaxed_A": 5.455373425654798,
+      "stressAsymMaxEvA3": 0.0,
+      "eosSeconds": 4.15,
+      "eosPoints": 11,
+      "B_GPa": 74.56192668572713,
+      "a_from_eos_A": 5.455567350969743
+    }
+  },
+  "neb": {
+    "system": "HCN->HNC",
+    "images": 11,
+    "converged": false,
+    "seconds": 37.39,
+    "barrier_eV": 13.562281988193263,
+    "reaction_eV": 1.0726384183321898
+  },
+  "forceCall": {
+    "caffeine/24 atoms/off-small": 0.0285,
+    "cholesterol/74 atoms/off-small": 0.0933
+  }
+}

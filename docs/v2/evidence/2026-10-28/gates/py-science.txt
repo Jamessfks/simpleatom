@@ -1,0 +1,140 @@
+$ python -m unittest discover -s test_scripts -p test_science_regressions.py
+<scratchpad>/venv311/lib/python3.11/site-packages/e3nn/o3/_wigner.py:10: UserWarning: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+  _Jd, _W3j_flat, _W3j_indices = torch.load(os.path.join(os.path.dirname(__file__), 'constants.pt'))
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_script.py:1480: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_script.py:1480: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 1 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 2 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 3 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 4 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 5 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 6 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 7 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 1 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 2 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 3 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 4 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 5 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 6 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/ase/spacegroup/spacegroup.py:481: UserWarning: scaled_positions 0 and 7 are equivalent
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_serialization.py:176: DeprecationWarning: `torch.jit.load` is deprecated. Please switch to `torch.export`.
+  warnings.warn(
+.
+----------------------------------------------------------------------
+Ran 9 tests in 45.240s
+
+OK
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/20231210mace128L0_energy_epoch249model
+Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using medium MPA-0 model as default MACE-MP model, to use previous (before 3.10) default model please specify 'medium' as model argument
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/macempa0mediummodel
+Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using medium MPA-0 model as default MACE-MP model, to use previous (before 3.10) default model please specify 'medium' as model argument
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/macempa0mediummodel
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using medium MPA-0 model as default MACE-MP model, to use previous (before 3.10) default model please specify 'medium' as model argument
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/macempa0mediummodel
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using medium MPA-0 model as default MACE-MP model, to use previous (before 3.10) default model please specify 'medium' as model argument
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/macempa0mediummodel
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float64 for MACECalculator, which is slower but more accurate. Recommended for geometry optimization.
+[exit 0]

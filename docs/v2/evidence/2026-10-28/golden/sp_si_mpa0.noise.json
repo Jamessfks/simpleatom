@@ -1,0 +1,133 @@
+{
+  "structure": "public/demo/silicon.cif",
+  "params": {
+    "calculationType": "single-point",
+    "modelType": "MACE-MPA-0",
+    "modelSize": "medium"
+  },
+  "threads": [
+    1,
+    2
+  ],
+  "runsPerThreadCount": 3,
+  "effectiveParamsConsistent": true,
+  "effectiveParams": {
+    "calculationType": "single-point",
+    "device": "cpu",
+    "dispersion": false,
+    "license": "MIT",
+    "modelSize": "medium",
+    "modelType": "MACE-MPA-0",
+    "precision": "float32",
+    "upstreamModel": "medium-mpa-0"
+  },
+  "refusals": [
+    {
+      "threads": 1,
+      "error": {
+        "code": "calculation_failed",
+        "message": "[Errno 2] No usable temporary directory found in ['/var/folders/xz/dbqb8jk55p3ftffq3znjr20c0000gn/T/', '/tmp', '/var/tmp', '/usr/tmp', '~/Desktop/mace/.claude/worktrees/stoic-turing-076df8']",
+        "field": null,
+        "status": 500
+      }
+    }
+  ],
+  "quantities": {
+    "energy": {
+      "mean": -43.299949645996094,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          -43.299949645996094,
+          -43.299949645996094
+        ],
+        "2": [
+          -43.299949645996094,
+          -43.299949645996094,
+          -43.299949645996094
+        ]
+      }
+    },
+    "maxForce": {
+      "mean": 7.760413701178116e-06,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          7.760413701178116e-06,
+          7.760413701178116e-06
+        ],
+        "2": [
+          7.760413701178116e-06,
+          7.760413701178116e-06,
+          7.760413701178116e-06
+        ]
+      }
+    },
+    "rmsForce": {
+      "mean": 6.333443661371096e-06,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          6.333443661371096e-06,
+          6.333443661371096e-06
+        ],
+        "2": [
+          6.333443661371096e-06,
+          6.333443661371096e-06,
+          6.333443661371096e-06
+        ]
+      }
+    },
+    "netForce": {
+      "mean": 3.535725534027358e-08,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          3.535725534027358e-08,
+          3.535725534027358e-08
+        ],
+        "2": [
+          3.535725534027358e-08,
+          3.535725534027358e-08,
+          3.535725534027358e-08
+        ]
+      }
+    },
+    "energyPerAtom": {
+      "mean": -5.412493705749512,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          -5.412493705749512,
+          -5.412493705749512
+        ],
+        "2": [
+          -5.412493705749512,
+          -5.412493705749512,
+          -5.412493705749512
+        ]
+      }
+    },
+    "properties.pressure": {
+      "mean": 1.8060232400894165,
+      "spread": 0.0,
+      "n": 5,
+      "byThreads": {
+        "1": [
+          1.8060232400894165,
+          1.8060232400894165
+        ],
+        "2": [
+          1.8060232400894165,
+          1.8060232400894165,
+          1.8060232400894165
+        ]
+      }
+    }
+  }
+}

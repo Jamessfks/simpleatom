@@ -1,0 +1,6 @@
+$ npm run typecheck
+
+> simpleatom@2.2.0 typecheck
+> tsc --noEmit -p .
+
+[exit 0]

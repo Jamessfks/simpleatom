@@ -1,0 +1,1 @@
+public/demo/ethanol.xyz|{"calculationType":"molecular-dynamics","modelType":"MACE-OFF","modelSize":"small","mdEnsemble":"NVT","temperature":300,"timeStep":0.5,"mdSteps":4000,"friction":0.01,"seed":42}

@@ -1,0 +1,24 @@
+{
+ "status": "success",
+ "params": {
+  "calculationType": "single-point",
+  "modelType": "MACE-OFF",
+  "modelSize": "small",
+  "device": "cpu",
+  "dispersion": false,
+  "upstreamModel": "small",
+  "license": "ASL",
+  "precision": "float64"
+ },
+ "warnings": null,
+ "timeTaken": 0.155,
+ "message": "Calculation completed for ethanol.xyz using MACE",
+ "manifest.runtime": {
+  "device": "cpu",
+  "precision": "float64",
+  "seed": null,
+  "python": "3.11.15",
+  "platform": "macOS-15.6.1",
+  "executable": "python3"
+ }
+}

@@ -1,0 +1,119 @@
+{
+  "structure": "public/demo/ethanol.xyz",
+  "params": {
+    "calculationType": "geometry-opt",
+    "modelType": "MACE-OFF",
+    "modelSize": "small",
+    "forceThreshold": 0.01,
+    "maxOptSteps": 500
+  },
+  "threads": [
+    1,
+    2
+  ],
+  "runsPerThreadCount": 3,
+  "effectiveParamsConsistent": true,
+  "effectiveParams": {
+    "calculationType": "geometry-opt",
+    "converged": true,
+    "device": "cpu",
+    "dispersion": false,
+    "finalFmax": 0.009225306843237297,
+    "forceThreshold": 0.01,
+    "license": "ASL",
+    "maxOptSteps": 500,
+    "modelSize": "small",
+    "modelType": "MACE-OFF",
+    "optSteps": 61,
+    "precision": "float64",
+    "upstreamModel": "small"
+  },
+  "refusals": [],
+  "quantities": {
+    "energy": {
+      "mean": -4221.6023184968335,
+      "spread": 0.0,
+      "n": 6,
+      "byThreads": {
+        "1": [
+          -4221.6023184968335,
+          -4221.6023184968335,
+          -4221.6023184968335
+        ],
+        "2": [
+          -4221.6023184968335,
+          -4221.6023184968335,
+          -4221.6023184968335
+        ]
+      }
+    },
+    "maxForce": {
+      "mean": 0.009225306843237297,
+      "spread": 0.0,
+      "n": 6,
+      "byThreads": {
+        "1": [
+          0.009225306843237297,
+          0.009225306843237297,
+          0.009225306843237297
+        ],
+        "2": [
+          0.009225306843237297,
+          0.009225306843237297,
+          0.009225306843237297
+        ]
+      }
+    },
+    "rmsForce": {
+      "mean": 0.00627682568850204,
+      "spread": 0.0,
+      "n": 6,
+      "byThreads": {
+        "1": [
+          0.00627682568850204,
+          0.00627682568850204,
+          0.00627682568850204
+        ],
+        "2": [
+          0.00627682568850204,
+          0.00627682568850204,
+          0.00627682568850204
+        ]
+      }
+    },
+    "netForce": {
+      "mean": 3.610392583204195e-16,
+      "spread": 0.0,
+      "n": 6,
+      "byThreads": {
+        "1": [
+          3.610392583204195e-16,
+          3.610392583204195e-16,
+          3.610392583204195e-16
+        ],
+        "2": [
+          3.610392583204195e-16,
+          3.610392583204195e-16,
+          3.610392583204195e-16
+        ]
+      }
+    },
+    "energyPerAtom": {
+      "mean": -469.0669242774259,
+      "spread": 0.0,
+      "n": 6,
+      "byThreads": {
+        "1": [
+          -469.0669242774259,
+          -469.0669242774259,
+          -469.0669242774259
+        ],
+        "2": [
+          -469.0669242774259,
+          -469.0669242774259,
+          -469.0669242774259
+        ]
+      }
+    }
+  }
+}

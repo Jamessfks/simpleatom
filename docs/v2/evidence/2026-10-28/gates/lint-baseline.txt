@@ -1,0 +1,3 @@
+$ node scripts/lint-baseline.mjs
+eslint: 15 problems (baseline 15)
+[exit 0]

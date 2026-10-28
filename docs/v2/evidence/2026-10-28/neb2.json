@@ -1,0 +1,1 @@
+{"system": "HCN->HNC arc guess", "images": 11, "converged": true, "seconds": 119.03, "optimizer": "FIRE", "barrier_eV": 14.832, "reaction_eV": 1.0726, "tsImage": 5, "model": "MACE-OFF23 small float64", "machine": "Apple M4 Pro", "threads": 2}
