@@ -1,4 +1,74 @@
-# Gauntlet loop — state and how to resume
+# Resume here — state at STOP-1, 2026-10-28
+
+**Status: Phases 0–3 of `.claude/prompts/simpleatom-audit-next-feature.md` are done. The
+work is waiting for the owner's approval (STOP-1).** Nothing has been pushed, merged or
+deployed, and no Space, Vercel or Supabase setting has been touched.
+
+* Branch: `audit-next-feature`, cut from `v2.2` (`daed8bc`), local commits only.
+* The lock-index fix for D31 lives on `claude/quizzical-herschel-7d5e13` (`acf14fa`), the
+  containment session's branch. That session owns D30 (S3 live).
+
+## Deliverables
+
+| What | Where |
+|---|---|
+| Production parity table, delta audit, device trace, baseline gates | [`docs/audits/2026-10-28.md`](../audits/2026-10-28.md) |
+| Defects D30–D69 (and D23 resolved) | [`defects.json`](defects.json) |
+| Verbatim gate outputs, device traces, golden cases and noise, feasibility scripts and results | [`evidence/2026-10-28/`](evidence/2026-10-28/) |
+| Needs matrix (15 rows) and workflow map | [`needs-2026-10-28.md`](needs-2026-10-28.md) |
+| Scored candidates, recommendation, strongest counter-argument, file-by-file plan, parallel tracks | [`plan-2026-10-28.md`](plan-2026-10-28.md) |
+| ADR drafts (status `proposed`) | [0031 device](../adr/0031-device-honesty.md), [0032 vibrations scope](../adr/0032-molecular-vibrations-thermochemistry.md), [0033 Feedback email](../adr/0033-feedback-by-email.md) |
+| Hosted-GPU memo | [`hosted-gpu-memo.md`](hosted-gpu-memo.md) |
+| New tools | [`.claude/agents/science-critic.md`](../../.claude/agents/science-critic.md), [`.claude/skills/verify-science/`](../../.claude/skills/verify-science/SKILL.md) (`SKILL.md`, `noise.py`) |
+
+## Decision waiting for the owner
+
+The recommendation is **harmonic vibrations and ideal-gas thermochemistry for isolated
+molecules** (ADR-0032), reached from a converged geometry optimisation through "Compute
+frequencies". It ships with **device honesty** (ADR-0031) and **Feedback by email**
+(ADR-0033). The runner-up is cell relaxation + EOS, which tied at 42 weighted points and
+lost the tie-break on value and verifiability.
+
+## How to resume Phase 4 after approval
+
+1. Re-verify production. Has D30 been contained (`GET https://jamessfks-mace-api.hf.space/health`
+   → `gitCommit`)? Is `acf14fa` merged?
+2. Python env: `uv venv --python 3.11 <dir>`, then
+   `uv pip install --no-deps -r <(grep -E '^[A-Za-z0-9_.-]+==' mace-api/requirements.lock.txt | sed -E 's/ \\$//; s/\+cpu//')`.
+   That gives macOS wheels at the lock's versions. `npm ci`. `export KMP_DUPLICATE_LIB_OK=TRUE`.
+3. Work the plan's release blockers first (D31, D40, D41, D43). Then Track 1 → Track 2 in
+   series, with Track 3 in parallel. Tests and golden values are committed first, in every track.
+4. Verify each piece with `verify-science` + `science-critic` (numbers) and `verify-ui` +
+   `design-critic` (screens), and record the verdicts in `progress.json`.
+
+## Owner actions still needed
+
+* Contain D30: pause the Space, or approve the v2.2 + `acf14fa` PR. **Do not delete the
+  Space**: a new Docker Space needs a paid plan.
+* Supabase: set `SUPABASE_SERVICE_ROLE_KEY` on Vercel, then apply `0003_lockdown.sql` (D32).
+* `MACE_API_TOKEN` on Vercel and the Space (D43).
+* Resend:
+  * `vercel integration add resend/resend-email` (after a yes);
+  * DNS records for a `simpleatom.app` subdomain;
+  * `FEEDBACK_TO_EMAIL` and `FEEDBACK_FROM_EMAIL`.
+* Branch protection on `main`; check that `hf-production` restricts deploy branches (D50).
+* GPU spending: none recommended.
+
+## Harness traps found this session (in addition to those below)
+
+* A **hidden browser pane** never loads `?demo=true` and lays out nothing. Use Playwright
+  for UI evidence.
+* The guards **exit 1** on refusal in v2.2, which makes D39's "exit 0" stale. Judge them by
+  their JSON either way.
+* **Disk:** parallel Docker builds drove free space down to 441 MiB, and a run failed with
+  "No usable temporary directory". Check `df -h /` before heavy runs.
+* The lock is x86_64-manylinux, so on macOS install it without hashes and without `+cpu`
+  (above). Green local gates do not prove the Linux lock installs (D31).
+
+---
+
+# History (written 2026-08-10)
+
 
 Last updated 2026-08-10, on `main` at `9efa649`. Everything described here is committed and
 pushed; there is no unsaved work. Live dashboard: `/v2` (renders `docs/v2/progress.json`).
