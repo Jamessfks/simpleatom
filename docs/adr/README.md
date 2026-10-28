@@ -37,3 +37,6 @@ New decision: copy [`template.md`](template.md) to the next number, and link it 
 | 0028 | [One documentation source per audience](0028-documentation-architecture.md) | accepted | 2026-10-20 |
 | 0029 | [App-surface finish bar: schrodinger.com discipline, landing layout frozen](0029-app-finish-bar.md) | accepted | 2026-10-20 |
 | 0030 | [Stay on mace-torch 0.3.x until a published v1.0 passes the engine-parity gate](0030-mace-v1-migration.md) | proposed | 2026-10-21 |
+| 0031 | [Offer only devices that work; refuse CUDA on the public server, warn when it falls back locally](0031-device-honesty.md) | proposed | 2026-10-28 |
+| 0032 | [Amend ADR-0018: harmonic vibrations and ideal-gas thermochemistry for isolated molecules](0032-molecular-vibrations-thermochemistry.md) | proposed | 2026-10-28 |
+| 0033 | [Feedback is delivered by email through Resend, with abuse limits and no stored identifiers](0033-feedback-by-email.md) | proposed | 2026-10-28 |
