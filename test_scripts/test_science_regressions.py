@@ -152,3 +152,22 @@ class TestDefectRegressions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDeviceFallback(unittest.TestCase):
+    """
+    ADR-0031 (D33): a local run that asks for CUDA on a machine without it runs
+    on CPU and says so in the result, end to end through the real engine.
+    """
+
+    def test_cuda_request_without_cuda_is_recorded_and_warned(self):
+        import torch
+        if torch.cuda.is_available():
+            self.skipTest("a CUDA device is present, so there is nothing to fall back from")
+        from calculate import run_calculation
+        result = run_calculation(ETHANOL, {"calculationType": "single-point", "modelType": "MACE-OFF",
+                                           "modelSize": "small", "device": "cuda"}, profile="local")
+        self.assertEqual(result["params"]["device"], "cpu")
+        self.assertEqual(result["params"]["requestedDevice"], "cuda")
+        self.assertTrue(any("CUDA was requested" in w for w in result.get("warnings", [])), result.get("warnings"))
+        self.assertEqual(result["provenance"]["runtime"]["device"], "cpu")

@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 API_DIR = REPO_ROOT / "mace-api"
@@ -212,6 +213,69 @@ class TestCliGuards(unittest.TestCase):
     def test_hosted_profile_caps_md_steps(self):
         self.assertRefused({"calculationType": "molecular-dynamics", "mdSteps": 20000},
                            "limit_exceeded", env={"SIMPLEATOM_PROFILE": "hosted"})
+
+    def test_hosted_profile_refuses_cuda(self):
+        self.assertRefused({"device": "cuda"}, "device_unavailable",
+                           env={"SIMPLEATOM_PROFILE": "hosted"})
+
+
+class TestDevice(unittest.TestCase):
+    """
+    ADR-0031 (D33-D35): the device asked for and the device used never differ
+    silently. The public profile refuses CUDA; a local run falls back to CPU
+    with a warning; only devices that work are reported; CUDA out-of-memory is
+    a coded refusal, never a silent retry.
+    """
+
+    def setUp(self):
+        import calculate
+        self.calculate = calculate
+
+    def test_hosted_refuses_cuda_before_any_work(self):
+        with self.assertRaises(ContractError) as ctx:
+            self.calculate.validate_request({"device": "cuda"}, False, "hosted")
+        e = ctx.exception
+        self.assertEqual((e.code, e.status, e.field), ("device_unavailable", 400, "device"))
+
+    def test_local_falls_back_to_cpu_with_a_warning(self):
+        with mock.patch("torch.cuda.is_available", return_value=False):
+            device, warning = self.calculate.resolve_device("cuda", "local")
+        self.assertEqual(device, "cpu")
+        self.assertIn("CUDA was requested", warning)
+        self.assertIn("ran on CPU", warning)
+
+    def test_cpu_needs_no_warning(self):
+        self.assertEqual(self.calculate.resolve_device("cpu", "hosted"), ("cpu", None))
+        self.assertEqual(self.calculate.resolve_device(None, "local"), ("cpu", None))
+
+    def test_report_lists_only_usable_devices(self):
+        with mock.patch("torch.cuda.is_available", return_value=False):
+            local = self.calculate.device_report("local")
+            hosted = self.calculate.device_report("hosted")
+        self.assertEqual(local["available"], ["cpu"])
+        self.assertFalse(local["cuda"]["available"])
+        self.assertIn("torch.cuda.is_available()", local["unavailableReason"])
+        self.assertEqual(hosted["available"], ["cpu"])
+        self.assertIn("CPU-only", hosted["unavailableReason"])
+
+        with mock.patch("torch.cuda.is_available", return_value=True), \
+             mock.patch("torch.cuda.get_device_name", return_value="Test GPU"):
+            local = self.calculate.device_report("local")
+            hosted = self.calculate.device_report("hosted")
+        self.assertEqual(local["available"], ["cpu", "cuda"])
+        self.assertEqual(local["cuda"]["name"], "Test GPU")
+        self.assertIsNone(local["unavailableReason"])
+        self.assertEqual(hosted["available"], ["cpu"])  # never offered publicly
+
+    def test_cuda_out_of_memory_is_a_coded_refusal(self):
+        import torch
+        oom = torch.OutOfMemoryError("CUDA out of memory. Tried to allocate 2.00 GiB")
+        with mock.patch.object(self.calculate, "get_mace_calculator", side_effect=oom):
+            with self.assertRaises(ContractError) as ctx:
+                self.calculate.run_calculation(
+                    str(ETHANOL), {"modelType": "MACE-OFF", "modelSize": "small"}, profile="local")
+        self.assertEqual((ctx.exception.code, ctx.exception.status), ("cuda_out_of_memory", 507))
+        self.assertIn("Nothing was computed", str(ctx.exception))
 
 
 class TestSharedFixtures(unittest.TestCase):

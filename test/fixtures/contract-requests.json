@@ -208,6 +208,30 @@
         "forceThreshold": 5
       },
       "expect": "out_of_range"
+    },
+    {
+      "name": "CUDA on the hosted profile (ADR-0031: the public server is CPU-only)",
+      "profile": "hosted",
+      "params": {
+        "device": "cuda"
+      },
+      "expect": "device_unavailable"
+    },
+    {
+      "name": "CUDA locally (falls back to CPU with a warning at run time)",
+      "profile": "local",
+      "params": {
+        "device": "cuda"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "CPU on the hosted profile",
+      "profile": "hosted",
+      "params": {
+        "device": "cpu"
+      },
+      "expect": "ok"
     }
   ]
 }
