@@ -982,6 +982,19 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
                 require_dispersion_backend()
 
             recommended = upstream_default_precision(model_type, calc_type)
+            loader_default = model.get("upstreamDefaultDtype")
+            if not precision_requested and loader_default and precision != loader_default:
+                # D51 (owner decision, 2026-10-30): 'Auto' follows upstream's own
+                # advice (float64 for geometry optimisation), which here differs
+                # from the loader's default dtype. CLAUDE.md: never override an
+                # upstream dtype default without a warning on the result.
+                what = {"geometry-opt": "geometry optimization", "molecular-dynamics": "MD run",
+                        "single-point": "single point"}.get(calc_type, calc_type)
+                warnings.append(
+                    f"Precision 'Auto' ran this {what} in {precision}, not {model['loader']}()'s "
+                    f"default {loader_default}, because upstream MACE recommends float64 for geometry "
+                    f"optimization. Choose float32 explicitly if you want the faster default."
+                )
             if precision_requested and precision == "float32" and recommended == "float64":
                 # Honoured, not overridden — upstream honours whatever default_dtype
                 # it is handed — but never left unsaid.
