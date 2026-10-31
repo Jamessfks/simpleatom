@@ -15,6 +15,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -358,6 +359,42 @@ class TestClientIdentity(unittest.TestCase):
         b = main._client_key(self._request(xff="2.2.2.2, 10.0.0.2"), None)
         self.assertEqual(a, b)
         self.assertEqual(main._client_key(self._request(), None), "10.0.0.1")
+
+
+class TestGeometryOptStops(unittest.TestCase):
+    """
+    D46: convergence is judged from the final forces, whatever stopped BFGS. A
+    time-budget stop on the step that reaches fmax (or before step 0, on an
+    already relaxed structure) used to be labelled "DID NOT CONVERGE" with a
+    max force below the target. ASE's own test is strict: max|F| < fmax.
+    """
+
+    @staticmethod
+    def _run(atoms, deadline):
+        import calculate
+        from ase.calculators.emt import EMT
+        atoms.calc = EMT()
+        ctx = calculate._RunContext(atoms=atoms, filename="cu.xyz", calc_start=time.time(), ref_data={},
+                                    effective_params={}, warnings=[], manifest=None,
+                                    hooks=calculate.RunHooks(deadline=deadline), profile_name="local")
+        return calculate._run_geometry_opt(ctx, {"forceThreshold": 0.05, "maxOptSteps": 50})
+
+    def test_budget_stop_on_a_relaxed_structure_reports_convergence(self):
+        from ase.build import bulk
+        result = self._run(bulk("Cu", "fcc", a=3.6, cubic=True), deadline=time.monotonic() - 1)
+        self.assertTrue(result["converged"], result["message"])
+        self.assertNotIn("DID NOT CONVERGE", result["message"])
+        self.assertIn("below the fmax target", result["message"])
+        self.assertNotIn("at or below", result["message"])
+
+    def test_budget_stop_above_fmax_is_not_converged(self):
+        from ase.build import bulk
+        atoms = bulk("Cu", "fcc", a=3.6, cubic=True)
+        atoms.positions[0] += [0.15, 0.0, 0.0]
+        result = self._run(atoms, deadline=time.monotonic() - 1)
+        self.assertFalse(result["converged"])
+        self.assertIn("DID NOT CONVERGE", result["message"])
+        self.assertIn("time budget", result["message"])
 
 
 class TestFrameRecorder(unittest.TestCase):
