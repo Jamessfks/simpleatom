@@ -241,6 +241,48 @@ class TestSharedFixtures(unittest.TestCase):
                 os.environ["ALLOW_CUSTOM_MODELS"] = previous
 
 
+class TestClientIdentity(unittest.TestCase):
+    """
+    D43: per-visitor limits key on who the request is from. The visitor IP the
+    Vercel proxy forwards is trusted only when MACE_API_TOKEN authenticated
+    the proxy; otherwise any caller could name a fresh "visitor" per request.
+    """
+
+    @staticmethod
+    def _request(xff=None, peer="10.0.0.1"):
+        from starlette.requests import Request
+        headers = [(b"x-forwarded-for", xff.encode())] if xff else []
+        return Request({"type": "http", "method": "POST", "path": "/", "headers": headers,
+                        "client": (peer, 4321)})
+
+    def _with_token(self, value):
+        previous = os.environ.pop("MACE_API_TOKEN", None)
+        if value is not None:
+            os.environ["MACE_API_TOKEN"] = value
+        self.addCleanup(lambda: (os.environ.pop("MACE_API_TOKEN", None),
+                                 previous is not None and os.environ.__setitem__("MACE_API_TOKEN", previous)))
+
+    def test_forwarded_ip_is_ignored_without_a_proxy_key(self):
+        import main
+        self._with_token(None)
+        key = main._client_key(self._request(xff="198.51.100.9, 10.0.0.2"), "203.0.113.7")
+        self.assertEqual(key, "10.0.0.2")
+
+    def test_forwarded_ip_is_trusted_from_the_authenticated_proxy(self):
+        import main
+        self._with_token("proxy-secret")
+        key = main._client_key(self._request(xff="198.51.100.9, 10.0.0.2"), "203.0.113.7")
+        self.assertEqual(key, "203.0.113.7")
+
+    def test_spoofed_forwarded_for_entries_do_not_mint_new_visitors(self):
+        import main
+        self._with_token(None)
+        a = main._client_key(self._request(xff="1.1.1.1, 10.0.0.2"), None)
+        b = main._client_key(self._request(xff="2.2.2.2, 10.0.0.2"), None)
+        self.assertEqual(a, b)
+        self.assertEqual(main._client_key(self._request(), None), "10.0.0.1")
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
