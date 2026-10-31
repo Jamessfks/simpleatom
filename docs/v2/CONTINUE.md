@@ -1,4 +1,41 @@
-# Resume here — state at STOP-1, 2026-10-28
+# Resume here — state at STOP-1, 2026-10-30
+
+**Update 2026-10-30.** The parent session relayed the owner's go-ahead ("continue … Run it,
+improve"), scoped to the plan's release-blocker defects only. Done on
+`audit-next-feature`, with tests committed first, local commits only and nothing pushed:
+
+* **D57** (`3798e67`, `31a20f1`);
+* **D40** (`f9fa6b7`, `925de6d`);
+* **D41 code half and D43** (`5fc6b47`, `fccf1be`).
+
+The full gate is green with the build (`evidence/2026-10-30/daily-gate.txt`), and
+`science-critic` verified D57 (`evidence/2026-10-30/science-critic-d57.md`).
+
+The owner is on **Vercel Pro**. [`hosted-compute-memo.md`](hosted-compute-memo.md), renamed
+from hosted-gpu-memo, now compares HF `cpu-basic`, Vercel Functions or the container runtime,
+and Sandbox, with arithmetic per-run costs. It covers:
+* Sandbox for custom uploads (recommended against for now; preconditions listed);
+* WAF rate limits as the edge half of D41 and for Feedback;
+* Spend Management as a prerequisite for anything metered;
+* Web Analytics for usage data.
+
+`plan-2026-10-28.md` has a "Revision 2026-10-30" section with optional tracks T4 (a
+container-runtime pilot) and T5 (two analytics events). New owner action: **set
+`MACE_API_TOKEN` on Vercel and the Space before this branch deploys** (D43).
+
+**Still the owner's to decide:**
+* the feature (vibrations vs cell relaxation);
+* ADR-0031 to 0033;
+* D51;
+* T4 and T5;
+* any Sandbox ADR.
+
+**Not started:** vibrations, cell relaxation, Feedback. When D31's PR (`acf14fa`) lands,
+rebase this branch onto it.
+
+---
+
+# State at STOP-1, 2026-10-28
 
 **Status: Phases 0–3 of `.claude/prompts/simpleatom-audit-next-feature.md` are done. The
 work is waiting for the owner's approval (STOP-1).** Nothing has been pushed, merged or
@@ -18,7 +55,7 @@ deployed, and no Space, Vercel or Supabase setting has been touched.
 | Needs matrix (15 rows) and workflow map | [`needs-2026-10-28.md`](needs-2026-10-28.md) |
 | Scored candidates, recommendation, strongest counter-argument, file-by-file plan, parallel tracks | [`plan-2026-10-28.md`](plan-2026-10-28.md) |
 | ADR drafts (status `proposed`) | [0031 device](../adr/0031-device-honesty.md), [0032 vibrations scope](../adr/0032-molecular-vibrations-thermochemistry.md), [0033 Feedback email](../adr/0033-feedback-by-email.md) |
-| Hosted-GPU memo | [`hosted-gpu-memo.md`](hosted-gpu-memo.md) |
+| Hosted-compute memo (was hosted-GPU) | [`hosted-compute-memo.md`](hosted-compute-memo.md) |
 | New tools | [`.claude/agents/science-critic.md`](../../.claude/agents/science-critic.md), [`.claude/skills/verify-science/`](../../.claude/skills/verify-science/SKILL.md) (`SKILL.md`, `noise.py`) |
 
 ## Decision waiting for the owner

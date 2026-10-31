@@ -76,6 +76,7 @@ blocked on 0003 and the service-role key.
 
 | Limit | Value | Where |
 |---|---|---|
+| Edge rate limit | `POST /api/feedback`, 3 per 10 min per IP, fixed window; starts as Log, then 429 | Vercel WAF rule. The owner creates it in the dashboard; rate limits cannot be declared in `vercel.json` ([rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting), fetched 2026-10-30). Counters are per region, so the in-code limits below stay authoritative |
 | Message length | 1–4,000 characters after trim | client and server |
 | Body size | ≤ 16 KB, checked before parsing | server (`content-length`, then `text()`) |
 | Honeypot | a hidden `website` field must be empty; a filled one gets a fake 202 and sends nothing | server |
@@ -110,8 +111,12 @@ blocked on 0003 and the service-role key.
 * Bad, because the per-visitor and daily limits are per instance and best effort. A
   distributed sender can exceed 40 a day across instances, until Resend's 100-a-day quota
   stops it. A durable cap needs shared state (option B, later).
-* Bad, because it adds an external processor (Resend) and three owner actions: install the
-  integration, verify the domain, and set the env vars.
+* Bad, because it adds an external processor (Resend) and four owner actions: install the
+  integration, verify the domain, set the env vars, and create the WAF rule.
+* Note: Spend Management does not cover Marketplace integrations
+  ([spend management](https://vercel.com/docs/spend-management), fetched 2026-10-30), so
+  Resend's own free-plan quota (100/day) is the cost backstop for email, not Vercel's
+  budget.
 
 ### Confirmation
 
