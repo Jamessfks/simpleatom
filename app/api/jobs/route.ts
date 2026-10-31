@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkCalculationParams, serverProfileName } from "@/lib/contract";
-import { ApiError, errorResponse, parseParams } from "@/lib/server/backend";
+import {
+  ApiError,
+  assertLoopbackHost,
+  assertSameOrigin,
+  errorResponse,
+  parseParams,
+} from "@/lib/server/backend";
 import { clientIp, submitJob } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
@@ -16,6 +22,7 @@ export const maxDuration = 30;
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const profileName = serverProfileName();
     const form = await request.formData();
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
@@ -26,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     const violation = checkCalculationParams(params, profileName, model !== null);
     if (violation) throw new ApiError(violation.message, violation.status, violation.code, violation.field);
+    if (model && profileName === "local") assertLoopbackHost(request);
 
     const { status, body } = await submitJob({ data: files[0], name: files[0].name }, params, {
       profile: profileName,

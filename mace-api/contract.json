@@ -119,8 +119,8 @@
       "maxTrajectoryFrames": 500
     },
     "local": {
-      "description": "Your own machine (npm run dev with no MACE_API_URL, or a self-hosted backend).",
-      "customModels": true,
+      "description": "Your own machine (npm run dev with no MACE_API_URL, or a self-hosted backend). Custom checkpoints are opt-in (ALLOW_CUSTOM_MODELS=1): loading one runs code from the file.",
+      "customModels": false,
       "maxUploadBytes": 50000000,
       "maxModelUploadBytes": 500000000,
       "maxAtoms": {

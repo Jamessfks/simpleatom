@@ -762,12 +762,16 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
     request with a 4xx before it ever waits in line.
     """
     if has_model_path and not contract.custom_models_allowed(profile_name):
+        # Opt-in on every profile (ADR-0020, D40): a local server is reachable
+        # from the LAN and from any page the developer visits.
+        how = ("restart with ALLOW_CUSTOM_MODELS=1 to load your own checkpoint"
+               if profile_name == "local" else
+               "the public instance only runs pinned foundation models; run "
+               "SimpleAtom locally with ALLOW_CUSTOM_MODELS=1 to use your own")
         raise ContractError(
-            "Custom model checkpoints are disabled on this deployment. Loading a "
-            "MACE .model file executes code from the file, so the public "
-            "instance only runs pinned foundation models. Run SimpleAtom "
-            "locally (or self-host with ALLOW_CUSTOM_MODELS=1) to use your own "
-            "checkpoint. Nothing was computed.",
+            "Custom model checkpoints are disabled on this deployment: loading a "
+            f"MACE .model file executes code from the file, so {how}. "
+            "Nothing was computed.",
             code="custom_models_disabled", field="model", status=403,
         )
     calc_type = validate_calculation_type(params.get("calculationType"))

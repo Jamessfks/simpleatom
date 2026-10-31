@@ -28,6 +28,9 @@ python3 test_scripts/daily_gate.py --no-bars               # every gate at once
 
 ## Custom models
 
-Local mode accepts an uploaded `.model` checkpoint (fine-tuned MACE). Loading
-one executes code from the file, so the public instance refuses them; run
-locally, or self-host with `ALLOW_CUSTOM_MODELS=1`, to use your own.
+Uploaded `.model` checkpoints (fine-tuned MACE) are off by default on every
+profile, because loading one executes code from the file. To use your own, start
+local mode with `ALLOW_CUSTOM_MODELS=1 npm run dev` and open it at `localhost`:
+uploads are accepted only from a loopback host name and only from SimpleAtom's own
+pages. `npm run dev` listens on 127.0.0.1; do not expose it to a network while
+custom models are enabled.

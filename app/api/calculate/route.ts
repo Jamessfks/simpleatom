@@ -9,6 +9,8 @@ import {
 import {
   ApiError,
   MACE_API_URL,
+  assertLoopbackHost,
+  assertSameOrigin,
   calculate,
   errorResponse,
   parseParams,
@@ -38,6 +40,7 @@ export const maxDuration = 300;
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const profileName = serverProfileName();
     const form = await request.formData();
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
@@ -52,6 +55,7 @@ export async function POST(request: NextRequest) {
     if (violation) {
       throw new ApiError(violation.message, violation.status, violation.code, violation.field);
     }
+    if (model && profileName === "local") assertLoopbackHost(request);
 
     const result = await calculate(
       { data: files[0], name: files[0].name },

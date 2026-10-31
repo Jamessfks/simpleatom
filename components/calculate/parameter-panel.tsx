@@ -245,6 +245,12 @@ export function ParameterPanel({
                 ))}
               </SelectContent>
             </Select>
+            {caps.profile === "local" && !caps.customModels && (
+              <p className="text-xs leading-relaxed text-text-muted">
+                Custom checkpoints are off: loading a <code>.model</code> file runs code from it.
+                Restart with <code>ALLOW_CUSTOM_MODELS=1</code> to upload your own.
+              </p>
+            )}
           </Field>
 
           {isOFF && (

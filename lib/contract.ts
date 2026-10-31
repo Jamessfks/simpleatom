@@ -165,7 +165,10 @@ export function checkCalculationParams(
     return violation(
       "custom_models_disabled",
       "Custom model checkpoints are disabled on this deployment: loading a MACE .model file " +
-        "executes code from the file. Run SimpleAtom locally to use your own checkpoint.",
+        "executes code from the file. " +
+        (profileName === "local"
+          ? "Restart with ALLOW_CUSTOM_MODELS=1 to load your own checkpoint."
+          : "Run SimpleAtom locally with ALLOW_CUSTOM_MODELS=1 to use your own checkpoint."),
       "model",
       403,
     );

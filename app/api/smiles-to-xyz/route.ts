@@ -3,6 +3,7 @@ import { profile, serverProfileName } from "@/lib/contract";
 import {
   ApiError,
   MACE_API_URL,
+  assertSameOrigin,
   errorResponse,
   runPythonJson,
 } from "@/lib/server/backend";
@@ -22,6 +23,7 @@ export const maxDuration = 60;
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const profileName = serverProfileName();
     let body: unknown;
     try {

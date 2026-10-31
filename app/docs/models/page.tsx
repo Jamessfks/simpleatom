@@ -154,7 +154,8 @@ export default function ModelsPage() {
 
         <h2 id="custom">Custom models</h2>
         <p>
-          When you run SimpleAtom locally you can upload your own{" "}
+          When you run SimpleAtom locally with{" "}
+          <code>ALLOW_CUSTOM_MODELS=1</code> you can upload your own{" "}
           <code>.model</code> checkpoint trained with <code>mace-torch</code>{" "}
           (for example, fine-tuned with <code>mace_run_train</code>).
           SimpleAtom loads it with <code>MACECalculator</code>, runs the
@@ -166,7 +167,8 @@ export default function ModelsPage() {
           A <code>.model</code> file is a pickled PyTorch module: loading it
           runs code from the file. The public instance therefore only loads the
           foundation checkpoints whose SHA-256 it has pinned, and refuses
-          uploaded ones. Run locally to use your own model.
+          uploaded ones. Locally, uploads are off until you opt in, and are
+          then accepted only from <code>localhost</code>.
         </Callout>
 
         <h2 id="choosing">Choosing a model</h2>

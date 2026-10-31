@@ -22,6 +22,8 @@ import {
 } from "@/lib/contract";
 import {
   ApiError,
+  assertLoopbackHost,
+  assertSameOrigin,
   calculate,
   checkUploadSize,
   displayName,
@@ -141,9 +143,11 @@ function validate(
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const profileName = serverProfileName();
     const { body, model, uploads } = await readRequest(request);
     const { models, structureIds, calculationType } = validate(body, uploads, model, profileName);
+    if (model && profileName === "local") assertLoopbackHost(request);
 
     const structures: RunnableStructure[] = [
       ...getBenchmarkStructuresByIds(structureIds).map((entry) => ({

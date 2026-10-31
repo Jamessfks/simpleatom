@@ -29,6 +29,15 @@ Remove the global patch. `safe_load.trusted_checkpoints()` scopes permissive loa
 
 Supersedes the process-wide `torch.load` patch in main.py and calculate_local.py (2026-02).
 
+2026-10-30 (D40): custom checkpoints are opt-in on the local profile too. `next dev`
+listened on 0.0.0.0, and no route checked Origin, so a LAN peer or any page the
+developer visited could POST a pickle to a local server. Now:
+
+* `npm run dev` binds 127.0.0.1;
+* every POST route refuses a cross-origin browser request (`cross_origin`);
+* with `ALLOW_CUSTOM_MODELS=1`, local mode accepts an upload only through a loopback
+  host name (`custom_models_local_only`), which defeats DNS rebinding.
+
 ## More information
 
 * mace-api/safe_load.py

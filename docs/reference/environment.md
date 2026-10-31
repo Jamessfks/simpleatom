@@ -9,7 +9,7 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | Vercel (secret) | recommended | Server-only MACE Link storage; required before applying `supabase/migrations/0003_lockdown.sql`. Never `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_SITE_URL` | Vercel | no | Canonical origin for share and citation links. |
 | `SIMPLEATOM_PROFILE` | both | no | `hosted` or `local` (see the [contract](contract.md#deployment-profiles)). Defaults: the Space and a Next.js server with `MACE_API_URL` → `hosted`; local mode → `local`. |
-| `ALLOW_CUSTOM_MODELS` | both | no | `1` allows uploaded `.model` checkpoints on a hosted profile (they execute code from the file — self-hosted only); `0` refuses them locally. |
+| `ALLOW_CUSTOM_MODELS` | both | no | `1` allows uploaded `.model` checkpoints (they execute code from the file). Off by default on every profile; locally, uploads are then accepted only from a loopback host name (D40). |
 | `OMP_NUM_THREADS` | the Space | no | torch threads (image default 2). |
 | `KMP_DUPLICATE_LIB_OK` | local, macOS | yes on macOS | `TRUE`, or PyTorch aborts with OMP Error #15. The routes set it for you. |
 

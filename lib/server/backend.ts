@@ -50,6 +50,52 @@ export function errorResponse(error: unknown): NextResponse {
   );
 }
 
+type WithHeaders = { headers: Headers };
+
+function requestHost(request: WithHeaders): string | null {
+  return request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+}
+
+/**
+ * Refuse a POST that another site's page sent (D40). A browser always attaches
+ * Origin to a cross-origin POST, and a multipart form is a "simple" request, so
+ * without this check any page the developer visits could start work on their
+ * local server — including unpickling an uploaded checkpoint. A request with
+ * no Origin is not a browser page and passes; LAN reach is closed separately
+ * by binding the dev server to loopback.
+ */
+export function assertSameOrigin(request: WithHeaders): void {
+  const origin = request.headers.get("origin");
+  if (origin === null) return;
+  let originHost: string | null = null;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    // "null" (sandboxed iframes, file://) and malformed values are not this site.
+  }
+  if (!originHost || originHost !== requestHost(request)) {
+    throw new ApiError("Cross-origin requests are not accepted.", 403, "cross_origin");
+  }
+}
+
+const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+/**
+ * Accept a checkpoint upload in local mode only when the page was loaded from
+ * a loopback name. A DNS-rebinding page is same-origin with itself, so its
+ * Origin check passes; only its host name gives it away.
+ */
+export function assertLoopbackHost(request: WithHeaders): void {
+  if (!LOOPBACK_HOST.test(requestHost(request) ?? "")) {
+    throw new ApiError(
+      "Custom checkpoints are accepted only from this machine (open SimpleAtom at localhost).",
+      403,
+      "custom_models_local_only",
+      "model",
+    );
+  }
+}
+
 /** Read the backend's error envelope (FastAPI or CLI) into an ApiError. */
 function apiErrorFrom(body: unknown, fallbackStatus: number): ApiError {
   const b = (body ?? {}) as {

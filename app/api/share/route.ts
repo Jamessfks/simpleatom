@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { insertSharedResult } from "@/lib/server/share-store";
-import { ApiError, displayName, errorResponse } from "@/lib/server/backend";
+import { ApiError, assertSameOrigin, displayName, errorResponse } from "@/lib/server/backend";
 import { clientIp } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
@@ -81,6 +81,7 @@ function validateResult(result: unknown): Record<string, unknown> {
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const declared = Number(request.headers.get("content-length") ?? 0);
     if (declared > MAX_BODY_BYTES) throw new ApiError("This result is too large to share.", 413, "too_large");
     const text = await request.text();

@@ -34,7 +34,7 @@ Every number must be finite; booleans are not numbers; step counts must be whole
 
 | Limit | hosted | local |
 | --- | --- | --- |
-| `customModels` | false | true |
+| `customModels` | false | false |
 | `maxUploadBytes` | 2,000,000 | 50,000,000 |
 | `maxModelUploadBytes` | 0 | 500,000,000 |
 | `maxAtoms (single-point)` | 5,000 | 50,000 |
