@@ -27,13 +27,18 @@ import {
 } from "@/lib/parse-structure";
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
-import { foundationModelFor } from "@/lib/model-domain";
 import { RunLedger } from "@/components/calculate/run-ledger";
 import { useCapabilities } from "@/lib/use-capabilities";
 import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
 import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
+import {
+  foundationParamsFor,
+  isCustomResult,
+  snapshotRun,
+  type RunSnapshot,
+} from "@/components/calculate/run-snapshot";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -258,6 +263,12 @@ function CalculatePageInner() {
   });
   const [customModelFile, setCustomModelFile] = useState<File | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
+  /**
+   * What the result on screen was computed from, captured when the run
+   * started. The form stays editable, so the dashboard, Share and Compare read
+   * this, never the live form (D58).
+   */
+  const [lastRun, setLastRun] = useState<RunSnapshot | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [job, setJob] = useState<JobView | null>(null);
   const caps = useCapabilities();
@@ -391,23 +402,19 @@ function CalculatePageInner() {
 
   const handleRunFoundation =
     useCallback(async (): Promise<CalculationResult | null> => {
-      if (uploadedFiles.length === 0) return null;
+      if (!lastRun || lastRun.files.length === 0) return null;
 
-      // Picked from the parsed structure, never from the uploaded FILENAME:
-      // a periodic crystal can be named "offcut.cif", and matching that name
-      // against "off" used to send it to MACE-OFF, crossing two incompatible
-      // energy conventions and printing a meaningless deltaE.
-      const foundationParams: CalculationParams = {
-        ...params,
-        modelType: foundationModelFor(parsedStructure),
-      };
-
+      // The structure and settings the shown result was computed from, with
+      // the foundation model picked from its PARSED structure, never from the
+      // uploaded FILENAME: a periodic crystal can be named "offcut.cif", and
+      // matching that name against "off" used to send it to MACE-OFF, crossing
+      // two incompatible energy conventions and printing a meaningless deltaE.
       const formData = new FormData();
-      uploadedFiles.forEach((file) => formData.append("files", file));
-      formData.append("params", JSON.stringify(foundationParams));
+      lastRun.files.forEach((file) => formData.append("files", file));
+      formData.append("params", JSON.stringify(foundationParamsFor(lastRun)));
 
       return runCalculationJob(formData);
-    }, [uploadedFiles, params, parsedStructure]);
+    }, [lastRun]);
 
   const handleCalculate = async () => {
     // Same gate as the Run button, restated here so the check cannot be
@@ -416,9 +423,16 @@ function CalculatePageInner() {
       setError(runBlockedReason);
       return;
     }
+    const run = snapshotRun({
+      files: uploadedFiles,
+      params,
+      structure: parsedStructure,
+      customModelName: params.customModelName || customModelFile?.name,
+    });
     setIsCalculating(true);
     setError(null);
     setResult(null);
+    setLastRun(run);
     setShareUrl(null);
     setJob(null);
 
@@ -428,9 +442,9 @@ function CalculatePageInner() {
 
     try {
       const formData = new FormData();
-      uploadedFiles.forEach((file) => formData.append("files", file));
-      formData.append("params", JSON.stringify(params));
-      if (customModelFile && params.modelType === "custom") {
+      run.files.forEach((file) => formData.append("files", file));
+      formData.append("params", JSON.stringify(run.params));
+      if (customModelFile && run.params.modelType === "custom") {
         formData.append("model", customModelFile);
       }
 
@@ -452,17 +466,17 @@ function CalculatePageInner() {
       // Only the former belongs in a result. See effectiveRunParams().
       setResult({
         ...data,
-        params: effectiveRunParams(params, data.params),
+        params: effectiveRunParams(run.params, data.params),
         clientRoundTrip,
       });
 
       // Record a compact summary in local (account-free) history.
       if (data.status === "success") {
         const entries = addHistory({
-          filename: uploadedFiles[0]?.name,
-          modelType: params.modelType,
-          modelSize: params.modelSize,
-          calculationType: params.calculationType,
+          filename: run.filename,
+          modelType: run.params.modelType,
+          modelSize: run.params.modelSize,
+          calculationType: run.params.calculationType,
           energy: typeof data.energy === "number" ? data.energy : undefined,
           atoms: data.symbols?.length,
         });
@@ -487,7 +501,7 @@ function CalculatePageInner() {
     try {
       // Share the effective params off the result, not the request — a shared
       // result should describe the run that happened.
-      const { url } = await saveResult(result, uploadedFiles[0]?.name);
+      const { url } = await saveResult(result, lastRun?.filename);
       setShareUrl(url);
       if (lastHistoryId) updateHistoryShareUrl(lastHistoryId, url);
     } catch (err) {
@@ -701,7 +715,7 @@ function CalculatePageInner() {
                   <div ref={resultsRef} className="animate-fade-in-up scroll-mt-20 space-y-6">
                     <MetricsDashboard
                       result={result}
-                      filename={uploadedFiles[0]?.name}
+                      filename={lastRun?.filename}
                       actions={
                         !shareUrl ? (
                           <Button
@@ -745,14 +759,10 @@ function CalculatePageInner() {
                       }
                     />
 
-                    {isCustomModel && (
+                    {isCustomResult(result) && (
                       <ModelComparison
                         customResult={result}
-                        customModelName={
-                          params.customModelName ||
-                          customModelFile?.name ||
-                          "Custom model"
-                        }
+                        customModelName={lastRun?.customModelName || "Custom model"}
                         onRunFoundation={handleRunFoundation}
                       />
                     )}
