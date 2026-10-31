@@ -124,22 +124,29 @@ export const MLPEG_CATALOG: CatalogCategory[] = [
     mlpegPath: "ml_peg/app/bulk_crystal/",
     entries: [
       {
-        // Verified: a=5.43 Å (exp), 2 atoms at (0,0,0) and (a/4,a/4,a/4)
+        // 8-atom conventional diamond cell, a = 5.43 Å; geometry checked by
+        // test/mlpeg-catalog.test.ts (D57: was a 2-atom basis in a cubic cell).
         id: "si-diamond",
         name: "Silicon (diamond)",
         description: "Diamond cubic silicon — the most common semiconductor benchmark.",
         formula: "Si",
-        atomCount: 2,
+        atomCount: 8,
         elements: ["Si"],
         recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -4.63, source: "Exp (Kittel, 8th ed.; Farid & Godby PRB 43 14248: 4.62±0.08)" },
           latticeConstant: { value: 5.431, source: "Exp (Kittel, 8th ed.)" },
         },
-        xyzData: `2
+        xyzData: `8
 Lattice="5.43 0.0 0.0 0.0 5.43 0.0 0.0 0.0 5.43" Properties=species:S:1:pos:R:3 pbc="T T T"
 Si 0.000000 0.000000 0.000000
-Si 1.357500 1.357500 1.357500`,
+Si 1.357500 1.357500 1.357500
+Si 0.000000 2.715000 2.715000
+Si 1.357500 4.072500 4.072500
+Si 2.715000 0.000000 2.715000
+Si 4.072500 1.357500 4.072500
+Si 2.715000 2.715000 0.000000
+Si 4.072500 4.072500 1.357500`,
       },
       {
         // Verified: a=3.615 Å (exp), 4 atoms at FCC sites
@@ -204,22 +211,29 @@ Fe 0.000000 0.000000 0.000000
 Fe 1.435000 1.435000 1.435000`,
       },
       {
-        // Verified: a=3.567 Å (exp), 2 atoms at (0,0,0) and (a/4,a/4,a/4)
+        // 8-atom conventional diamond cell, a = 3.567 Å; geometry checked by
+        // test/mlpeg-catalog.test.ts (D57: was a 2-atom basis in a cubic cell).
         id: "c-diamond",
         name: "Diamond (carbon)",
         description: "Diamond cubic carbon — hard material benchmark.",
         formula: "C",
-        atomCount: 2,
+        atomCount: 8,
         elements: ["C"],
         recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -7.37, source: "Exp (Kittel, 8th ed.)" },
           latticeConstant: { value: 3.567, source: "Exp (Kittel, 8th ed.)" },
         },
-        xyzData: `2
+        xyzData: `8
 Lattice="3.567 0.0 0.0 0.0 3.567 0.0 0.0 0.0 3.567" Properties=species:S:1:pos:R:3 pbc="T T T"
 C 0.000000 0.000000 0.000000
-C 0.891750 0.891750 0.891750`,
+C 0.891750 0.891750 0.891750
+C 0.000000 1.783500 1.783500
+C 0.891750 2.675250 2.675250
+C 1.783500 0.000000 1.783500
+C 2.675250 0.891750 2.675250
+C 1.783500 1.783500 0.000000
+C 2.675250 2.675250 0.891750`,
       },
     ],
   },
@@ -424,7 +438,9 @@ Cu 1.278000 0.737700 12.087000
 Cu 2.556000 1.475400 14.174000`,
       },
       {
-        // Verified: a_surf=a/√2=3.840 Å, diamond bilayer spacing, 25 Å vacuum
+        // Two bulk-terminated diamond (111) bilayers, a = 5.43 Å: in-plane
+        // a/√2, bilayer spacing a/(4√3) = 0.784 Å, bond a√3/4 = 2.351 Å;
+        // checked by test/mlpeg-catalog.test.ts (D57: spacing and stacking were wrong).
         id: "si-111",
         name: "Si(111) surface",
         description: "Silicon (111) surface slab — semiconductor surface benchmark.",
@@ -433,11 +449,11 @@ Cu 2.556000 1.475400 14.174000`,
         elements: ["Si"],
         recommendedModel: "MACE-MPA-0",
         xyzData: `4
-Lattice="3.840 0.0 0.0 1.920 3.325 0.0 0.0 0.0 25.0" Properties=species:S:1:pos:R:3 pbc="T T T"
-Si 0.000000 0.000000 10.000000
-Si 1.920000 1.108300 11.246000
-Si 0.000000 0.000000 13.138000
-Si 1.920000 1.108300 14.384000`,
+Lattice="3.839590 0.0 0.0 1.919795 3.325182 0.0 0.0 0.0 25.0" Properties=species:S:1:pos:R:3 pbc="T T T"
+Si 1.919795 1.108394 10.000000
+Si 3.839590 2.216788 10.783753
+Si 3.839590 2.216788 13.135012
+Si 0.000000 0.000000 13.918765`,
       },
     ],
   },
