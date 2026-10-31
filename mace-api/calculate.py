@@ -936,6 +936,17 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
     atoms, fmt = _read_structure(filepath, filename, warnings)
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
     contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
+    covered = model.get("elements") or []
+    outside = sorted(set(atoms.get_chemical_symbols()) - set(covered)) if covered else []
+    if outside:
+        # D47: refused before any model I/O, in words — upstream fails only
+        # after loading, with "np.int64(11) is not in list".
+        raise ContractError(
+            f"{model['label']} was trained only on {', '.join(covered)}; this structure "
+            f"also contains {', '.join(outside)}. Choose a MACE-MP-family model for it. "
+            "Nothing was computed.",
+            code="unsupported_element", field="modelType",
+        )
     if run_params.get("mdEnsemble") == "NPT" and not atoms.pbc.all():
         raise ContractError(
             "NPT needs a fully periodic cell (pbc on all three axes): pressure is "
