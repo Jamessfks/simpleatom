@@ -396,35 +396,44 @@
     {
       "id": "D33",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "A request for device 'cuda' on a machine without CUDA silently runs on CPU in every path, with no result.warnings entry and no requestedDevice. Measured on CLI (local + hosted profiles), FastAPI /calculate and /v1/jobs (both profiles), Next /api/calculate and /api/jobs (local mode), and the UI: params.device 'cpu', manifest.runtime.device 'cpu', warnings absent. The UI keeps 'CUDA (GPU)' selected, the 'What will run' ledger omits the device, and the timing reads '0.16 s compute' with no device; 'cpu' appears only inside a params string.",
       "where": "mace-api/calculate.py:374-384; components/calculate/parameter-panel.tsx:422-437; components/calculate/run-ledger.tsx; components/calculate/metrics-dashboard.tsx:330-345,1857",
       "verify": true,
       "evidence": "SIMPLEATOM_PROFILE=hosted python mace-api/calculate_local.py public/demo/ethanol.xyz '{\"calculationType\":\"single-point\",\"modelType\":\"MACE-OFF\",\"modelSize\":\"small\",\"device\":\"cuda\"}' → status success, params.device cpu, requestedDevice None, warnings None, manifest.runtime.device cpu (docs/v2/evidence/2026-10-28/device/)",
       "howToVerify": "ADR-0031 confirmation tests: hosted → device_unavailable; local on CPU-only → warning + params.requestedDevice.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "b2840fd",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Tests 7ff064b. Hosted refuses cuda (device_unavailable); local falls back to CPU with a warning and params.requestedDevice; the UI lists usable devices only; the run ledger and timing name the device. ADR-0031 accepted."
     },
     {
       "id": "D34",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Docs promise a CPU fallback when CUDA runs out of memory; no out-of-memory handling exists anywhere in the backend. The FAQ's OOM advice suggests a smaller model size, but the default MACE-MPA-0 is published in one size.",
       "where": "app/docs/calculations/page.tsx:276-281; app/docs/faq/page.tsx:39-45",
       "verify": true,
       "evidence": "grep -nE 'OutOfMemory|out of memory|OOM' mace-api/calculate.py mace-api/jobs.py mace-api/main.py → no output",
       "howToVerify": "ADR-0031 §5: torch.OutOfMemoryError → cuda_out_of_memory, docs rewritten; grep the docs for 'runs out of memory'.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "b2840fd",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. torch.OutOfMemoryError → cuda_out_of_memory (507), test test_cuda_out_of_memory_is_a_coded_refusal; docs and FAQ rewritten to describe only what the code does."
     },
     {
       "id": "D35",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Neither /capabilities nor GET /api/calculate reports devices, and the contract allows 'cuda' on the hosted profile although the hosted image pins torch==2.10.0+cpu, so the UI cannot know which devices work.",
       "where": "mace-api/main.py:304-313; app/api/calculate/route.ts:77; mace-api/contract.json:22-25; mace-api/requirements.lock.txt:1946",
       "verify": true,
       "evidence": "TestClient GET /capabilities (hosted) → keys appVersion, profile, customModels, limits, models — no devices",
       "howToVerify": "ADR-0031 §1: /capabilities.devices.available == ['cpu'] on a CPU-only machine.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "b2840fd",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. /capabilities and GET /api/calculate report devices (device_report(); calculate_local.py --capabilities); contract profiles carry devices (hosted: cpu)."
     },
     {
       "id": "D36",
@@ -603,13 +612,16 @@
     {
       "id": "D51",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "'Auto' precision resolves MACE-MP-family geometry optimisation from mace_mp()'s float32 default to float64 (ADR-0005 intends this) and records it in params, but adds no result.warnings entry, which CLAUDE.md requires for any override of an upstream dtype default.",
       "where": "mace-api/calculate.py (precision resolution); CLAUDE.md §Geometry Optimization; docs/adr/0005-precision-follows-upstream.md",
       "verify": false,
       "evidence": "python mace-api/calculate_local.py public/demo/silicon.cif '{\"calculationType\":\"geometry-opt\",\"modelType\":\"MACE-MP-0\",\"modelSize\":\"medium\",\"maxOptSteps\":5}' → params.precision float64, warnings None (lead re-run)",
       "howToVerify": "Either add the warning, or amend the CLAUDE.md rule to exempt the documented auto policy — decide in ADR-0005.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "f213ef8",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Owner decision 2026-10-30: a visible warning. Test TestAutoPrecisionIsAnnounced; MP-family geometry-opt under Auto warns that it runs in float64, not mace_mp()'s float32 default."
     },
     {
       "id": "D52",

@@ -1,4 +1,26 @@
-# Resume here — state at STOP-1, 2026-10-30
+# Resume here — overnight run, 2026-10-31
+
+**Overnight brief (owner decisions 2026-10-30, relayed by the parent session):**
+* push and open PRs, no merge;
+* audit plus fixes only, with device honesty (ADR-0031 accepted);
+* D51 gets a visible warning;
+* no vibrations, cell relaxation or Feedback build.
+
+The plan is `~/.claude/plans/run-it-overnight-auto-mode-zesty-pond.md`, Steps 4–5.
+
+| Step | State |
+|---|---|
+| Integration | Security branch merged (`df27d8b`); PR **#20** open, stacked on #19 |
+| 4.1 release blockers | D40, D41, D43, D57 fixed (see below) |
+| 4.2 Track 1, device honesty | done: `7ff064b` tests, `b2840fd` fix. D33–D35 fixed; UI checked at 1280 and 375 |
+| 4.3 D51 | done: test, then fix (see `git log`) |
+| 4.4 owner-free defects | **next**: D36–D39, D42, D44–D50, D52–D56, D58–D69 |
+| 4.5 D70+ | from the parent's audit, as D72+ |
+| 4.6 permanent gates | not started |
+
+---
+
+# State at STOP-1, 2026-10-30
 
 **Update 2026-10-30.** The parent session relayed the owner's go-ahead ("continue … Run it,
 improve"), scoped to the plan's release-blocker defects only. Done on

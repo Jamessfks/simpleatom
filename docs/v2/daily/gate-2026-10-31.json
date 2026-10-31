@@ -1,0 +1,265 @@
+{
+  "date": "2026-10-31",
+  "ranAt": "2026-10-31T15:23:17+00:00",
+  "repo": {
+    "branch": "audit-next-feature",
+    "head": "3881c2f",
+    "dirty": true
+  },
+  "score": {
+    "won": 4,
+    "total": 13
+  },
+  "gates": [
+    {
+      "name": "lint",
+      "ok": true,
+      "detail": "15 problems (baseline 15)",
+      "fix": ""
+    },
+    {
+      "name": "validator",
+      "ok": true,
+      "detail": "all_passed: true",
+      "fix": ""
+    },
+    {
+      "name": "provenance-tests",
+      "ok": true,
+      "detail": "40 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "contract-tests",
+      "ok": true,
+      "detail": "29 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "science-regressions",
+      "ok": true,
+      "detail": "12 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "guard:phonon",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:custom-no-ckpt",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:bad-model",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "fixture:silicon",
+      "ok": true,
+      "detail": "nearest neighbour 2.3516 A",
+      "fix": ""
+    }
+  ],
+  "bars": [],
+  "queue": [
+    {
+      "kind": "DEFECT",
+      "item": "D30 CRITICAL  S3/S3b are still live in production. Space Jamessfks/mace-api at Space commit 992fdb5 (last modified 2026-08-23) serves the unmerged polish branch: main.py:27-35 patches torch.load to weights_only=False process-wide, POST /calculate writes an uploaded `model` to disk and loads it with MACECalculator(model_paths=...) (calculate.py:419-429), CORS is allow_origins=['*'] with credentials, and requirements.txt is unpinned (>=).  [Hugging Face Space (outside the repo); fixed in code by v2.2 (ADR-0020)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D31 HIGH  v2.2.0 as tagged cannot be built or deployed: mace-api/requirements.lock.txt pins torch==2.10.0+cpu but names no PyTorch CPU index, so `pip install --require-hashes` finds no distribution. v2.2's only CI run is red and the Space deploy was skipped. Local gates on macOS pass only because a macOS env installs torch 2.10.0 from PyPI (this audit stripped +cpu to build one) \u2014 local green is not CI green.  [mace-api/requirements.lock.txt:1-3 (no --index-url / --extra-index-url lines), :1946]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D32 HIGH  Production MACE Link table is still world-listable with the public anon key: 18 rows are enumerable. migrations/0003_lockdown.sql has not been applied (S5 is fixed in v2.2 code only).  [Supabase project (outside the repo); supabase/migrations/0003_lockdown.sql]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D33 HIGH  A request for device 'cuda' on a machine without CUDA silently runs on CPU in every path, with no result.warnings entry and no requestedDevice. Measured on CLI (local + hosted profiles), FastAPI /calculate and /v1/jobs (both profiles), Next /api/calculate and /api/jobs (local mode), and the UI: params.device 'cpu', manifest.runtime.device 'cpu', warnings absent. The UI keeps 'CUDA (GPU)' selected, the 'What will run' ledger omits the device, and the timing reads '0.16 s compute' with no device; 'cpu' appears only inside a params string.  [mace-api/calculate.py:374-384; components/calculate/parameter-panel.tsx:422-437; components/calculate/run-ledger.tsx; components/calculate/metrics-dashboard.tsx:330-345,1857]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D58 HIGH  A result is not pinned to the run that produced it: the dashboard filename, Share and 'Compare with foundation model' read live form state, so uploading another file after a run publishes the old numbers under the new filename as a permanent MACE Link, and Compare runs the foundation model on the new structure against the old result.  [app/calculate/page.tsx:392-406,490,704,748]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D34 MEDIUM  Docs promise a CPU fallback when CUDA runs out of memory; no out-of-memory handling exists anywhere in the backend. The FAQ's OOM advice suggests a smaller model size, but the default MACE-MPA-0 is published in one size.  [app/docs/calculations/page.tsx:276-281; app/docs/faq/page.tsx:39-45]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D36 MEDIUM  The docs tell users to change the MD seed to generate independent replicas, but the calculator has no seed input; only API callers can set it.  [app/docs/calculations/page.tsx:170-176; components/calculate/parameter-panel.tsx (no 'seed')]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D38 MEDIUM  The validator's self-test (the gate called 'the scientific gate') runs MACE-OFF geometry optimisation in float32 and calls upstream mace_mp/mace_off directly, so `all_passed: true` says nothing about SimpleAtom's engine, and its geometry-opt test contradicts CLAUDE.md's float64-for-optimisation rule. Its Si test uses MACE-MP-0 small, not the default MPA-0.  [test_scripts/validate_calculation.py:334,350,363-380]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D42 MEDIUM  The hosted per-visitor cap (30 requests/hour) is smaller than one benchmark the hosted profile allows, so a permitted benchmark fails part-way with 429s recorded as per-pair errors.  [mace-api/jobs.py (rate window); mace-api/contract.json profiles.hosted maxBenchmarkStructures; app/api/benchmark/route.ts:245-251]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D44 MEDIUM  Resource bounds leak: the `_submissions` table grows on every request, refused ones included, and uploads up to 30 MB are fully received and spooled before the 2 MB hosted cap or the 401 apply.  [mace-api/jobs.py:63,74; mace-api/main.py:121-134,209-217,249-257]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D45 MEDIUM  Synchronous /calculate keeps running after the client disconnects and holds the single worker and the visitor's slot; its wait counts queue time, so a job that never started is cancelled with 504; a cancel during a step-less phase (single point) is not honoured and the job later reports 'succeeded'.  [mace-api/main.py:264-269; mace-api/jobs.py]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D46 MEDIUM  A geometry optimisation that converges on the step at which the time budget runs out (or stops before step 0) is labelled 'DID NOT CONVERGE \u2026 still above fmax' while reporting max force 0.0378 eV/\u00c5 below fmax 0.05.  [mace-api/calculate.py:1103-1126,~1148]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D47 MEDIUM  MACE-OFF's element list in the registry is never enforced: a structure with Na or Cl-only ions fails after the model loads with the opaque 'np.int64(11) is not in list' (400 invalid_request locally, 500 hosted) instead of an unsupported_element refusal before any model I/O. Regression of the guard described in CONTINUE.md ('MACE-OFF element guard implemented but inert').  [mace-api/calculate.py (no element check; grep 'elements' \u2192 0 hits in calculate.py and contract.py); mace-api/contract.json models[MACE-OFF].elements]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D50 MEDIUM  The Space deploy workflow can be run manually (workflow_dispatch) on any branch, skipping the CI gates that the workflow_call path requires, unless the hf-production environment restricts branches (not visible from the repo).  [.github/workflows/deploy-hf-space.yml:13; .github/workflows/ci.yml:152-156]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D52 MEDIUM  MACE-OFF energy-per-atom bands are wrong for ordinary O-rich molecules: the 'typical' band (\u2212600 to \u2212100 eV/atom) flags the water demo (\u2212693.7 eV/atom) in the UI, and CO2 (\u22121711.7 eV/atom) falls below the enforced \u2212800 floor so the validator says 'Check structure'. The model's own atomic reference energies already put water at about \u2212690 eV/atom. The 2026-10-20 audit deferred composition-aware bounds for halogens only.  [mace-api/contract.json energyConventions.off; components/calculate/metrics-dashboard.tsx:560-572; test_scripts/validate_calculation.py]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D53 MEDIUM  MD summary statistics mislead: 'drift' is last minus first total energy (NVE golden: +0.0009 eV, while the fitted drift is \u22124.6e-5 eV/ps, opposite sign), and is also reported for NVT/NPT where energy is not conserved; 'mean temperature' averages every frame including warm-up and carries no uncertainty (NVT reports 299.1 K vs an equilibrated 290.2 \u00b1 18.6 K).  [mace-api/calculate.py:1335-1348]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D54 MEDIUM  The pressure reported at the end of MD omits the kinetic (ideal-gas) term (ASE get_stress default), so an NPT run at a 0 GPa target reports 0.303 GPa of virial-only pressure; with the kinetic 0.482 GPa it is 0.785 GPa. The label does not say 'virial'. NPT trajectories also carry no per-frame cell, volume or pressure, so a user cannot see that an 8-atom NPT cell's temperature fluctuations (210 K spread vs 92.6 K canonical) are not canonical.  [mace-api/calculate.py:498 (atoms.get_stress(voigt=True)) and the MD result builder]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D59 MEDIUM  The SMILES box and Ketcher 'Use in calculator' show '[object Object]' for every server error (the error body shape changed to {error:{code,message}}); the benchmark page parses errors with the old shape, always blames the Python backend, and offers a custom-model upload on the hosted profile where it is refused.  [components/calculate/smiles-input.tsx; components/calculate/ketcher-editor.tsx; app/benchmark/page.tsx; components/benchmark/*]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D60 MEDIUM  A non-converged optimisation or a run stopped by the time budget still shows a green 'Calculation complete' banner and a 'Complete' pill; stoppedEarly is never read, and the step-limit wording is wrong for the budget case.  [app/calculate/page.tsx; components/calculate/metrics-dashboard.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D61 MEDIUM  Accessibility: every Select trigger and NumberField input lacks an accessible name; the benchmark file input is display:none (unreachable by keyboard); the upload input's focus ring is invisible (opacity 0); tab panels take focus with no outline; the job-progress live region contains a ticking timer, and completion is not announced on phones.  [components/calculate/parameter-panel.tsx; components/benchmark/*; components/calculate/file-upload-section.tsx; app/calculate/page.tsx:610,681,852]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D62 MEDIUM  The client CIF parser does not expand symmetry, so for ordinary database CIFs the preview atom count, formula, hosted size limits and overlap warnings are wrong (NaCl shows 2 atoms where ASE reads 8). The backend reads the file correctly.  [lib/parse-structure.ts (parseCIF)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D63 MEDIUM  Share publishes a permanent public link without telling the user: the client hard-codes consent: true, so the server's consent check (ADR-0024) is satisfied without consent ever being asked.  [lib/share.ts; app/api/share/route.ts:95-97]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D64 MEDIUM  MACE Link renders unvalidated, client-supplied provenance and validation fields as facts; the gitCommit link allows path injection into the GitHub URL, and a crafted 50k-row result can freeze the page.  [app/r/[id]/*; app/api/share/route.ts validateResult()]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D65 MEDIUM  Run lifecycle: navigating away neither aborts nor cancels the job, one failed poll abandons it, and a Cancel pressed during submit is lost.  [app/calculate/page.tsx; lib/api-client.ts]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D66 MEDIUM  The public /v2 dashboard shows stale Matbench ranks (34/21) and says SimpleAtom 'offers it nowhere' about MACE-MPA-0, which is now the default; it also uses #8A8478 text below AA contrast.  [app/v2/* (renders docs/v2 content)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D67 MEDIUM  Docs describe verification and accuracy the code does not provide: docs/validation describes checks that tests 1 and 2 never run, and the docs home claims 'DFT-level accuracy' without the Matbench-supported qualifier.  [app/docs/validation/page.tsx; app/docs/page.tsx:85]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D68 MEDIUM  'Compare with foundation model' prints an energy difference across two energy conventions without saying which foundation model ran, and the docs promise comparison metrics that are never computed.  [components/calculate/model-comparison.tsx]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D70 MEDIUM  Both catalog slabs (cu-111, si-111) declare pbc=\"T T T\", so the app computes and shows a stress and pressure for them (si-111 \u22120.146 GPa via the CLI; cu-111 \u22120.475 GPa), although calculate.py itself says a slab's stress is meaningless. pbc=\"T T F\" leaves energy and forces identical and suppresses it.  [lib/mlpeg-catalog.ts (cu-111, si-111 xyzData); mace-api/calculate.py:489-494]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D15 LOW  Audit findings 6, 9 and 12 from docs/v2/audit-vs-acesuit.md were never closed out. Findings 7, 10 and 11 are recorded as done.  [docs/v2/audit-vs-acesuit.md]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D35 LOW  Neither /capabilities nor GET /api/calculate reports devices, and the contract allows 'cuda' on the hosted profile although the hosted image pins torch==2.10.0+cpu, so the UI cannot know which devices work.  [mace-api/main.py:304-313; app/api/calculate/route.ts:77; mace-api/contract.json:22-25; mace-api/requirements.lock.txt:1946]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D37 LOW  The results 'Limitations and uncertainty' list is static: it shows 'MACE-OFF scope' on MACE-MPA-0 and MACE-MP-0 results and advises running 'multiple model sizes (small/medium/large)', though MPA-0 has one size.  [components/calculate/metrics-dashboard.tsx:660-685]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D39 LOW  Stale facts in the harness docs: Matbench Discovery ranks are given as MACE-MP-0 34 / MACE-MPA-0 21; on 2026-10-28 they are 36 and 22 of 43. SUCCESS-CRITERIA says calculate_local.py exits 0 on refusal; v2.2 exits 1 (the JSON check is still the right one).  [docs/v2/SUCCESS-CRITERIA.md:54,93-97; docs/v2/CONTINUE.md]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D48 LOW  Seed validation coerces and crashes: `seed: Infinity` or a very large integer returns 500 rather than 400, and Python accepts 3.7 and truncates it to 3 while the TypeScript mirror refuses it (CLAUDE.md: never coerce).  [mace-api/contract.py (seed); lib/contract.ts (seed)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D49 LOW  Deployed manifests report code.gitDirty: null with no note explaining why (the container has no .git), a regression in the D3 fix that made provenance explain every null.  [mace-api/provenance.py:382-385 (pinned-commit fallback resets unavailableReason=None)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D51 LOW  'Auto' precision resolves MACE-MP-family geometry optimisation from mace_mp()'s float32 default to float64 (ADR-0005 intends this) and records it in params, but adds no result.warnings entry, which CLAUDE.md requires for any override of an upstream dtype default.  [mace-api/calculate.py (precision resolution); CLAUDE.md \u00a7Geometry Optimization; docs/adr/0005-precision-follows-upstream.md]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D55 LOW  Parameters that had no effect are echoed as effective: friction is recorded for NVE and NPT, where nothing uses it (CLAUDE.md pitfall 8: echo the effective parameters).  [mace-api/calculate.py (_build_result params allow-list)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D56 LOW  Docs nits: the Units page table gives stress in eV/\u00c5\u00b3 while results and the same page's pressure callout give GPa; the silicon CIF comment says 2.3517 \u00c5 (a\u221a3/4 = 2.3516); the optimiser message says 'at or below' fmax while ASE's test is strictly below.  [app/docs/units/page.tsx:57-59 vs :154-157; public/demo/silicon.cif; mace-api/calculate.py (opt message)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D69 LOW  Lower-severity frontend findings F19\u2013F29 from the 2026-10-28 review: loose convention notes, benchmark wording, swallowed export/clipboard failures, progress stages claimed before the backend reports them, a compare run reusing a stale modelSize, model switched by filename prefix, upload accepting fewer extensions than the contract, contradictory catalog attribution, viewer effects, 32 px docs-nav targets at 375 px, small copy mismatches.  [see review-frontend.md \u00a7LOW for each path:line]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D71 LOW  Catalog metadata nits: cu-111's cell vector is rounded to 3 decimals ((1.278, 2.213) vs (1.278096, 2.213726)), leaving 2.6e-4 eV/\u00c5 in-plane forces and a 0.0104 GPa \u03c3xx\u2013\u03c3yy gap; its comment says '20 \u00c5 vacuum' where the cell height is 20 \u00c5 and the vacuum gap is 15.83 \u00c5; si-diamond's reference lattice constant is 5.431 \u00c5 but the cell uses 5.43 \u00c5; 2\u20133-layer unrelaxed slabs cannot give converged surface energies, which the category description says they are for.  [lib/mlpeg-catalog.ts (cu-111, si-diamond, surfaces category)]"
+    },
+    {
+      "kind": "LOSING",
+      "item": "viewer-chrome r3 vs Rowan viewer embed  gap: Hide C-H regression fixed in 5985bee: the fit, spin sweep and arrow ceiling now include hidden atoms, so Hide C-H changes px/A by 0.0% (was "
+    },
+    {
+      "kind": "LOSING",
+      "item": "landing r5 vs rowansci.com homepage  gap: Layout numbers confirmed exact. Loses on content: the hero ends in a 4-line 12px monospace gesture manual (y702-766), the lowest element abo"
+    },
+    {
+      "kind": "LOSING",
+      "item": "provenance r2 vs Materials Project 'Property Origins' section  gap: Content verified real \u2014 the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCT"
+    },
+    {
+      "kind": "OPEN",
+      "item": "config r1 vs Rowan feature pages + docs  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "honesty r1 vs The code itself \u2014 every claim must survive inspection  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "reference-conformance r1 vs ACEsuit/mace v0.3.16  \u2014 never judged"
+    },
+    {
+      "kind": "NEVER",
+      "item": "share r0 vs Rowan iframe2 embed  \u2014 Load both embeds side by side. Which is the better shareable artifact?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "benchmark r0 vs Materials Project published formation energies  \u2014 Numeric. Do SimpleAtom's MACE-MP-0 formation energies agree with MP within a stated tolerance?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "mobile r0 vs rowansci.com at 375px  \u2014 Blind screenshot at 375px. Which survives the phone better?"
+    }
+  ],
+  "allGatesGreen": true
+}
