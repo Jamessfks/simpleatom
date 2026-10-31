@@ -172,17 +172,17 @@ class TestCliGuards(unittest.TestCase):
     load a model (they return in well under a second).
     """
 
-    def run_cli(self, params, *extra, env=None):
+    def run_cli(self, params, *extra, env=None, structure=ETHANOL):
         proc = subprocess.run(
-            [sys.executable, str(API_DIR / "calculate_local.py"), str(ETHANOL),
+            [sys.executable, str(API_DIR / "calculate_local.py"), str(structure),
              json.dumps(params), *extra],
             capture_output=True, text=True, timeout=120,
             env={**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE", **(env or {})},
         )
         return json.loads(proc.stdout)
 
-    def assertRefused(self, params, code, *extra, env=None):
-        out = self.run_cli(params, *extra, env=env)
+    def assertRefused(self, params, code, *extra, env=None, structure=ETHANOL):
+        out = self.run_cli(params, *extra, env=env, structure=structure)
         self.assertEqual(out["status"], "error", out)
         self.assertEqual(out["error"]["code"], code, out["message"])
         self.assertGreaterEqual(out["error"]["status"], 400)
@@ -213,6 +213,19 @@ class TestCliGuards(unittest.TestCase):
     def test_hosted_profile_caps_md_steps(self):
         self.assertRefused({"calculationType": "molecular-dynamics", "mdSteps": 20000},
                            "limit_exceeded", env={"SIMPLEATOM_PROFILE": "hosted"})
+
+    def test_mace_off_refuses_elements_outside_its_training_set(self):
+        # D47: the registry lists MACE-OFF's ten elements, and nothing enforced
+        # them: NaCl failed only after the model loaded, with
+        # "np.int64(11) is not in list".
+        with tempfile.NamedTemporaryFile("w", suffix=".xyz", delete=False) as handle:
+            handle.write("2\nNaCl\nNa 0 0 0\nCl 2.36 0 0\n")
+        self.addCleanup(os.unlink, handle.name)
+        out = self.run_cli({"modelType": "MACE-OFF", "modelSize": "small"}, structure=handle.name)
+        self.assertEqual(out["status"], "error", out)
+        self.assertEqual((out["error"]["code"], out["error"]["field"]), ("unsupported_element", "modelType"))
+        self.assertIn("Na", out["error"]["message"])
+        self.assertNotIn("np.int64", out["error"]["message"])
 
     def test_hosted_profile_refuses_cuda(self):
         self.assertRefused({"device": "cuda"}, "device_unavailable",
