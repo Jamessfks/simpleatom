@@ -171,3 +171,28 @@ class TestDeviceFallback(unittest.TestCase):
         self.assertEqual(result["params"]["requestedDevice"], "cuda")
         self.assertTrue(any("CUDA was requested" in w for w in result.get("warnings", [])), result.get("warnings"))
         self.assertEqual(result["provenance"]["runtime"]["device"], "cpu")
+
+
+class TestAutoPrecisionIsAnnounced(unittest.TestCase):
+    """
+    D51 (owner decision 2026-10-30: a visible warning). 'Auto' precision runs a
+    MACE-MP-family geometry optimisation in float64 although mace_mp() defaults
+    to float32. The override follows upstream's own advice, but CLAUDE.md says
+    an upstream dtype default is never overridden without a result warning.
+    """
+
+    def _opt(self, **extra):
+        _require_mace()
+        from calculate import run_calculation
+        return run_calculation(SILICON, {"calculationType": "geometry-opt", "modelType": "MACE-MPA-0",
+                                         "maxOptSteps": 2, **extra}, profile="local")
+
+    def test_auto_float64_override_is_warned(self):
+        result = self._opt()
+        self.assertEqual(result["params"]["precision"], "float64")
+        self.assertTrue(any("float64" in w and "float32" in w and "Auto" in w for w in result.get("warnings", [])),
+                        result.get("warnings"))
+
+    def test_explicit_float64_is_not_called_an_override(self):
+        result = self._opt(precision="float64")
+        self.assertFalse(any("Auto" in w for w in result.get("warnings", [])), result.get("warnings"))
