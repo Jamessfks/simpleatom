@@ -473,24 +473,30 @@
     {
       "id": "D40",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "Local mode lets anyone who can reach the dev server run code as the developer: custom models are enabled by default in the local profile, `next dev` listens on all interfaces, and no route checks Origin, so a LAN peer (or, absent Chrome's Local Network Access prompt, a visited website) can POST a pickled `model` to /api/jobs, which becomes `--model-path` and is unpickled.",
       "where": "lib/contract.ts:88-92; lib/server/jobs.ts:93-97; lib/server/backend.ts:279-283; mace-api/calculate.py:867-878; mace-api/safe_load.py:86-88",
       "verify": true,
       "evidence": "Server leg executed: calculate_local.py --model-path <benign pickle> ran the payload. Network leg (LAN POST) not executed — PLAUSIBLE.",
       "howToVerify": "Bind `next dev` to 127.0.0.1 in package.json, require a same-origin check on POST /api/jobs and /api/calculate, and make custom models opt-in (ALLOW_CUSTOM_MODELS) even locally.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "925de6d",
+      "fixedOn": "2026-10-30",
+      "fixNote": "On branch audit-next-feature, not deployed. Tests f9fa6b7. npm run dev binds 127.0.0.1; POST routes refuse cross-origin browser requests (cross_origin); custom checkpoints are opt-in on every profile and, locally, accepted only through a loopback host name (custom_models_local_only)."
     },
     {
       "id": "D41",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "On the hosted path the synchronous calculate route (used by the benchmark and POST /api/calculate) sends no X-SimpleAtom-Client-IP, so every visitor shares one per-visitor key on the Space: while one visitor's benchmark runs, every other visitor gets 429. Regression of the S4/ADR-0023 per-visitor limits; /api/jobs forwards the IP correctly.",
       "where": "lib/server/backend.ts:113-117,165-170; mace-api/main.py:137-148; mace-api/jobs.py:77-83; app/api/benchmark/route.ts:245-251",
       "verify": true,
       "evidence": "grep -n 'headers' lib/server/backend.ts (calculateRemote) → backendHeaders() only (lead re-check); reviewer probe: two /calculate calls with one X-Forwarded-For → second 429",
       "howToVerify": "Forward proxyHeaders(clientIp(request)) from calculateRemote; test that two client IPs run concurrently.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "fccf1be",
+      "fixedOn": "2026-10-30",
+      "fixNote": "On branch audit-next-feature, not deployed. Tests 5fc6b47 (vitest: the sync path sends X-SimpleAtom-Client-IP with the proxy key). In-process probe with MACE_API_TOKEN set: two visitors → 202, 202. The WAF edge half is proposed in docs/v2/hosted-compute-memo.md (owner action)."
     },
     {
       "id": "D42",
@@ -506,13 +512,16 @@
     {
       "id": "D43",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "With MACE_API_TOKEN unset (the case in production today), the hosted API is open to direct callers and X-SimpleAtom-Client-IP is client-chosen, so per-visitor limits can be bypassed by rotating the header; the header is honoured even though the docstring says proxy authentication protects it.",
       "where": "mace-api/main.py:93-103,137-148",
       "verify": true,
       "evidence": "reviewer probe (hosted, token unset): distinct X-SimpleAtom-Client-IP values each admitted",
       "howToVerify": "Trust the client-IP header only when a valid proxy key was presented; owner sets MACE_API_TOKEN on Vercel and the Space.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "fccf1be",
+      "fixedOn": "2026-10-30",
+      "fixNote": "On branch audit-next-feature, not deployed. Tests 5fc6b47. The forwarded IP is trusted only with MACE_API_TOKEN; otherwise the right-most X-Forwarded-For hop is used. Probe without the token: a second, differently-forwarded visitor → 429. DEPLOY ORDER: set MACE_API_TOKEN on Vercel and the Space first, or every proxied visitor shares one limit (the Space warns at start-up)."
     },
     {
       "id": "D44",
@@ -660,13 +669,16 @@
     {
       "id": "D57",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "Catalog 'Silicon (diamond)' and 'Diamond (carbon)' are not diamond lattices: each puts the 2-atom primitive-FCC basis (0,0,0),(a/4,a/4,a/4) inside a CUBIC a×a×a cell, so the lattice is 4× too sparse and every atom is 1-coordinated. MACE-MPA-0 gives the catalog 'silicon' −2.758 eV/atom against −5.412 eV/atom for the correct cell (public/demo/silicon.cif), under a diamond label and next to an experimental cohesive energy. Si(111) bonds are ~8% stretched. Live in production since 092c796 (2026-02-09); the source comments say 'Verified'.",
       "where": "lib/mlpeg-catalog.ts:127-142 (si-diamond), :208-225 (c-diamond), :428-440 (si-111)",
       "verify": false,
       "evidence": "lead re-run: catalog si-diamond → 2 atoms, V/atom 80.05 Å³, coordination [1, 1] vs ase.build.bulk('Si','diamond',a=5.43,cubic=True) → 8 atoms, 20.01 Å³, [4]*8; calculate_local.py on the catalog cell (MPA-0 medium) → E/atom −2.7579 vs silicon.cif −5.4125",
       "howToVerify": "Use the 8-atom conventional cells (or FCC primitive vectors); fix the si-111 bilayer (0.784 Å intra, 2.351 Å bond); add a vitest asserting V/atom and coordination for every periodic catalog entry.",
-      "source": "frontend review + lead re-run 2026-10-28"
+      "source": "frontend review + lead re-run 2026-10-28",
+      "fixedIn": "31a20f1",
+      "fixedOn": "2026-10-30",
+      "fixNote": "On branch audit-next-feature, not deployed. Test 3798e67 (atom count, nearest neighbour, coordination, V/atom for every periodic entry). science-critic (2026-10-30): si-diamond and c-diamond map atom-for-atom onto ase.build.bulk(..., cubic=True); si-diamond MPA-0 −5.4123823 eV/atom equals the primitive and 16-atom cells to 9e-16 (the old cell: −2.757924); si-111 is layers 1–4 of diamond111 with coordination [3,4,4,3]."
     },
     {
       "id": "D58",
@@ -799,6 +811,28 @@
       "evidence": "reviewer read/executed per item",
       "howToVerify": "Triage individually; each is a small PR.",
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+    },
+    {
+      "id": "D70",
+      "severity": "MEDIUM",
+      "status": "open",
+      "what": "Both catalog slabs (cu-111, si-111) declare pbc=\"T T T\", so the app computes and shows a stress and pressure for them (si-111 −0.146 GPa via the CLI; cu-111 −0.475 GPa), although calculate.py itself says a slab's stress is meaningless. pbc=\"T T F\" leaves energy and forces identical and suppresses it.",
+      "where": "lib/mlpeg-catalog.ts (cu-111, si-111 xyzData); mace-api/calculate.py:489-494",
+      "verify": true,
+      "evidence": "critic: CLI on si-111 → properties.pressure −0.146 GPa",
+      "howToVerify": "Set pbc=\"T T F\" and confirm properties.stress is null with energy unchanged.",
+      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)"
+    },
+    {
+      "id": "D71",
+      "severity": "LOW",
+      "status": "open",
+      "what": "Catalog metadata nits: cu-111's cell vector is rounded to 3 decimals ((1.278, 2.213) vs (1.278096, 2.213726)), leaving 2.6e-4 eV/Å in-plane forces and a 0.0104 GPa σxx–σyy gap; its comment says '20 Å vacuum' where the cell height is 20 Å and the vacuum gap is 15.83 Å; si-diamond's reference lattice constant is 5.431 Å but the cell uses 5.43 Å; 2–3-layer unrelaxed slabs cannot give converged surface energies, which the category description says they are for.",
+      "where": "lib/mlpeg-catalog.ts (cu-111, si-diamond, surfaces category)",
+      "verify": true,
+      "evidence": "critic recomputation against ase.build.fcc111 / diamond111",
+      "howToVerify": "Regenerate cu-111 with ase.build at full precision; reword the comments and the category description.",
+      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)"
     }
   ]
 }

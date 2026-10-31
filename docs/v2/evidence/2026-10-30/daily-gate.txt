@@ -1,0 +1,38 @@
+
+SimpleAtom daily gate — 2026-10-30
+audit-next-feature at fccf1be (DIRTY — commit or stash before judging)   score 4/13 winning blind
+
+GATES
+  [PASS] build                  next build compiled
+  [PASS] lint                   15 problems (baseline 15)
+  [PASS] validator              all_passed: true
+  [PASS] provenance-tests       40 tests OK
+  [PASS] contract-tests         23 tests OK
+  [PASS] science-regressions    9 tests OK
+  [PASS] guard:phonon           refused loudly
+  [PASS] guard:custom-no-ckpt   refused loudly
+  [PASS] guard:bad-model        refused loudly
+  [PASS] fixture:silicon        nearest neighbour 2.3516 A
+
+TODAY'S QUEUE  (top item first; one piece per day)
+  [DEFECT] D30 CRITICAL  S3/S3b are still live in production. Space Jamessfks/mace-api at Space commit 992fdb5 (last modified 2026-08-23) serves the unmerged polish branch: main.py:27-35 patches torch.load to weights_only=False process-wide, POST /calculate writes an uploaded `model` to disk and loads it with MACECalculator(model_paths=...) (calculate.py:419-429), CORS is allow_origins=['*'] with credentials, and requirements.txt is unpinned (>=).  [Hugging Face Space (outside the repo); fixed in code by v2.2 (ADR-0020)]
+  [DEFECT] D31 HIGH  v2.2.0 as tagged cannot be built or deployed: mace-api/requirements.lock.txt pins torch==2.10.0+cpu but names no PyTorch CPU index, so `pip install --require-hashes` finds no distribution. v2.2's only CI run is red and the Space deploy was skipped. Local gates on macOS pass only because a macOS env installs torch 2.10.0 from PyPI (this audit stripped +cpu to build one) — local green is not CI green.  [mace-api/requirements.lock.txt:1-3 (no --index-url / --extra-index-url lines), :1946]
+  [DEFECT] D32 HIGH  Production MACE Link table is still world-listable with the public anon key: 18 rows are enumerable. migrations/0003_lockdown.sql has not been applied (S5 is fixed in v2.2 code only).  [Supabase project (outside the repo); supabase/migrations/0003_lockdown.sql]
+  [DEFECT] D33 HIGH  A request for device 'cuda' on a machine without CUDA silently runs on CPU in every path, with no result.warnings entry and no requestedDevice. Measured on CLI (local + hosted profiles), FastAPI /calculate and /v1/jobs (both profiles), Next /api/calculate and /api/jobs (local mode), and the UI: params.device 'cpu', manifest.runtime.device 'cpu', warnings absent. The UI keeps 'CUDA (GPU)' selected, the 'What will run' ledger omits the device, and the timing reads '0.16 s compute' with no device; 'cpu' appears only inside a params string.  [mace-api/calculate.py:374-384; components/calculate/parameter-panel.tsx:422-437; components/calculate/run-ledger.tsx; components/calculate/metrics-dashboard.tsx:330-345,1857]
+  [DEFECT] D40 HIGH  Local mode lets anyone who can reach the dev server run code as the developer: custom models are enabled by default in the local profile, `next dev` listens on all interfaces, and no route checks Origin, so a LAN peer (or, absent Chrome's Local Network Access prompt, a visited website) can POST a pickled `model` to /api/jobs, which becomes `--model-path` and is unpickled.  [lib/contract.ts:88-92; lib/server/jobs.ts:93-97; lib/server/backend.ts:279-283; mace-api/calculate.py:867-878; mace-api/safe_load.py:86-88]
+  [DEFECT] ... and 36 more in docs/v2/defects.json
+  [LOSING] viewer-chrome r3 vs Rowan viewer embed  gap: Hide C-H regression fixed in 5985bee: the fit, spin sweep and arrow ceiling now include hidden atoms, so Hide C-H changes px/A by 0.0% (was 
+  [LOSING] landing r5 vs rowansci.com homepage  gap: Layout numbers confirmed exact. Loses on content: the hero ends in a 4-line 12px monospace gesture manual (y702-766), the lowest element abo
+  [LOSING] provenance r2 vs Materials Project 'Property Origins' section  gap: Content verified real — the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCT
+  [OPEN  ] config r1 vs Rowan feature pages + docs  — never judged
+  [OPEN  ] honesty r1 vs The code itself — every claim must survive inspection  — never judged
+  [OPEN  ] reference-conformance r1 vs ACEsuit/mace v0.3.16  — never judged
+  [NEVER ] share r0 vs Rowan iframe2 embed  — Load both embeds side by side. Which is the better shareable artifact?
+  [NEVER ] benchmark r0 vs Materials Project published formation energies  — Numeric. Do SimpleAtom's MACE-MP-0 formation energies agree with MP within a stated tolerance?
+  [NEVER ] mobile r0 vs rowansci.com at 375px  — Blind screenshot at 375px. Which survives the phone better?
+
+wrote docs/v2/daily/gate-2026-10-30.json
+
+All gates green. Take the top queue item.
+
+exit 0
