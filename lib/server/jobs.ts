@@ -12,6 +12,7 @@ import { profile, type ProfileName } from "@/lib/contract";
 import {
   ApiError,
   MACE_API_URL,
+  backendHeaders,
   checkUploadSize,
   displayName,
   structureSuffix,
@@ -32,13 +33,6 @@ export function clientIp(request: NextRequest): string | null {
   return xff?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
 }
 
-function proxyHeaders(ip: string | null): Record<string, string> {
-  const token = process.env.MACE_API_TOKEN;
-  return {
-    ...(token ? { "X-SimpleAtom-Proxy-Key": token } : {}),
-    ...(ip ? { "X-SimpleAtom-Client-IP": ip } : {}),
-  };
-}
 
 async function readJson(response: Response): Promise<{ status: number; body: unknown }> {
   const text = await response.text();
@@ -79,7 +73,7 @@ export async function submitJob(
     form.append("files", structure.data, displayName(structure.name));
     form.append("params", JSON.stringify(params));
     if (options.model) form.append("model", options.model.data, displayName(options.model.name, "custom.model"));
-    return remote("/v1/jobs", { method: "POST", body: form, headers: proxyHeaders(options.ip) });
+    return remote("/v1/jobs", { method: "POST", body: form, headers: backendHeaders(options.ip) });
   }
 
   const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
@@ -113,14 +107,14 @@ function notFound(): never {
 
 export async function getJob(id: string): Promise<{ status: number; body: unknown }> {
   assertJobId(id);
-  if (MACE_API_URL) return remote(`/v1/jobs/${id}`, { headers: proxyHeaders(null), cache: "no-store" });
+  if (MACE_API_URL) return remote(`/v1/jobs/${id}`, { headers: backendHeaders(), cache: "no-store" });
   const job = getLocalJob(id);
   return job ? { status: 200, body: describeLocalJob(job) } : notFound();
 }
 
 export async function cancelJob(id: string): Promise<{ status: number; body: unknown }> {
   assertJobId(id);
-  if (MACE_API_URL) return remote(`/v1/jobs/${id}`, { method: "DELETE", headers: proxyHeaders(null) });
+  if (MACE_API_URL) return remote(`/v1/jobs/${id}`, { method: "DELETE", headers: backendHeaders() });
   const job = cancelLocalJob(id);
   return job ? { status: 200, body: describeLocalJob(job) } : notFound();
 }

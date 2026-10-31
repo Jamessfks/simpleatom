@@ -15,6 +15,7 @@ import {
   errorResponse,
   parseParams,
 } from "@/lib/server/backend";
+import { clientIp } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
 // Vercel's ceiling for this function. The backend's own time budget (240 s on
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
         // backend, or kills the local Python child.
         signal: request.signal,
         timeoutMs: (maxDuration - 10) * 1000,
+        ip: clientIp(request),
       },
     );
     return NextResponse.json(result);

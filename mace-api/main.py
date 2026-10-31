@@ -49,6 +49,11 @@ except Exception as _import_err:  # noqa: BLE001
 PROFILE = contract.profile_name("hosted")
 LIMITS = contract.profile(PROFILE)
 APP_VERSION = contract.load_contract()["appVersion"]
+if PROFILE == "hosted" and not os.environ.get("MACE_API_TOKEN"):
+    _logger.warning(
+        "MACE_API_TOKEN is not set: the hosted API accepts direct callers, and every "
+        "request the Vercel proxy relays shares one per-visitor limit (D43)."
+    )
 
 app = FastAPI(
     title="SimpleAtom MACE API",
@@ -136,15 +141,25 @@ async def _save_capped(upload: UploadFile, directory: str, stored_name: str, lim
 
 def _client_key(request: Request, forwarded_ip: str | None) -> str:
     """
-    Who a request is from, for per-visitor limits. Requests normally come from
-    the Vercel proxy, which forwards the visitor's IP in X-SimpleAtom-Client-IP;
-    with MACE_API_TOKEN set, only proxy-authenticated requests get this far.
+    Who a request is from, for per-visitor limits.
+
+    The Vercel proxy forwards the visitor's IP in X-SimpleAtom-Client-IP. That
+    header is trusted only when MACE_API_TOKEN is set, because then
+    `_require_proxy_key` has already authenticated the caller as the proxy.
+    Without the token anyone can send it, so a direct caller could name a new
+    "visitor" per request and walk past every limit (D43). In that case the
+    key is the right-most X-Forwarded-For entry, the hop the platform's own
+    ingress appended, and never a left-hand entry the client wrote.
+
+    The consequence of running hosted without the token is that every request
+    the Vercel proxy relays shares that proxy's key. Set MACE_API_TOKEN on both
+    sides before deploying.
     """
-    if forwarded_ip:
+    if forwarded_ip and os.environ.get("MACE_API_TOKEN"):
         return forwarded_ip.split(",")[0].strip()[:64]
     xff = request.headers.get("x-forwarded-for")
     if xff:
-        return xff.split(",")[0].strip()[:64]
+        return xff.split(",")[-1].strip()[:64]
     return request.client.host if request.client else "unknown"
 
 

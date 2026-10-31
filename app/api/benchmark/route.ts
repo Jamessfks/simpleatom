@@ -30,6 +30,7 @@ import {
   errorResponse,
   structureSuffix,
 } from "@/lib/server/backend";
+import { clientIp } from "@/lib/server/jobs";
 import { computeRmsForce } from "@/lib/utils";
 import type {
   BenchmarkModelResult,
@@ -216,6 +217,7 @@ export async function POST(request: NextRequest) {
               model: m.type === "custom" && model ? { data: model, name: model.name } : null,
               signal: request.signal,
               timeoutMs: remaining,
+              ip: clientIp(request),
             },
           )) as unknown as CalculationResult;
 

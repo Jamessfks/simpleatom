@@ -156,10 +156,18 @@ export function checkUploadSize(file: Blob, name: string, limit: number, field =
   }
 }
 
-/** Headers that identify this server to the hosted backend. */
-function backendHeaders(): Record<string, string> {
+/**
+ * Headers for a request to the hosted backend: the proxy key, and the visitor's
+ * IP so the backend's per-visitor limits see visitors rather than this server
+ * (D41: the synchronous path once sent no IP, so every visitor shared a slot).
+ * The backend trusts the IP only when the proxy key authenticated it (D43).
+ */
+export function backendHeaders(ip: string | null = null): Record<string, string> {
   const token = process.env.MACE_API_TOKEN;
-  return token ? { "X-SimpleAtom-Proxy-Key": token } : {};
+  return {
+    ...(token ? { "X-SimpleAtom-Proxy-Key": token } : {}),
+    ...(ip ? { "X-SimpleAtom-Client-IP": ip } : {}),
+  };
 }
 
 export interface StructureInput {
@@ -174,6 +182,8 @@ export interface CalculateOptions {
   signal?: AbortSignal;
   /** Wall-clock limit for this request, in milliseconds. */
   timeoutMs: number;
+  /** The visitor's IP, forwarded to the hosted backend for its per-visitor limits. */
+  ip?: string | null;
 }
 
 /** Run one calculation in whichever mode this server is in. */
@@ -211,7 +221,7 @@ async function calculateRemote(
     response = await fetch(`${MACE_API_URL}/calculate`, {
       method: "POST",
       body: form,
-      headers: backendHeaders(),
+      headers: backendHeaders(options.ip ?? null),
       signal: withTimeout(options.signal, options.timeoutMs),
     });
   } catch (err) {
