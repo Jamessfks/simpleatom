@@ -371,17 +371,76 @@ def detect_format(filename: str) -> str:
     return "xyz"
 
 
-def resolve_device(requested) -> str:
-    """Resolve compute device, falling back to CPU if CUDA is unavailable."""
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except ImportError:
+        return False
+
+
+def resolve_device(requested, profile_name: str) -> tuple[str, str | None]:
+    """
+    The device a calculation runs on, and the warning to attach if that is not
+    the one requested (ADR-0031).
+
+    A device this profile does not offer is refused: the public server is
+    CPU-only, so "cuda" there is a client error, not a silent CPU run. Locally,
+    CUDA that PyTorch cannot see falls back to CPU (CLAUDE.md: fall back
+    gracefully) and says so — the numbers are the same physics, the timing is
+    not, and a user who chose a GPU must not be left believing one ran (D33).
+    """
     requested = contract.resolve_choice(requested, "device", _CONTRACT["devices"], "cpu")
-    if requested == "cuda":
-        try:
-            import torch
-            if not torch.cuda.is_available():
-                return "cpu"
-        except ImportError:
-            return "cpu"
-    return requested
+    offered = contract.allowed_devices(profile_name)
+    if requested not in offered:
+        raise ContractError(
+            f"Device '{requested}' is not available on this deployment, which runs on: "
+            f"{', '.join(offered)}. Run SimpleAtom locally on a CUDA machine to use a GPU. "
+            "Nothing was computed.",
+            code="device_unavailable", field="device", status=400,
+        )
+    if requested == "cuda" and not _cuda_available():
+        return "cpu", (
+            "CUDA was requested but is not available on this machine "
+            "(torch.cuda.is_available() is False). The calculation ran on CPU; "
+            "the numbers are unaffected, the timing is CPU timing."
+        )
+    return requested, None
+
+
+def device_report(profile_name: str) -> dict:
+    """
+    The devices this deployment can actually run on, for /capabilities and the
+    local GET /api/calculate: CPU always, CUDA only when the profile offers it
+    AND PyTorch can see a device. The UI lists exactly these (ADR-0031).
+    """
+    import torch
+    cuda_ok = _cuda_available()
+    offered = contract.allowed_devices(profile_name)
+    available = ["cpu"] + (["cuda"] if "cuda" in offered and cuda_ok else [])
+    if "cuda" in available:
+        reason = None
+    elif "cuda" not in offered:
+        reason = "This deployment is CPU-only: the public server runs on 2 shared vCPUs."
+    else:
+        reason = "No CUDA device is visible to PyTorch on this machine (torch.cuda.is_available() is False)."
+    return {
+        "available": available,
+        "unavailableReason": reason,
+        "cuda": {
+            "available": cuda_ok,
+            "torchCuda": torch.version.cuda,
+            "name": torch.cuda.get_device_name(0) if cuda_ok else None,
+        },
+    }
+
+
+def _is_cuda_oom(exc: BaseException) -> bool:
+    try:
+        import torch
+        return isinstance(exc, torch.OutOfMemoryError)
+    except ImportError:
+        return False
 
 
 def get_mace_calculator(model_type: str, model_size: str | None, device: str, dispersion: bool, precision: str = "float32"):
@@ -423,8 +482,6 @@ def get_custom_calculator(model_path: str, device: str):
 
     if not Path(model_path).exists():
         raise ValueError(f"Model file not found: {model_path}")
-
-    device = resolve_device(device)
 
     try:
         return MACECalculator(model_paths=model_path, device=device)
@@ -786,9 +843,11 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
         "model_size": contract.resolve_model_size(model, params.get("modelSize")),
         "seed": resolve_seed(params.get("seed")),
         "run_params": _resolve_run_params(calc_type, params, profile_name),
-        "device": resolve_device(params.get("device")),
+        "device": None,
+        "device_warning": None,
         "dispersion_requested": contract.resolve_bool(params.get("dispersion"), "dispersion"),
     }
+    resolved["device"], resolved["device_warning"] = resolve_device(params.get("device"), profile_name)
     resolved["precision"], resolved["precision_requested"] = resolve_precision(
         params.get("precision"), model_type, calc_type
     )
@@ -798,6 +857,29 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
 def run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
                     profile: str | None = None, display_name: str | None = None,
                     hooks: RunHooks | None = None) -> dict:
+    """
+    Run one calculation; see `_run_calculation` for the contract.
+
+    CUDA out-of-memory, wherever it happens (moving the model to the GPU or a
+    forward pass), is a refusal with a hint — never a silent retry on CPU and
+    never a 500 (ADR-0031). Nothing usable was computed when it fires.
+    """
+    try:
+        return _run_calculation(filepath, params, model_path, profile=profile,
+                                display_name=display_name, hooks=hooks)
+    except Exception as exc:
+        if _is_cuda_oom(exc):
+            raise ContractError(
+                "The GPU ran out of memory. Switch Device to CPU, or use a smaller structure "
+                "or model size. Nothing was computed.",
+                code="cuda_out_of_memory", field="device", status=507,
+            ) from exc
+        raise
+
+
+def _run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
+                     profile: str | None = None, display_name: str | None = None,
+                     hooks: RunHooks | None = None) -> dict:
     """
     Run a MACE calculation on a structure file.
 
@@ -840,6 +922,8 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
     # Declared before the structure is read: the extended-XYZ fallback below is
     # the first thing that can need to warn.
     warnings: list[str] = []
+    if req["device_warning"]:
+        warnings.append(req["device_warning"])
 
     if model_path and req["requested_model"] != "custom":
         warnings.append(
@@ -950,6 +1034,10 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
         "device": device,
         "dispersion": dispersion_active,
     }
+    if req["device_warning"]:
+        # The CUDA->CPU fallback, recorded where the validator and the UI read
+        # the effective parameters (ADR-0031, D33).
+        effective_params["requestedDevice"] = "cuda"
     if model_type != "custom":
         effective_params["upstreamModel"] = contract.upstream_model_key(model, model_size)
         effective_params["license"] = model["license"]["id"]

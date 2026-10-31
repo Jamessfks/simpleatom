@@ -1,7 +1,7 @@
 ---
-status: proposed
-date: 2026-10-28
-decision-makers: repository owner (pending approval at STOP-1)
+status: accepted
+date: 2026-10-30
+decision-makers: repository owner (approved 2026-10-30; proposed 2026-10-28)
 ---
 
 # 0031 — Offer only devices that work; refuse CUDA on the public server, warn when it falls back locally

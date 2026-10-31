@@ -5,6 +5,7 @@ CLI wrapper for MACE calculations — runs locally, no FastAPI needed.
 Usage:
   python calculate_local.py <structure_file> [params_json]
                             [--model-path <path>] [--display-name <name>] [--progress]
+  python calculate_local.py --capabilities   (prints the usable devices, then exits)
 
 Reads an atomic structure file, runs MACE, prints ONE JSON document to stdout:
 the result, or {"status": "error", "message": ..., "error": {code, field,
@@ -53,7 +54,7 @@ logging.basicConfig(
 )
 
 import contract
-from calculate import RunHooks, run_calculation
+from calculate import RunHooks, device_report, run_calculation
 
 
 def emit(payload: dict) -> None:
@@ -92,6 +93,14 @@ if __name__ == "__main__":
     args, model_path = _take_option(args, "--model-path")
     args, display_name = _take_option(args, "--display-name")
     args, want_progress = _take_option(args, "--progress", takes_value=False)
+    args, want_capabilities = _take_option(args, "--capabilities", takes_value=False)
+
+    if want_capabilities:
+        # What this machine can run on, for the local GET /api/calculate
+        # (ADR-0031): the UI offers exactly these devices.
+        emit({"profile": contract.profile_name("local"),
+              "devices": device_report(contract.profile_name("local"))})
+        sys.exit(0)
 
     if not args:
         emit_error("Usage: python calculate_local.py <file> [params_json] "

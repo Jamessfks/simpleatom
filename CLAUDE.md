@@ -5,7 +5,7 @@ Browser-based interface for MACE (Multi-Atomic Cluster Expansion) machine learni
 **Author:** Zicheng Zhao, Northeastern University
 **Live:** https://mace-lake.vercel.app
 **Version:** 2.2.0 (single source: `mace-api/contract.json` `appVersion` = `package.json`; CI checks they agree)
-**Decisions:** `docs/adr/` (MADR, 30 records) · **Latest audit:** `docs/audits/2026-10-20.md`
+**Decisions:** `docs/adr/` (MADR, 33 records) · **Latest audit:** `docs/audits/2026-10-20.md`
 
 ## Architecture
 
@@ -202,7 +202,10 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
    `safe_load.trusted_checkpoints()`, which passes `weights_only` explicitly
 3. The MACE-MP family is PBE-level — ~0.1–0.5 eV/atom overbinding vs experiment
 4. Don't enable D3 dispersion with MACE-OFF (double-counting)
-5. GPU fallback: always handle CUDA unavailable → CPU gracefully
+5. Devices (ADR-0031): the hosted profile refuses `cuda` (`device_unavailable`); a local run
+   asking for CUDA that PyTorch cannot see falls back to CPU **with a warning and
+   `params.requestedDevice`** — never silently. CUDA out-of-memory is `cuda_out_of_memory`,
+   never a silent CPU retry. `/capabilities` lists only usable devices
 6. Extended XYZ metadata keys vary: check REF_energy, ref_energy, energy, dft_energy
 7. RMS force formula: `sqrt(Σ|F_i|² / N_atoms)` — not `sqrt(Σf² / 3N)`
 8. Results must be self-describing: `_build_result()` echoes the *effective* parameters

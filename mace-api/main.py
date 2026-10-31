@@ -37,7 +37,7 @@ from pydantic import BaseModel
 
 import contract
 import provenance
-from calculate import RunHooks, run_calculation, validate_request
+from calculate import RunHooks, device_report, run_calculation, validate_request
 from jobs import Job, JobStore
 
 try:
@@ -323,6 +323,8 @@ async def capabilities():
         "appVersion": APP_VERSION,
         "profile": PROFILE,
         "customModels": contract.custom_models_allowed(PROFILE),
+        # Only devices that work here (ADR-0031): the UI offers exactly these.
+        "devices": device_report(PROFILE),
         "limits": {k: v for k, v in LIMITS.items() if k != "description"},
         "models": [m["id"] for m in contract.models()
                    if m["hostedEnabled"] or contract.custom_models_allowed(PROFILE)],

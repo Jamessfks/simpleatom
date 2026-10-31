@@ -100,6 +100,9 @@ export const CONTRACT = {
     "hosted": {
       "description": "The public Hugging Face Space behind mace-lake.vercel.app: one shared CPU, anonymous callers.",
       "customModels": false,
+      "devices": [
+        "cpu"
+      ],
       "maxUploadBytes": 2000000,
       "maxModelUploadBytes": 0,
       "maxAtoms": {
@@ -123,6 +126,10 @@ export const CONTRACT = {
     "local": {
       "description": "Your own machine (npm run dev with no MACE_API_URL, or a self-hosted backend). Custom checkpoints are opt-in (ALLOW_CUSTOM_MODELS=1): loading one runs code from the file.",
       "customModels": false,
+      "devices": [
+        "cpu",
+        "cuda"
+      ],
       "maxUploadBytes": 50000000,
       "maxModelUploadBytes": 500000000,
       "maxAtoms": {

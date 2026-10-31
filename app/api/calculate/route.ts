@@ -12,6 +12,7 @@ import {
   assertLoopbackHost,
   assertSameOrigin,
   calculate,
+  deploymentDevices,
   errorResponse,
   parseParams,
 } from "@/lib/server/backend";
@@ -91,6 +92,7 @@ export async function GET() {
     mode: MACE_API_URL ? "remote" : "local",
     profile: profileName,
     customModels: customModelsAllowed(profileName),
+    devices: await deploymentDevices(profileName),
     limits,
   });
 }

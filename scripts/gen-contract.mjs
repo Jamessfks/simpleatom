@@ -68,7 +68,8 @@ function renderDocs(c) {
     const out = {};
     for (const [k, v] of Object.entries(p)) {
       if (k === "description") continue;
-      if (v && typeof v === "object") for (const [k2, v2] of Object.entries(v)) out[`${k} (${k2})`] = v2;
+      if (Array.isArray(v)) out[k] = v.join(", ");
+      else if (v && typeof v === "object") for (const [k2, v2] of Object.entries(v)) out[`${k} (${k2})`] = v2;
       else out[k] = v;
     }
     return out;

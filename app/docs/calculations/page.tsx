@@ -274,10 +274,17 @@ export default function CalculationsPage() {
 
         <h2 id="device">Device</h2>
         <p>
-          Calculations run on <code>cpu</code> by default. If a CUDA GPU is
-          available it can significantly speed up larger systems or longer
-          MD trajectories; SimpleAtom falls back to CPU automatically if
-          CUDA is unavailable or runs out of memory.
+          Calculations run on <code>cpu</code> by default, and the Device
+          selector offers only what the deployment reports it can run on. The
+          public server is CPU-only, so it shows CUDA as unavailable, and a
+          request for <code>cuda</code> sent to it directly is refused with{" "}
+          <code>device_unavailable</code>. Locally, CUDA is offered when PyTorch
+          can see a GPU. If you ask for CUDA and PyTorch cannot see one, the run
+          falls back to CPU and the result says so: a warning, plus{" "}
+          <code>requestedDevice</code> next to the <code>device</code> that ran.
+          If the GPU runs out of memory, the run stops with{" "}
+          <code>cuda_out_of_memory</code>. It is not retried on CPU.
+          SimpleAtom has measured no GPU speed-up, so it claims none.
         </p>
 
         <h2 id="mapping">Web UI &rarr; MACE parameter mapping</h2>

@@ -13,7 +13,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { CONTRACT, type ProfileName, profile } from "@/lib/contract";
+import {
+  CONTRACT,
+  type DeviceReport,
+  deviceReportFrom,
+  type ProfileName,
+  profile,
+  profileDeviceReport,
+} from "@/lib/contract";
 
 /** The hosted backend's base URL, or undefined in local mode. */
 export const MACE_API_URL: string | undefined = (() => {
@@ -357,4 +364,34 @@ export function parseParams(raw: FormDataEntryValue | null): Record<string, unkn
     throw new ApiError("Invalid params: expected a JSON object.", 400, "invalid_params", "params");
   }
   return parsed as Record<string, unknown>;
+}
+
+let deviceReport: Promise<DeviceReport> | null = null;
+
+/**
+ * The devices this deployment can run on (ADR-0031), asked once per server
+ * process: of the hosted backend's /capabilities in remote mode, of the local
+ * Python (`calculate_local.py --capabilities`) otherwise. A failure is not
+ * cached and reports CPU only, with the reason, so the UI never offers CUDA
+ * on the strength of a question nobody answered.
+ */
+export function deploymentDevices(name: ProfileName): Promise<DeviceReport> {
+  const fallback = profileDeviceReport(name);
+  if (!(CONTRACT.profiles[name].devices as readonly string[]).includes("cuda")) return Promise.resolve(fallback);
+  deviceReport ??= (
+    MACE_API_URL
+      ? fetch(`${MACE_API_URL}/capabilities`, { headers: backendHeaders(), cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+        )
+      : runPythonJson("calculate_local.py", ["--capabilities"], { profile: name, timeoutMs: 60_000 })
+  )
+    .then((body: { devices?: unknown }) => deviceReportFrom(body.devices, "The backend did not report its devices."))
+    .catch((error: unknown) => {
+      deviceReport = null;
+      return {
+        available: ["cpu"],
+        unavailableReason: `Could not ask the backend which devices it can use (${error instanceof Error ? error.message : "unknown error"}).`,
+      } satisfies DeviceReport;
+    });
+  return deviceReport;
 }

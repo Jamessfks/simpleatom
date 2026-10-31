@@ -6,7 +6,7 @@ import { DocsPager } from "@/components/docs/docs-nav";
 export const metadata: Metadata = {
   title: "FAQ & troubleshooting",
   description:
-    "Frequently asked questions about SimpleAtom: slow first calculations, CUDA out-of-memory errors, MACE-OFF element restrictions, shared links, choosing a model, cost, accounts, and accuracy.",
+    "Frequently asked questions about SimpleAtom: slow first calculations, CUDA out-of-memory errors when running locally, MACE-OFF element restrictions, shared links, choosing a model, cost, accounts, and accuracy.",
 };
 
 export default function FaqPage() {
@@ -39,10 +39,12 @@ export default function FaqPage() {
 
         <h3 id="cuda-oom">I&rsquo;m getting a CUDA out-of-memory error</h3>
         <p>
-          Switch <strong>Device</strong> to CPU in the parameter panel, or
-          choose a smaller model size (<code>small</code> instead of{" "}
-          <code>medium</code> or <code>large</code>). Both reduce memory
-          pressure at some cost to speed or accuracy.
+          This can only happen when you run SimpleAtom locally on a CUDA machine:
+          the public server is CPU-only. The run stops with{" "}
+          <code>cuda_out_of_memory</code> and nothing is computed. Switch{" "}
+          <strong>Device</strong> to CPU in the parameter panel, or use a smaller
+          structure. MACE-MP-0 and MACE-OFF also come in a <code>small</code>{" "}
+          size; MACE-MPA-0 is published in one size only.
         </p>
 
         <h2 id="errors">Errors</h2>

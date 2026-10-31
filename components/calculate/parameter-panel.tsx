@@ -21,12 +21,13 @@
  */
 
 import { StepTitle } from "@/components/calculate/step-title";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import { MODELS, PARAMS, findModel, isMaceOffModel, licenseNotice, modelSizes } from "@/lib/contract";
-import { useCapabilities } from "@/lib/use-capabilities";
+import { deviceChoices, useCapabilities } from "@/lib/use-capabilities";
 import {
   Card,
   CardContent,
@@ -132,6 +133,11 @@ export function ParameterPanel({
   ) => onChange({ ...params, [key]: value });
 
   const caps = useCapabilities();
+  // ADR-0031: never keep a device selected that this deployment cannot run on
+  // (a saved or default "cuda" on a CPU-only server would be refused).
+  useEffect(() => {
+    if (params.device === "cuda" && !caps.devices.available.includes("cuda")) onChange({ ...params, device: "cpu" });
+  }, [caps.devices.available, params, onChange]);
   const model = findModel(params.modelType);
   const isCustom = params.modelType === "custom";
   const isOFF = isMaceOffModel(params.modelType);
@@ -436,10 +442,23 @@ export function ParameterPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cpu">CPU</SelectItem>
-                  <SelectItem value="cuda">CUDA (GPU)</SelectItem>
+                  {deviceChoices(caps).map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value} disabled={choice.disabled}>
+                      {choice.disabled ? `${choice.label} — unavailable` : choice.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {caps.devices.unavailableReason && (
+                <p className="text-xs leading-relaxed text-text-muted">
+                  GPU unavailable: {caps.devices.unavailableReason}{" "}
+                  {caps.profile === "hosted" && (
+                    <Link href="/docs/getting-started#local" className="underline underline-offset-2 hover:text-text-primary">
+                      Run locally to use a GPU.
+                    </Link>
+                  )}
+                </p>
+              )}
             </Field>
           </div>
         </CardContent>

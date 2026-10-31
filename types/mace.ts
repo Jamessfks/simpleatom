@@ -39,6 +39,11 @@ export interface CalculationParams {
    */
   precision?: Precision;
   device: Device;
+  /**
+   * Only in `CalculationResult.params`, and only when it differs from `device`:
+   * the device asked for before a local CUDA->CPU fallback (ADR-0031).
+   */
+  requestedDevice?: Device;
 
   // Calculation type
   calculationType: CalculationType;

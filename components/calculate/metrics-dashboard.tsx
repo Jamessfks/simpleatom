@@ -326,7 +326,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
                   ? pairedDurationDecimals(result.timeTaken, result.clientRoundTrip)
                   : undefined,
               )}{" "}
-              compute
+              compute{result.params?.device ? ` on ${result.params.device === "cuda" ? "GPU" : "CPU"}` : ""}
             </span>
           )}
           {result.clientRoundTrip != null && (

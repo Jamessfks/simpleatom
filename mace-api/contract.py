@@ -65,6 +65,11 @@ def profile(name: str) -> dict:
     return load_contract()["profiles"][name]
 
 
+def allowed_devices(name: str) -> list[str]:
+    """The devices this profile offers (ADR-0031): the hosted image is CPU-only."""
+    return list(profile(name).get("devices", load_contract()["devices"]))
+
+
 def custom_models_allowed(name: str) -> bool:
     """
     Whether this deployment may load an uploaded checkpoint.

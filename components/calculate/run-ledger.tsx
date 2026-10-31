@@ -182,6 +182,7 @@ export function RunLedger({ params, structure, filename, customModelName, caps, 
             <span className="font-mono">{precision.dtype}</span>
             <span className="text-text-secondary"> ({precision.why})</span>
           </Row>
+          <Row term="Device">{params.device === "cuda" ? "CUDA (GPU)" : "CPU"}</Row>
         </dl>
       ) : (
         <p className="mt-3 text-sm leading-relaxed text-text-secondary">

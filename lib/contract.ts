@@ -22,6 +22,46 @@ export type SupportedCalculationType = (typeof CONTRACT.calculationTypes)[number
 export type MdEnsemble = (typeof CONTRACT.mdEnsembles)[number];
 export type NumericParam = keyof typeof CONTRACT.params;
 
+export type Device = (typeof CONTRACT.devices)[number];
+
+/** What a deployment can actually run on (ADR-0031): CPU always, CUDA only when usable. */
+export interface DeviceReport {
+  available: Device[];
+  /** Why CUDA is not offered, or null when it is. */
+  unavailableReason: string | null;
+}
+
+const CPU_ONLY_REASON = "This deployment is CPU-only: the public server runs on 2 shared vCPUs.";
+
+/** The report a profile implies before any machine is asked: a CPU-only profile never offers CUDA. */
+export function profileDeviceReport(name: ProfileName): DeviceReport {
+  const offersCuda = (CONTRACT.profiles[name].devices as readonly string[]).includes("cuda");
+  return {
+    available: ["cpu"],
+    unavailableReason: offersCuda ? "Checking whether this machine has a usable CUDA device…" : CPU_ONLY_REASON,
+  };
+}
+
+/**
+ * Read a device report from a backend payload, trusting nothing: unknown
+ * devices are dropped, CPU is always present, and anything malformed falls
+ * back to CPU-only with a reason, so the UI never offers a device the server
+ * did not vouch for.
+ */
+export function deviceReportFrom(raw: unknown, fallbackReason: string): DeviceReport {
+  const r = (raw ?? {}) as { available?: unknown; unavailableReason?: unknown };
+  const listed = Array.isArray(r.available) ? r.available : [];
+  if (!Array.isArray(r.available) || listed.some((d) => !(CONTRACT.devices as readonly unknown[]).includes(d))) {
+    return { available: ["cpu"], unavailableReason: fallbackReason };
+  }
+  const available: Device[] = ["cpu", ...(listed.includes("cuda") ? (["cuda"] as Device[]) : [])];
+  const reason = typeof r.unavailableReason === "string" ? r.unavailableReason : null;
+  return {
+    available,
+    unavailableReason: available.includes("cuda") ? null : (reason ?? fallbackReason),
+  };
+}
+
 export const APP_VERSION: string = CONTRACT.appVersion;
 export const DEFAULT_MODEL_TYPE: ModelId = CONTRACT.defaultModelType;
 export const MODELS: readonly ModelEntry[] = CONTRACT.models;
@@ -219,6 +259,17 @@ export function checkCalculationParams(
     if (raw !== undefined && raw !== null && raw !== "" && !(choices as readonly unknown[]).includes(raw)) {
       return violation(`unsupported_${field}`, `Unsupported ${field} '${String(raw)}'.`, field);
     }
+  }
+  // ADR-0031: a device the contract knows but this profile cannot provide is
+  // refused, not silently replaced (the public server is CPU-only).
+  const device = params.device;
+  if (typeof device === "string" && device && !(CONTRACT.profiles[profileName].devices as readonly string[]).includes(device)) {
+    return violation(
+      "device_unavailable",
+      `Device '${device}' is not available on this deployment, which runs on: ` +
+        `${CONTRACT.profiles[profileName].devices.join(", ")}. Nothing was computed.`,
+      "device",
+    );
   }
   // Same rule as contract.resolve_bool(): a real boolean, or the strings
   // "true"/"false"; anything else is refused.
