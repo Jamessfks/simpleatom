@@ -83,13 +83,17 @@ class TestRefusals(unittest.TestCase):
         with self.assertRaises(ContractError):
             contract.check_atom_caps(1001, "molecular-dynamics", 10, "hosted")
 
-    def test_hosted_profile_refuses_custom_models_by_default(self):
+    def test_custom_models_are_opt_in_on_every_profile(self):
+        # D40: a local dev server is reachable from the LAN (next dev binds
+        # 0.0.0.0 by default) and from any website the developer visits, so
+        # unpickling an upload is opt-in locally too, not only on hosted.
         previous = os.environ.pop("ALLOW_CUSTOM_MODELS", None)
         try:
             self.assertFalse(contract.custom_models_allowed("hosted"))
-            self.assertTrue(contract.custom_models_allowed("local"))
+            self.assertFalse(contract.custom_models_allowed("local"))
             os.environ["ALLOW_CUSTOM_MODELS"] = "1"
             self.assertTrue(contract.custom_models_allowed("hosted"))
+            self.assertTrue(contract.custom_models_allowed("local"))
         finally:
             os.environ.pop("ALLOW_CUSTOM_MODELS", None)
             if previous is not None:

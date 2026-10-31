@@ -66,11 +66,11 @@
       "expect": "custom_models_disabled"
     },
     {
-      "name": "custom checkpoint locally",
+      "name": "custom checkpoint locally without ALLOW_CUSTOM_MODELS (D40: opt-in)",
       "profile": "local",
       "params": {},
       "hasModelFile": true,
-      "expect": "ok"
+      "expect": "custom_models_disabled"
     },
     {
       "name": "URL as a model size",
