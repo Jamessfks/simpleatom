@@ -100,7 +100,7 @@ the silent gap in place.
 ## More information
 
 * Audit evidence: `docs/audits/2026-10-28.md` §Device path. Defects D33–D35.
-* Hosted GPU options: [`docs/v2/hosted-gpu-memo.md`](../v2/hosted-gpu-memo.md).
+* Hosted GPU options: [`docs/v2/hosted-compute-memo.md`](../v2/hosted-compute-memo.md).
 * Upstream: `mace_mp()` and `mace_off()` forward `**kwargs` to `MACECalculator`, which takes
   `enable_cueq` and `enable_oeq` (`mace/calculators/mace.py:113-114`, v0.3.16).
 * ADR-0004, ADR-0005, ADR-0008, ADR-0022.
