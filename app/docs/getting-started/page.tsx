@@ -13,13 +13,13 @@ export default function GettingStartedPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Introduction
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           Getting started
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           The fastest way to run a MACE calculation is the hosted version —
           there is nothing to install. This page also covers running
           SimpleAtom locally, the four ways to provide a structure, and how
@@ -120,8 +120,9 @@ npm run dev                    # starts the dev server`}</code>
         <ol>
           <li>Provide a structure using any of the four methods above.</li>
           <li>
-            Choose a foundation model (<Link href="/docs/models">MACE-MP-0
-            or MACE-OFF</Link>, or upload your own checkpoint), a model
+            Choose a foundation model (<Link href="/docs/models">MACE-MPA-0,
+            MACE-MP-0 or MACE-OFF</Link>; your own checkpoint when running
+            locally), a model
             size, and a{" "}
             <Link href="/docs/calculations">calculation type</Link> —
             single-point, geometry optimization, or molecular dynamics.
@@ -129,7 +130,7 @@ npm run dev                    # starts the dev server`}</code>
           <li>Click Calculate and wait for the result.</li>
           <li>
             Explore the five-tab dashboard — Summary, Forces, Energy,
-            Structure, and Raw Data — with an interactive 3D viewer and
+            Structure and Raw data — with an interactive 3D viewer and
             charts.
           </li>
         </ol>

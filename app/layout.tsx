@@ -31,17 +31,18 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://mace-lake.vercel.app",
   ),
   title: {
-    default: "SimpleAtom — Quantum-accurate chemistry in your browser",
+    default: "SimpleAtom — MACE force fields in your browser",
     template: "%s · SimpleAtom",
   },
   description:
-    "SimpleAtom is a free, browser-based interface to MACE machine-learning interatomic potentials. Run single-point energies, geometry optimizations, and molecular dynamics with foundation models (MACE-MP-0, MACE-OFF) — no installation, no command line, no HPC account.",
+    "SimpleAtom is a free, browser-based interface to MACE machine-learning interatomic potentials. Run single-point energies, geometry optimizations, and molecular dynamics with MACE foundation models (MACE-MPA-0, MACE-MP-0, MACE-OFF) — no installation, no command line, no HPC account.",
   keywords: [
     "MACE",
     "machine learning interatomic potentials",
     "computational chemistry",
     "molecular dynamics",
     "geometry optimization",
+    "MACE-MPA-0",
     "MACE-MP-0",
     "MACE-OFF",
     "foundation models",
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Zicheng Zhao", url: "https://github.com/Jamessfks/simpleatom" }],
   openGraph: {
-    title: "SimpleAtom — Quantum-accurate chemistry in your browser",
+    title: "SimpleAtom — MACE force fields in your browser",
     description:
       "A free, browser-based interface to MACE machine-learning interatomic potentials. No installation, no command line, no HPC account.",
     type: "website",
@@ -67,6 +68,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
         <Analytics />
         <SpeedInsights />

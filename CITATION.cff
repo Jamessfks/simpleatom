@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use SimpleAtom in published work, please cite it, and cite MACE and the foundation model you used."
+title: "SimpleAtom: a web interface to MACE machine-learning interatomic potentials"
+version: 2.2.0
+date-released: 2026-10-20
+license: MIT
+repository-code: "https://github.com/Jamessfks/simpleatom"
+url: "https://mace-lake.vercel.app"
+authors:
+  - family-names: Zhao
+    given-names: Zicheng
+    affiliation: Northeastern University
+    email: zhao.zic@northeastern.edu
+references:
+  - type: conference-paper
+    title: "MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields"
+    authors:
+      - family-names: Batatia
+        given-names: Ilyes
+      - family-names: Kovács
+        given-names: Dávid Péter
+      - family-names: Simm
+        given-names: Gregor N. C.
+      - family-names: Ortner
+        given-names: Christoph
+      - family-names: Csányi
+        given-names: Gábor
+    collection-title: "Advances in Neural Information Processing Systems"
+    year: 2022

@@ -4,7 +4,7 @@
  * IntroSection — landing content for SimpleAtom.
  *
  * A calm, humanist introduction that leads with the product's reason to
- * exist: making quantum-accurate simulation accessible without installation,
+ * exist: making DFT-trained machine-learning simulation accessible without installation,
  * a command line, or an HPC allocation. Sections:
  *   1. Hero            — split layout: positioning + CTAs on the left, a
  *                         real, live, interactive MACE structure on the
@@ -215,15 +215,17 @@ const PROOF_CLAIMS = [
   "Free",
   "Open source (MIT)",
   "No account required",
-  "Runs entirely in your browser",
+  // Not "runs entirely in your browser": the interface does, the MACE
+  // calculation runs on a server. A claim the page itself contradicted.
+  "Nothing to install",
 ];
 
 /* ── Foundation model cards ── */
 const MODELS = [
   {
-    name: "MACE-MP-0",
+    name: "MACE-MPA-0",
     domain: "Materials & inorganic chemistry",
-    theory: "Trained on PBE+U DFT (Materials Project)",
+    theory: "Trained on PBE/PBE+U DFT (MPtrj + sAlex) · MACE-MP-0 also available",
     points: [
       "Crystals, surfaces, and bulk systems across 89 elements",
       "Periodic boundary conditions and cell-aware dynamics",
@@ -233,11 +235,11 @@ const MODELS = [
   {
     name: "MACE-OFF",
     domain: "Organic molecules",
-    theory: "Trained on ωB97M-D3BJ (transferable organic chemistry)",
+    theory: "Trained on ωB97M-D3BJ DFT (SPICE) · Academic Software License",
     points: [
       "Neutral organic molecules (H, C, N, O, F, P, S, Cl, Br, I)",
       "Dispersion already included — no separate D3 term",
-      "Ideal for conformers, drug-like molecules, and reactions",
+      "Conformers and drug-like molecules; non-commercial use only",
     ],
   },
 ];
@@ -261,7 +263,7 @@ export function IntroSection() {
                 * a lone word. `text-balance` lets the browser even out the
                 * rag instead, and reclaims a full 48px line of vertical. */}
               <h1 className="mt-6 text-balance font-serif text-4xl font-semibold leading-none tracking-tight text-[var(--color-text-primary)] sm:text-5xl">
-                Quantum-accurate chemistry, right in your browser.
+                DFT-trained force fields, right in your browser.
               </h1>
 
               <p className="mt-6 max-w-xl text-base text-[var(--color-text-secondary)]">
@@ -304,19 +306,14 @@ export function IntroSection() {
                 the University of Cambridge.
               </p>
               {/* Explicit 2x2 grid, not `flex flex-wrap`: at the 456px column
-                * width, flex-wrap fit only 3 of the 4 items on row one (76px
-                * left over — not enough for the 213px-wide fourth claim) and
-                * dropped "Runs entirely in your browser" alone onto row two,
+                * width, flex-wrap left the fourth claim alone on row two,
                 * reading as an accidental orphan rather than a deliberate
                 * break. `grid-cols-[auto_auto]` (content-sized columns, not
-                * 1fr) sizes each column to its widest item — col 1 to
-                * "No account required", col 2 to "Runs entirely in your
-                * browser" — so both rows end up with exactly two items and
-                * the break reads as intentional. No claim's wording changed:
-                * shortening only the fourth item couldn't have closed a
-                * 213px item into 76px of free space, and shortening enough
-                * *other* items to compensate risked diluting claims that must
-                * stay independently true and verifiable as written. */}
+                * 1fr) sizes each column to its widest item, so both rows hold
+                * exactly two items and the break reads as intentional. The
+                * fourth claim used to be "Runs entirely in your browser",
+                * which was false — the calculation runs on a server — and is
+                * now "Nothing to install" (v2.2.0). */}
               <ul className="mt-3 grid grid-cols-[auto_auto] gap-x-4 gap-y-1.5">
                 {PROOF_CLAIMS.map((claim) => (
                   <li

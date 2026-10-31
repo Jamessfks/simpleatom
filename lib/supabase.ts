@@ -1,13 +1,15 @@
 /**
- * Supabase client — singleton browser/server client for MACE Link.
+ * The one MACE Link error the UI distinguishes: sharing cannot work right
+ * now — not configured, or the database is unreachable. Storage itself lives
+ * in lib/server/share-store.ts (server-only).
  *
- * Uses the public anon key (safe to expose client-side) with RLS policies
- * controlling read/write access on the `shared_results` table.
+ * The client used to be built at module scope from `process.env...!`, so a
+ * checkout without NEXT_PUBLIC_SUPABASE_* threw on import and took down every
+ * page that imported sharing, including the production build.
  */
-
-import { createClient } from "@supabase/supabase-js";
-
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export class SharingUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SharingUnavailableError";
+  }
+}

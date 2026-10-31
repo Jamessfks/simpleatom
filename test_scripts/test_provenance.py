@@ -425,19 +425,9 @@ class TestRealCalculation(unittest.TestCase):
                 f"manifest-population tests cannot run: {why}"
             )
 
-        import torch
-
-        # PyTorch 2.6+ defaults torch.load to weights_only=True; MACE
-        # checkpoints need full unpickling. calculate_local.py and main.py do
-        # the same patch — a test harness has to as well.
-        original = torch.load
-
-        def patched(*args, **kwargs):
-            kwargs.setdefault("weights_only", False)
-            return original(*args, **kwargs)
-
-        torch.load = patched
-
+        # No torch.load patch here. calculate.py grants full unpickling only to
+        # pinned foundation checkpoints (safe_load.py); a harness that patched
+        # torch.load globally would hide a regression in exactly that.
         import calculate
 
         cls.results = {}

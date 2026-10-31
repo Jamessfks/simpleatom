@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -27,6 +27,11 @@ import {
 } from "@/lib/parse-structure";
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
+import { foundationModelFor } from "@/lib/model-domain";
+import { RunLedger } from "@/components/calculate/run-ledger";
+import { useCapabilities } from "@/lib/use-capabilities";
+import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
+import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
 import { Button } from "@/components/ui/button";
@@ -63,7 +68,7 @@ const KetcherEditor = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-[700px] items-center justify-center">
-        <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+        <div className="flex items-center gap-3 text-text-muted">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="font-mono text-sm">Loading molecular editor…</span>
         </div>
@@ -73,51 +78,41 @@ const KetcherEditor = dynamic(
 );
 
 // ---------------------------------------------------------------------------
-// Progress phase definitions per calculation type
+// Real progress (docs/adr/0023)
 // ---------------------------------------------------------------------------
 
-const PHASE_MAP: Record<string, string[]> = {
-  "single-point": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Computing energy & forces",
-    "Formatting results",
-  ],
-  "geometry-opt": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Optimizing geometry",
-    "Formatting results",
-  ],
-  "molecular-dynamics": [
-    "Parsing structure",
-    "Loading MACE model",
-    "Running MD simulation",
-    "Collecting trajectory",
-  ],
-};
+/**
+ * The stages a job reports, in order. The progress bar used to be a guess
+ * from elapsed time (capped at 95%, phases advanced on a timer); every value
+ * shown now comes from the backend: its phase, and the BFGS or MD step.
+ */
+const STAGES: { key: string; label: string }[] = [
+  { key: "queued", label: "Queued" },
+  { key: "reading-structure", label: "Reading structure" },
+  { key: "loading-model", label: "Loading model" },
+  { key: "computing", label: "Computing" },
+];
 
-/** Rough estimated total time (seconds) by calculation type. */
-function getEstimatedTime(calcType: string, mdSteps?: number): number {
-  switch (calcType) {
-    case "single-point":
-      return 12;
-    case "geometry-opt":
-      return 50;
-    case "molecular-dynamics":
-      return Math.max(30, (mdSteps || 100) * 0.3);
-    default:
-      return 15;
-  }
+function stageIndex(job: JobView | null): number {
+  if (!job || job.status === "queued") return 0;
+  const phase = job.progress.phase;
+  if (phase === "reading-structure") return 1;
+  if (phase === "loading-model") return 2;
+  return 3;
 }
 
-/** Estimate which phase (0-indexed) based on elapsed time ratio. */
-function estimatePhase(elapsed: number, estimated: number): number {
-  const ratio = elapsed / estimated;
-  if (ratio < 0.08) return 0;
-  if (ratio < 0.3) return 1;
-  if (ratio < 0.85) return 2;
-  return 3;
+function stepSummary(job: JobView | null): string | null {
+  const p = job?.progress;
+  if (!p || p.step == null) return null;
+  if (p.phase === "geometry-opt") {
+    const fmax = typeof p.fmax === "number" ? ` · max force ${p.fmax.toFixed(3)} eV/Å` : "";
+    return `BFGS step ${p.step} of at most ${p.totalSteps}${fmax}`;
+  }
+  if (p.phase === "molecular-dynamics") {
+    const t = typeof p.temperature === "number" ? ` · ${p.temperature.toFixed(0)} K` : "";
+    return `MD step ${p.step} of ${p.totalSteps}${t}`;
+  }
+  return `Step ${p.step}${p.totalSteps ? ` of ${p.totalSteps}` : ""}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +236,7 @@ function CalculatePageInner() {
     useState<ParsedStructure | null>(null);
   const [params, setParams] = useState<CalculationParams>({
     modelSize: "medium",
-    modelType: "MACE-MP-0",
+    modelType: DEFAULT_MODEL_TYPE,
     // `precision` is deliberately absent, not "float32". Omitting the key is
     // what makes the backend take upstream MACE's own default for the chosen
     // model and calculation — float64 for MACE-OFF (mace_off() has defaulted
@@ -264,6 +259,10 @@ function CalculatePageInner() {
   const [customModelFile, setCustomModelFile] = useState<File | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [job, setJob] = useState<JobView | null>(null);
+  const caps = useCapabilities();
+  const runAbort = useRef<AbortController | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -345,6 +344,19 @@ function CalculatePageInner() {
     }
   }, [searchParams, loadDemoStructure, uploadedFiles.length]);
 
+  // On a single-column layout the result renders below the whole
+  // configuration. When a run finishes and its result is not on screen, bring
+  // it into view (instantly under reduced motion).
+  useEffect(() => {
+    if (!result || isCalculating) return;
+    const el = resultsRef.current;
+    if (!el) return;
+    const { top } = el.getBoundingClientRect();
+    if (top >= 0 && top < window.innerHeight * 0.6) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [result, isCalculating]);
+
   useEffect(() => {
     if (!isCalculating) {
       setElapsedSeconds(0);
@@ -372,7 +384,7 @@ function CalculatePageInner() {
     uploadedFiles.length === 0
       ? "Choose or upload a structure to enable the run button."
       : isCustomModel && !customModelFile
-        ? "Upload a MACE .model checkpoint to run a custom model — or switch to MACE-MP-0 or MACE-OFF. A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
+        ? "Upload a MACE .model checkpoint to run a custom model — or switch to a foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF). A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
         : params.calculationType === "phonon"
           ? "Phonon spectrum is not implemented. Choose single-point, geometry optimization, or molecular dynamics."
           : null;
@@ -381,34 +393,21 @@ function CalculatePageInner() {
     useCallback(async (): Promise<CalculationResult | null> => {
       if (uploadedFiles.length === 0) return null;
 
-      const nameHint = (
-        params.customModelName ||
-        customModelFile?.name ||
-        ""
-      ).toLowerCase();
-      const isOFF = nameHint.includes("off") || nameHint.includes("organic");
-
+      // Picked from the parsed structure, never from the uploaded FILENAME:
+      // a periodic crystal can be named "offcut.cif", and matching that name
+      // against "off" used to send it to MACE-OFF, crossing two incompatible
+      // energy conventions and printing a meaningless deltaE.
       const foundationParams: CalculationParams = {
         ...params,
-        modelType: isOFF ? "MACE-OFF" : "MACE-MP-0",
+        modelType: foundationModelFor(parsedStructure),
       };
 
       const formData = new FormData();
       uploadedFiles.forEach((file) => formData.append("files", file));
       formData.append("params", JSON.stringify(foundationParams));
 
-      const response = await fetch("/api/calculate", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Foundation model calculation failed");
-      }
-
-      return response.json();
-    }, [uploadedFiles, params, customModelFile]);
+      return runCalculationJob(formData);
+    }, [uploadedFiles, params, parsedStructure]);
 
   const handleCalculate = async () => {
     // Same gate as the Run button, restated here so the check cannot be
@@ -421,8 +420,11 @@ function CalculatePageInner() {
     setError(null);
     setResult(null);
     setShareUrl(null);
+    setJob(null);
 
     const startTime = Date.now();
+    const abort = new AbortController();
+    runAbort.current = abort;
 
     try {
       const formData = new FormData();
@@ -432,17 +434,10 @@ function CalculatePageInner() {
         formData.append("model", customModelFile);
       }
 
-      const response = await fetch("/api/calculate", {
-        method: "POST",
-        body: formData,
+      const data: CalculationResult = await runCalculationJob(formData, {
+        signal: abort.signal,
+        onUpdate: setJob,
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Calculation failed");
-      }
-
-      const data: CalculationResult = await response.json();
 
       // Browser wall-clock: HTTP both ways, any model download, and the
       // compute. It is NOT the compute time — `data.timeTaken` is, measured by
@@ -474,11 +469,17 @@ function CalculatePageInner() {
         setLastHistoryId(entries[0]?.id ?? null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Calculation failed");
+      const cancelled =
+        abort.signal.aborted || (err instanceof ApiRequestError && err.code === "cancelled");
+      if (!cancelled) setError(err instanceof Error ? err.message : "Calculation failed");
     } finally {
+      runAbort.current = null;
       setIsCalculating(false);
+      setJob(null);
     }
   };
+
+  const handleCancel = () => runAbort.current?.abort();
 
   const handleShare = async () => {
     if (!result || result.status !== "success") return;
@@ -486,15 +487,11 @@ function CalculatePageInner() {
     try {
       // Share the effective params off the result, not the request — a shared
       // result should describe the run that happened.
-      const { url } = await saveResult(
-        result,
-        result.params ?? params,
-        uploadedFiles[0]?.name,
-      );
+      const { url } = await saveResult(result, uploadedFiles[0]?.name);
       setShareUrl(url);
       if (lastHistoryId) updateHistoryShareUrl(lastHistoryId, url);
-    } catch {
-      setError("Failed to share result. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? `Could not share: ${err.message}` : "Failed to share result. Please try again.");
     } finally {
       setIsSharing(false);
     }
@@ -507,30 +504,25 @@ function CalculatePageInner() {
     setTimeout(() => setShareCopied(false), 2000);
   };
 
-  const phases = PHASE_MAP[params.calculationType] || PHASE_MAP["single-point"];
-  const estimatedTotal = getEstimatedTime(
-    params.calculationType,
-    params.mdSteps,
-  );
-  const currentPhase = estimatePhase(elapsedSeconds, estimatedTotal);
-  const progressPct = Math.min(
-    95,
-    Math.round((elapsedSeconds / estimatedTotal) * 100),
-  );
-  const estRemaining = Math.max(0, estimatedTotal - elapsedSeconds);
+  const currentStage = stageIndex(job);
+  const stepText = stepSummary(job);
+  const stepPct =
+    job?.progress.step != null && job.progress.totalSteps
+      ? Math.min(100, Math.round((job.progress.step / job.progress.totalSteps) * 100))
+      : null;
 
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
 
       {/* Page sub-header */}
-      <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/80 backdrop-blur-sm">
+      <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-4">
           <div>
-            <h1 className="font-serif text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
               Calculator
             </h1>
-            <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 text-sm text-text-secondary">
               Run MACE on your structure — configure, compute, and explore.
             </p>
           </div>
@@ -542,7 +534,7 @@ function CalculatePageInner() {
       </div>
 
       {/* Main content */}
-      <main className="mx-auto max-w-screen-2xl px-6 py-6">
+      <main id="main" className="mx-auto max-w-screen-2xl px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="calculator" className="gap-1.5">
@@ -576,13 +568,23 @@ function CalculatePageInner() {
 
               {/* Run + results */}
               <section className="min-w-0 space-y-6 lg:col-span-7">
-                {/* Run card */}
-                <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
+                {/* The run ledger: sticky beside the configuration until a
+                    result exists, then an ordinary card above it (a sticky
+                    pane would otherwise sit on top of the results). */}
+                <div className={result ? undefined : "lg:sticky lg:top-20"}>
+                <RunLedger
+                  params={params}
+                  structure={parsedStructure}
+                  filename={uploadedFiles[0]?.name}
+                  customModelName={params.customModelName || customModelFile?.name}
+                  caps={caps}
+                  compact={result != null && !isCalculating}
+                >
                   <Button
                     onClick={handleCalculate}
                     disabled={isCalculating || runBlockedReason != null}
                     size="lg"
-                    className="w-full text-base"
+                    className={result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}
                   >
                     {isCalculating ? (
                       <>
@@ -592,94 +594,99 @@ function CalculatePageInner() {
                     ) : (
                       <>
                         <Zap className="h-5 w-5" />
-                        Run MACE calculation
+                        Run calculation
                       </>
                     )}
                   </Button>
 
                   {runBlockedReason && !isCalculating && (
-                    <p className="mt-3 text-center text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    <p className="mt-3 text-center text-xs leading-relaxed text-text-muted">
                       {runBlockedReason}
                     </p>
                   )}
 
-                  {/* Progress feedback */}
+                  {/* Progress feedback — every value here is reported by the backend */}
                   {isCalculating && (
-                    <div className="mt-5 space-y-4">
-                      {elapsedSeconds >= 3 && (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                          {phases.map((phase, i) => (
-                            <div key={phase} className="flex items-center gap-1.5">
-                              {i < currentPhase ? (
-                                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)]" />
-                              ) : i === currentPhase ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent-primary)]" />
-                              ) : (
-                                <Circle className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-                              )}
-                              <span
-                                className={`font-mono text-xs ${
-                                  i < currentPhase
-                                    ? "text-[var(--color-text-muted)] line-through"
-                                    : i === currentPhase
-                                      ? "font-semibold text-[var(--color-accent-strong)]"
-                                      : "text-[var(--color-text-muted)]"
-                                }`}
-                              >
-                                {phase}
-                              </span>
-                              {i < phases.length - 1 && (
-                                <span className="text-[var(--color-text-muted)]">
-                                  →
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div className="mt-5 space-y-4" aria-live="polite">
+                      <ol className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        {STAGES.map((stage, i) => (
+                          <li key={stage.key} className="flex items-center gap-1.5">
+                            {i < currentStage ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                            ) : i === currentStage ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent-strong motion-reduce:animate-none" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-text-muted" />
+                            )}
+                            <span
+                              className={`text-xs ${
+                                i === currentStage
+                                  ? "font-semibold text-accent-strong"
+                                  : "text-text-muted"
+                              }`}
+                            >
+                              {stage.label}
+                              {stage.key === "queued" && job?.queuePosition
+                                ? ` (position ${job.queuePosition + 1})`
+                                : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
 
                       <div className="space-y-1.5">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]">
-                          {elapsedSeconds >= 10 ? (
+                        <div
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-bg-secondary"
+                          role="progressbar"
+                          aria-label="Calculation progress"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={stepPct ?? undefined}
+                        >
+                          {stepPct != null ? (
                             <div
-                              className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-700"
-                              style={{ width: `${progressPct}%` }}
+                              className="h-full rounded-full bg-accent-primary transition-all duration-500 motion-reduce:transition-none"
+                              style={{ width: `${stepPct}%` }}
                             />
                           ) : (
                             <div
-                              className="h-full w-1/3 rounded-full bg-[var(--color-accent-primary)]"
+                              className="h-full w-1/3 rounded-full bg-accent-primary motion-reduce:w-full motion-reduce:opacity-40"
                               style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
                             />
                           )}
                         </div>
-                        <div className="flex items-center justify-between font-mono text-xs text-[var(--color-text-muted)]">
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="h-3 w-3" />
-                            Elapsed: {elapsedSeconds}s
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-text-muted">
+                          <span className="flex items-center gap-1.5 tabular-nums">
+                            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                            Elapsed {elapsedSeconds} s
                           </span>
-                          {elapsedSeconds >= 10 && (
-                            <span>
-                              ~{estRemaining}s remaining · {progressPct}%
-                            </span>
-                          )}
+                          {stepText && <span>{stepText}</span>}
+                          <button
+                            type="button"
+                            onClick={handleCancel}
+                            className="inline-flex min-h-11 items-center rounded-full border border-border-emphasis px-4 text-sm font-medium text-text-secondary hover:border-error hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
+                </RunLedger>
                 </div>
 
                 {/* Error */}
                 {error && (
                   <div
                     role="alert"
-                    className="flex items-start gap-3 rounded-xl border border-[var(--color-error)]/25 bg-[var(--color-error)]/5 p-4"
+                    className="flex items-start gap-3 rounded-xl border border-error/25 bg-error/5 p-4"
                   >
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-error)]" />
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
                     <div>
-                      <p className="text-sm font-semibold text-[var(--color-error)]">
+                      <p className="text-sm font-semibold text-error">
                         Calculation error
                       </p>
-                      <p className="mt-1 font-mono text-xs text-[var(--color-error)]/80">
+                      <p className="mt-1 font-mono text-xs text-error/80">
                         {error}
                       </p>
                     </div>
@@ -691,53 +698,51 @@ function CalculatePageInner() {
 
                 {/* Results */}
                 {result && !isCalculating && (
-                  <div className="animate-fade-in-up space-y-6">
-                    {/* Share bar */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      {!shareUrl ? (
-                        <Button
-                          onClick={handleShare}
-                          disabled={isSharing || result.status !== "success"}
-                          variant="outline"
-                          size="sm"
-                        >
-                          {isSharing ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Share2 className="h-3.5 w-3.5" />
-                          )}
-                          {isSharing ? "Sharing…" : "Share result"}
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] px-3 py-1.5">
-                          <Share2 className="h-3.5 w-3.5 text-[var(--color-accent-strong)]" />
-                          <a
-                            href={shareUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-xs text-[var(--color-accent-strong)] hover:underline"
-                          >
-                            {shareUrl}
-                          </a>
-                          <button
-                            type="button"
-                            onClick={handleCopyShareUrl}
-                            aria-label="Copy share link"
-                            className="ml-1 rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
-                          >
-                            {shareCopied ? (
-                              <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
+                  <div ref={resultsRef} className="animate-fade-in-up scroll-mt-20 space-y-6">
                     <MetricsDashboard
                       result={result}
                       filename={uploadedFiles[0]?.name}
+                      actions={
+                        !shareUrl ? (
+                          <Button
+                            onClick={handleShare}
+                            disabled={isSharing || result.status !== "success"}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {isSharing ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Share2 className="h-3.5 w-3.5" />
+                            )}
+                            {isSharing ? "Sharing…" : "Share result"}
+                          </Button>
+                        ) : (
+                          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-accent-primary/30 bg-accent-soft px-3 py-1.5 max-sm:col-span-2">
+                            <Share2 className="h-3.5 w-3.5 text-accent-strong" />
+                            <a
+                              href={shareUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="min-w-0 truncate font-mono text-xs text-accent-strong hover:underline"
+                            >
+                              {shareUrl}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={handleCopyShareUrl}
+                              aria-label="Copy share link"
+                              className="touch-target ml-1 rounded p-1 text-text-muted transition-colors hover:text-text-primary"
+                            >
+                              {shareCopied ? (
+                                <Check className="h-3.5 w-3.5 text-success" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        )
+                      }
                     />
 
                     {isCustomModel && (
@@ -767,21 +772,21 @@ function CalculatePageInner() {
       {/* Demo guided overlay */}
       {demoStep != null && demoStep < DEMO_STEPS.length && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center p-6">
-          <div className="elevate pointer-events-auto max-w-lg rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
+          <div className="elevate pointer-events-auto max-w-lg rounded-2xl border border-border-subtle bg-bg-elevated p-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[11px] text-[var(--color-accent-strong)]">
+              <span className="font-mono text-xs text-accent-strong">
                 Quick demo · Step {demoStep + 1}/{DEMO_STEPS.length}
               </span>
               <button
                 type="button"
                 onClick={() => setDemoStep(null)}
                 aria-label="Close demo"
-                className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="touch-target rounded text-text-muted transition-colors hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-sm text-[var(--color-text-primary)]">
+            <p className="text-sm text-text-primary">
               {DEMO_STEPS[demoStep]}
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -826,24 +831,24 @@ function StatusPill({
   const state = isCalculating
     ? {
         label: "Computing",
-        dot: "bg-[var(--color-warning)]",
-        text: "text-[var(--color-warning)]",
+        dot: "bg-warning",
+        text: "text-warning",
       }
     : hasResult
       ? {
           label: "Complete",
-          dot: "bg-[var(--color-success)]",
-          text: "text-[var(--color-success)]",
+          dot: "bg-success",
+          text: "text-success",
         }
       : {
           label: "Ready",
-          dot: "bg-[var(--color-text-muted)]",
-          text: "text-[var(--color-text-muted)]",
+          dot: "bg-text-muted",
+          text: "text-text-muted",
         };
 
   return (
     <span
-      className="hidden items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-1.5 text-xs font-medium sm:inline-flex"
+      className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex"
       role="status"
       aria-live="polite"
     >
@@ -904,7 +909,7 @@ function RecentCalculations() {
 
         <div className="flex-1 overflow-y-auto px-4">
           {entries.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[var(--color-text-muted)]">
+            <p className="py-10 text-center text-sm text-text-muted">
               No calculations yet. Your runs will appear here.
             </p>
           ) : (
@@ -912,17 +917,17 @@ function RecentCalculations() {
               {entries.map((e) => (
                 <li
                   key={e.id}
-                  className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-3"
+                  className="rounded-lg border border-border-subtle bg-bg-elevated p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-mono text-xs text-[var(--color-text-primary)]">
+                    <span className="truncate font-mono text-xs text-text-primary">
                       {e.filename ?? "structure"}
                     </span>
-                    <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">
+                    <span className="shrink-0 text-xs text-text-muted">
                       {timeAgo(e.timestamp)}
                     </span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-text-secondary)]">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-secondary">
                     <span>{e.modelType}</span>
                     <span aria-hidden>·</span>
                     <span>{CALC_LABEL[e.calculationType] ?? e.calculationType}</span>
@@ -934,7 +939,7 @@ function RecentCalculations() {
                     )}
                   </div>
                   {typeof e.energy === "number" && (
-                    <p className="mt-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+                    <p className="mt-1 font-mono text-xs text-text-muted">
                       E = {e.energy.toFixed(4)} eV
                     </p>
                   )}
@@ -943,7 +948,7 @@ function RecentCalculations() {
                       href={e.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-[11px] text-[var(--color-accent-strong)] hover:underline"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-accent-strong hover:underline"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open shared result
@@ -956,12 +961,12 @@ function RecentCalculations() {
         </div>
 
         {entries.length > 0 && (
-          <div className="border-t border-[var(--color-border-subtle)] p-4">
+          <div className="border-t border-border-subtle p-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setEntries(clearHistory())}
-              className="w-full text-[var(--color-text-secondary)]"
+              className="w-full text-text-secondary"
             >
               <Trash2 className="h-4 w-4" />
               Clear history
@@ -977,7 +982,7 @@ function RecentCalculations() {
 const DEMO_STEPS = [
   "Your structure is loaded (an ethanol molecule). You can also upload your own .xyz, .cif, .poscar, or .pdb file, browse the ml-peg catalog, or enter a SMILES string to generate a 3D structure.",
   "Choose your model and calculation type on the left. Try molecular dynamics for a trajectory animation, or geometry optimization to relax the structure.",
-  'Click "Run MACE calculation" to compute energies and forces. Results appear in a tabbed dashboard with interactive scientific visualizations.',
+  'Click "Run calculation" to compute energies and forces. Results appear in a tabbed dashboard with interactive scientific visualizations.',
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

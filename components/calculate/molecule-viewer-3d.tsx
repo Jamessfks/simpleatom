@@ -32,7 +32,9 @@
  *      below). The fit is re-solved on every size change, including entering
  *      and leaving fullscreen. Force arrows are an overlay, not the subject:
  *      they are excluded from the fit and bounded in length instead, by a
- *      measured screen-space ceiling (ARROW_TIP_SAFE_FILL). The fit also
+ *      measured screen-space ceiling (ARROW_TIP_SAFE_FILL). Atoms hidden by
+ *      "Hide C–H bonds" are STILL fitted, so hiding them changes nothing about
+ *      the framing — the atoms that remain do not move by a pixel. The fit also
  *      RE-CENTRES on the projected bounding box, so a lopsided silhouette still
  *      fills the frame. Auto-rotation solves the SAME fit and then checks the
  *      swept volume as a CEILING (SWEEP_SAFE_FILL), so the spinning and still
@@ -126,8 +128,8 @@ interface ViewOptions {
   selection: number[];
   /**
    * Auto-rotation. Changes nothing about what is DRAWN — applyView must never
-   * read it, or toggling the rotation would tear down and rebuild every arrow and
-   * shell. It is here only so the imperative resize path can pick the same sweep
+   * read it, or toggling the rotation would tear down and rebuild every arrow.
+   * It is here only so the imperative resize path can pick the same sweep
    * ceiling the React effects would (FrameSpec.spinning).
    */
   spin: boolean;
@@ -278,9 +280,10 @@ const HOVER_DURATION_MS = 140;
  * 0.82, not 0.825, because the remaining 18% of the box has to absorb things
  * the solver deliberately does not measure:
  *   - the contact outline, ~2 CSS px per side (OUTLINE.maxpixels);
- *   - the selection halo, which is +SELECTION_HALO_PAD (0.10 A) outside the
- *     drawn atom and is NOT re-framed when you click, so it must fit in the
- *     margin — ~4 px on spacefill, ~8 px on stick at a typical fit;
+ *   - the selection highlight, which draws a selected atom +SELECTION_HALO_PAD
+ *     (0.10 A) larger than usual and is NOT re-framed when you click, so it
+ *     must fit in the margin — ~4 px on spacefill, ~8 px on stick at a typical
+ *     fit;
  *   - FRAMING_TOLERANCE, up to 0.5% of the fit;
  *   - the bar's own 0.825 being a single-aspect measurement of a single
  *     molecule. Matching it to three digits would be calibrating to noise for
@@ -309,6 +312,17 @@ const HOVER_DURATION_MS = 140;
  * turns rotate() into an orbit; it is not true of rotationGroup's own x/y
  * offset, which is applied AFTER the rotation quaternion. frameView() uses the
  * latter, so the molecule still turns about its own centre.
+ *
+ * HIDDEN ATOMS ARE FITTED TOO. The fill above is the fill of the WHOLE
+ * structure, hidden C–H hydrogens included. Fitting only the drawn subset
+ * re-zoomed the view every time "Hide C–H bonds" was toggled: measured on
+ * ethanol at 766x520, 131.9 -> 186.5 px/A, a 1.41x magnification of the atoms
+ * that stayed, which in the 664 px box it was reported in clipped the arrows at
+ * both edges. The bar for
+ * the controls (Mol*) is that toggling any control changes apparent size by 0%,
+ * and a declutter control cannot meet that if it also reframes. So with C–H
+ * hidden the remaining atoms fill less of the box than 0.82 — by exactly the
+ * hydrogens that are gone — and stay where they were.
  */
 const TARGET_FILL = 0.82;
 
@@ -382,19 +396,16 @@ const MIN_TOTAL_FRAMING_ZOOM = 0.2;
  * permitted, also zero. Neither number is a tuned constant; both fall out of the
  * geometry.
  *
- * WHAT IS NOT FIXED, AND WHY IT CANNOT BE. With "Hide C–H bonds" on, ethanol's
- * drawn set is four atoms 2.14 A tall, so the fit magnifies to 196.6 px/A, while
- * the swept cylinder is still 3.73 A wide because the radial extreme is the
- * OXYGEN, which hiding keeps. 3.73 A at 196.6 px/A is 735 px in a 664 px box.
- * Filling the frame with the rendered subset and sweeping that subset inside the
- * same frame are then simply incompatible, and engaging the rotation in that
- * sub-state still steps down by ~16%. A brute-force search over 16,000 candidate
- * spin axes says the model y axis is already the best available choice and the
- * best possible one still loses 16.5%, so this is not an axis-selection problem.
- * The alternative — apply the ceiling unconditionally — makes "Hide C–H bonds"
- * SHRINK the molecule (measured in simulation: hero fill 0.809 -> 0.534), which
- * is the older defect this file already fixed once. Ranked: a 16% step in one
- * sub-state beats a 34% shrink in the state people actually use.
+ * FORMERLY NOT FIXED, NOW GONE WITH ITS CAUSE. With "Hide C–H bonds" on, the
+ * fit used to be solved for the four drawn atoms (2.14 A tall), magnifying to
+ * 196.6 px/A, while the swept cylinder stayed 3.73 A wide because its radial
+ * extreme is the OXYGEN — so engaging the rotation in that sub-state stepped
+ * down ~16%, and no spin axis could avoid it. Both the fit and the sweep are now
+ * taken over EVERY atom, hidden ones included (see TARGET_FILL), so hiding C–H
+ * leaves both exactly as they are without it, and the step is the default
+ * view's. Measured at 766x520: rotation engages at the same zoom with C–H hidden
+ * as without, both a 1.05% pull-back — this box is one where the sweep ceiling
+ * binds slightly — and at 291x291 both at 0%.
  */
 const SWEEP_SAFE_FILL = 0.99;
 
@@ -405,61 +416,40 @@ const SWEEP_SAFE_FILL = 0.99;
  */
 const SWEEP_RING_SAMPLES = 32;
 
-/** Nominal Angstroms drawn per eV/A of force, before the length clamp. */
+/** Ceiling on Angstroms drawn per eV/A of force, reached by large structures. */
 const FORCE_ARROW_SCALE = 5;
 
 /**
- * Ceiling on the LONGEST force arrow, as a fraction of the structure's own
- * span (see structureSpan).
+ * The force, in eV/A, whose arrow is drawn at MAX_FORCE_ARROW_FRACTION of the
+ * structure's own span (see structureSpan and referenceArrowScale).
  *
- * WHY A CLAMP AND NOT JUST "LET THEM OVERFLOW": at FORCE_ARROW_SCALE = 5 an
- * unrelaxed single-point with forces of a few eV/A draws arrows tens of
- * Angstroms long — several times the size of the molecule. Framing to the
- * atoms alone (which is what frameView now does) stops that from shrinking the
- * molecule, but it does not make the arrows useful: they would leave the canvas
- * entirely and read as four green lines going nowhere. Clamping keeps the whole
- * arrow near the structure it belongs to.
+ * WHY A FIXED REFERENCE FORCE AND NOT THE LARGEST FORCE (D9). The scale used to
+ * be set so that the LONGEST arrow came out at 0.45 of the span — that is, it
+ * divided by |F|max. That makes the scale a property of the FORCES, and so of the
+ * model: MACE-MP-0 and MACE-OFF on the demo ethanol have |F|max of 1.62 and
+ * 2.04 eV/A, which put them at 1.02 and 0.81 A per eV/A (the reported "1.0 vs
+ * 0.82") and, once rounded to a rung, at 1.0 and 0.50. Measured at 766x520, the
+ * longest arrow was then 1.62 A under MP-0 and 1.02 A under OFF: the LARGER force
+ * drew the SHORTER arrow, normalising away exactly the difference a comparison is
+ * for.
  *
- * The clamp is applied as ONE scale factor shared by every arrow, so relative
- * lengths stay exactly proportional to |F| and the picture still shows which
- * atoms are pushed hardest. What changes is the Angstroms-per-eV/A constant,
- * which is therefore structure-dependent and is printed in the caption — an
- * arrow length that encodes a quantity is not readable without its scale.
+ * Dividing by a fixed force instead makes the scale a property of the GEOMETRY
+ * alone. Two results for one structure now draw at one scale whatever model
+ * produced them (both 1.0 A per eV/A on ethanol, so the OFF arrows are 26%
+ * longer, as its forces are), and so do a structure before and after
+ * optimisation: a relaxed result's arrows really are short, on the same ruler as
+ * the unrelaxed ones.
  *
- * 0.45 of the span puts the longest arrow at a little under half the molecule's
- * own size: unmistakable, and clearly visible against the structure.
- *
- * WHAT THIS CLAMP DOES NOT DO, AND THE REGRESSION THAT PROVED IT. An earlier
- * version of this note claimed 0.45 "mostly fits in the margin TARGET_FILL
- * leaves (0.09 of the box per side, i.e. ~0.11 of the atom span)". 0.45 is four
- * times 0.11, so the claim was arithmetically false, and hiding the C-H
- * hydrogens is what exposed it. Hiding them shrinks the FITTED set (ethanol's
- * silhouette 3.07 A -> 2.14 A) so the fit magnifies by 1.434x — reproduced from
- * the coordinates, and the critic measured 1.44x. The arrows are excluded from
- * the fit by design and their length in ANGSTROMS did not change, so their
- * on-screen length grew by that same 1.434x: measured 588 CSS px of arrow bbox
- * in a 664 px box became ~842 px, i.e. clipped at BOTH edges, which is exactly
- * what was reported ([0, 1327] on a 1328 px backing store).
- *
- * Note what this rules out: the hypothesis that the hidden hydrogens were still
- * being drawn. If they were, the post-hide silhouette would be the ALL-atom one
- * at the C/O fit — 604 px tall in a 514 px box, clipped top and bottom. The
- * measured vertical extent did not move (842 -> 844 backing px, i.e. 421 -> 422
- * CSS px, which is the C/O fit's own 421 px). setStyle(sel, {}) does remove the
- * geometry (GLModel.setStyle assigns `style = {}` when `add` is falsy, and every
- * draw path is gated on a style key), so nothing is drawn for them.
- *
- * The clamp cannot be made airtight by geometry alone, and it is worth saying
- * why rather than tuning the constant again: it is scaled by the structure's own
- * span, and the fit is scaled by the PROJECTED silhouette. Those differ by an
- * unbounded factor — a linear molecule end-on has a tiny silhouette and a large
- * span, so the fit zooms in arbitrarily far while the clamp does not move. For
- * ethanol the two are not even distinguishable by the drawn set: the atom
- * farthest from the centroid is the HYDROXYL hydrogen (1.834 A), which hiding
- * C-H keeps, so re-basing this clamp on the drawn atoms alone would change
- * nothing at all. Hence ARROW_TIP_SAFE_FILL below: a measured ceiling, in screen
- * space, which is the only thing that can actually promise "no edge contact".
+ * 1 eV/A because it is the round number in the middle of what a single-point on
+ * an unrelaxed input produces, and 0.45 of the span because an arrow for it is
+ * then a little under half the molecule: clearly visible against the structure.
+ * The scale is still bounded on screen (ARROW_TIP_SAFE_FILL), since a few
+ * eV/A on a small molecule would otherwise draw past the frame — and that bound
+ * depends on the forces again, so when it binds the legend says so and prints
+ * the scale it cut from. On ethanol it does not bind at 766x520 under either
+ * model; in the 291 px phone box it cuts both to 0.50, and the legend says so.
  */
+const ARROW_REFERENCE_FORCE = 1;
 const MAX_FORCE_ARROW_FRACTION = 0.45;
 
 /**
@@ -488,13 +478,12 @@ const ARROW_TIP_SAFE_FILL = 0.98;
  *   2. ROUNDNESS. "0.5 A per eV/A" reads as a chosen scale; "0.82" reads as an
  *      accident, which is how the reported defect looked.
  *
- * It does NOT make the scale model-independent, and no quantisation can. The
- * reported case is MACE-OFF and MACE-MP-0 on the same ethanol geometry giving
- * |F|max of about 2.01 and 1.65 eV/A — a real 22% difference in the physics. Any
- * ladder containing a rung between the two resulting caps separates them, and a
- * ladder coarse enough to merge every such pair would throw away most of the
- * arrow length. So comparability is handled where it belongs, on screen: see the
- * length-reference tick in the legend, whose drawn length IS the scale.
+ * Rounding is NOT what makes two results comparable — no quantisation of a
+ * force-dependent number can be, since any ladder has a rung between some pair of
+ * results. That is done by taking the forces out of the scale altogether (see
+ * ARROW_REFERENCE_FORCE). Where the screen-space ceiling still brings them back,
+ * the legend names the cut and the length-reference tick, whose drawn length IS
+ * the scale, shows it.
  */
 const ARROW_SCALE_RUNGS = [1, 2, 5];
 
@@ -503,7 +492,8 @@ const ARROW_SCALE_RUNGS = [1, 2, 5];
  * the tick may occupy.
  *
  * POWERS OF TEN ONLY, AND THAT IS THE WHOLE POINT. The tick exists so that two
- * results of the same molecule at different arrow scales LOOK different. A
+ * results drawn at different arrow scales — different structures, or one whose
+ * arrows were cut to fit the frame — LOOK different. A
  * reference chosen to normalise the tick to a comfortable length would defeat
  * that exactly: both would draw a ~36 px rule and only the label beside it would
  * change, which is the defect over again. With a decade ladder the rung is stable
@@ -518,8 +508,8 @@ const TICK_FORCE_DECADES = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
 const TICK_MIN_PX = 8;
 const TICK_MAX_PX = 140;
 
-/** Floor on the structure span used by the arrow clamp, in Angstroms. Without
- *  it a single atom (span 0) would clamp every arrow to zero length. */
+/** Floor on the structure span used by the arrow scale, in Angstroms. Without
+ *  it a single atom (span 0) would draw every arrow at zero length. */
 const MIN_STRUCTURE_SPAN = 2;
 
 /** Shaft radius of a force arrow, in Angstroms. */
@@ -534,28 +524,29 @@ const FALLBACK_BACKGROUND = "#FFFFFF";
 const SELECTION_COLOUR = "#4F9A54";
 
 /**
- * Opacity of the translucent selection shell.
+ * Angstroms a SELECTED atom is drawn larger than its unselected self.
  *
- * WHY THE SHELL ALONE IS NOT THE HIGHLIGHT ANY MORE: at 0.45 over a Jmol
- * carbon a selected atom was measured going rgb(139,139,139) ->
- * rgb(126,141,127) — the green channel rose by TWO while red and blue each
- * fell 13. 40,985 pixels changed, so the shell was drawing; it just read as a
- * slight darkening with a faint cast rather than as green. The nominal 0.45 is
- * evidently not the effective alpha of a 3Dmol translucent shape over lit
- * geometry, and guessing a number that makes it green is not something that can
- * be settled without a rendered pixel. So the selected atom's OWN geometry is
- * now recoloured (see selectedStyle) — opaque, so its rendered colour is the
- * accent green up to the specular term, giving a green channel ~75 above red
- * and blue rather than 2. The shell stays as the halo that makes the selection
- * footprint larger than the atom, and 0.62 makes that ring legible against the
- * page as well as against a neighbouring atom.
+ * WHY THERE IS NO TRANSLUCENT SHELL ANY MORE (D13). The highlight used to be a
+ * green sphere at opacity 0.62 drawn 0.10 A outside the atom, as a halo. Over the
+ * page that halo was measured at (243,240,232) -> (235,235,228): the green
+ * channel FELL by 5, so the ring read as nothing at all. The cause is 3Dmol, not
+ * the number: with a transparent canvas (backgroundAlpha 0) a translucent shape
+ * is blended against the canvas's own clear colour — white at alpha 0 — rather
+ * than against the page behind it, so it composites close to white and close to
+ * transparent. Measured effective alpha is ~0.04 at a nominal 0.62 and ~0.5 at
+ * 0.9; no opacity both reads as green and stays a halo. Disabling ambient
+ * occlusion or the outline changes nothing, so neither is the cause.
+ *
+ * So the highlight is OPAQUE: the selected atom itself is redrawn in the accent
+ * green at its normal radius plus this pad (see selectedStyle). Opaque geometry
+ * composites exactly, so the footprint the halo was for — larger than the atom,
+ * visible against the page and against a neighbour — is now actually green: the
+ * same ring of pixels, now the shaded rim of the enlarged ball, measures
+ * (29,56,31), and the atom's centre (76,148,81).
  */
-const SELECTION_OPACITY = 0.62;
-
-/** Angstroms the selection shell extends beyond the drawn atom. */
 const SELECTION_HALO_PAD = 0.1;
 
-/** Floor on the shell radius so it is still visible in the stick rep. */
+/** Floor on the selected-atom radius, so the stick rep still shows a ball. */
 const SELECTION_HALO_MIN = 0.3;
 
 /** Drag shorter than this (CSS px) counts as a click, not a box-select. */
@@ -695,8 +686,15 @@ function repStyle(rep: Representation): AtomStyleSpec {
 }
 
 /**
- * The same geometry as repStyle(), but painted in the accent green instead of
- * by element. Applied to the SELECTED atoms on top of the base style.
+ * The same representation as repStyle(), painted in the accent green instead of
+ * by element and drawn selectionHaloRadius() across instead of at its normal
+ * radius. Applied to each SELECTED atom on top of the base style; per atom,
+ * because the radius depends on the element.
+ *
+ * The sphere is given as an absolute `radius` with no `scale`, because 3Dmol
+ * multiplies the two (GLModel.getRadiusFromStyle) and the radius here is already
+ * the finished one. In the stick rep the sphere is ADDED: licorice has no ball to
+ * enlarge, and without one the selection is a green joint 0.18 A across.
  *
  * `colorscheme` is deliberately absent rather than set alongside `color`:
  * 3Dmol's getColorFromStyle() applies the scheme AFTER `style.color`, and its
@@ -707,10 +705,17 @@ function repStyle(rep: Representation): AtomStyleSpec {
  * bond as two half-cylinders coloured by their own atom. That is a feature
  * here: it makes a bond-click selection visible along the bond.
  */
-function selectedStyle(rep: Representation): AtomStyleSpec {
+function selectedStyle(
+  elem: string | undefined,
+  rep: Representation
+): AtomStyleSpec {
+  const sphere = {
+    radius: selectionHaloRadius(elem, rep),
+    color: SELECTION_COLOUR,
+  };
   switch (rep) {
     case "spacefill":
-      return { sphere: { scale: SPACEFILL_SCALE, color: SELECTION_COLOUR } };
+      return { sphere };
     case "stick":
       return {
         stick: {
@@ -718,11 +723,12 @@ function selectedStyle(rep: Representation): AtomStyleSpec {
           color: SELECTION_COLOUR,
           showNonBonded: true,
         },
+        sphere,
       };
     default:
       return {
         stick: { radius: BOND_RADIUS, color: SELECTION_COLOUR },
-        sphere: { scale: SPHERE_SCALE, color: SELECTION_COLOUR },
+        sphere,
       };
   }
 }
@@ -767,7 +773,7 @@ function drawnRadius(elem: string | undefined, rep: Representation): number {
   return Math.max(vdwRadius(elem) * SPHERE_SCALE, BOND_RADIUS);
 }
 
-/** Radius of the translucent selection shell drawn over a selected atom. */
+/** Radius, in Angstroms, a selected atom is drawn at — see SELECTION_HALO_PAD. */
 function selectionHaloRadius(elem: string | undefined, rep: Representation) {
   return Math.max(
     drawnRadius(elem, rep) + SELECTION_HALO_PAD,
@@ -803,13 +809,14 @@ interface ProjectedExtent {
  *
  * `spinning` selects a CEILING, not a different fit — see SWEEP_SAFE_FILL. The
  * fit itself is the same per-orientation solve in both states, which is why the
- * two states now agree wherever the ceiling does not bind (i.e. everywhere except
- * with C–H hidden). Do not turn it back into a mode switch.
+ * two states agree wherever the ceiling does not bind. Do not turn it back into a
+ * mode switch.
+ *
+ * There is deliberately no hidden-atom set here: hidden atoms are framed as if
+ * drawn (see TARGET_FILL), so "Hide C–H bonds" is not a framing input at all.
  */
 interface FrameSpec {
   rep: Representation;
-  /** Atom indices currently styled away (hidden C–H hydrogens). */
-  hidden: ReadonlySet<number>;
   /** Auto-rotate is on, so the swept volume must also fit the canvas. */
   spinning?: boolean;
 }
@@ -975,25 +982,27 @@ function overflowFraction(
 }
 
 /**
- * Every atom in the model, with the radius it is DRAWN at, split into the set
- * that is currently rendered and the centroid of the whole model.
+ * Every atom in the model, with the radius it is drawn at in this
+ * representation, and the centroid of the whole model.
  *
- * The centroid is over EVERY atom, hidden ones included. This is the point
- * zoomTo() parks at the centre of the viewport AND the point the spin turns
- * about — GLViewer.zoomTo sets modelGroup.position to -getExtent()[2], which is
- * the mean of the coordinates (not the bounding-box centre) of the atoms alone,
- * before shapes are folded into the slab. Hiding a hydrogen changes its style,
- * not its existence, so it still counts here.
+ * EVERY atom, hidden ones included, with the radius it would be drawn at if
+ * shown. Hiding a hydrogen changes its style, not its existence, and the framing
+ * is solved for the structure, not for the current declutter setting — see
+ * TARGET_FILL for the 1.41x re-zoom that taking only the drawn subset produced.
+ *
+ * The centroid is the point zoomTo() parks at the centre of the viewport AND the
+ * point the spin turns about — GLViewer.zoomTo sets modelGroup.position to
+ * -getExtent()[2], which is the mean of the coordinates (not the bounding-box
+ * centre) of the atoms alone, before shapes are folded into the slab.
  */
-function collectDrawn(
+function collectFramed(
   viewer: GLViewer,
   spec: FrameSpec
-): { drawn: Array<{ p: Point3; r: number }>; centre: Point3 } | null {
-  const drawn: Array<{ p: Point3; r: number }> = [];
+): { atoms: Array<{ p: Point3; r: number }>; centre: Point3 } | null {
+  const atoms: Array<{ p: Point3; r: number }> = [];
   let ax = 0;
   let ay = 0;
   let az = 0;
-  let allCount = 0;
 
   for (const a of viewer.selectedAtoms({})) {
     if (
@@ -1007,15 +1016,11 @@ function collectDrawn(
     ax += p.x;
     ay += p.y;
     az += p.z;
-    allCount++;
-    if (typeof a.index === "number" && spec.hidden.has(a.index)) continue;
-    drawn.push({ p, r: drawnRadius(a.elem, spec.rep) });
+    atoms.push({ p, r: drawnRadius(a.elem, spec.rep) });
   }
-  if (drawn.length === 0 || allCount === 0) return null;
-  return {
-    drawn,
-    centre: { x: ax / allCount, y: ay / allCount, z: az / allCount },
-  };
+  if (atoms.length === 0) return null;
+  const n = atoms.length;
+  return { atoms, centre: { x: ax / n, y: ay / n, z: az / n } };
 }
 
 /**
@@ -1027,7 +1032,7 @@ function collectDrawn(
  * PRE-multiplication, so q acts in model space and the structure turns about its
  * own y axis through the rotation centre. The volume swept over a full turn is
  * therefore contained in the cylinder about that axis with
- *     radius     = max over drawn atoms of ( hypot(dx, dz) + r )
+ *     radius     = max over all atoms of ( hypot(dx, dz) + r )
  *     y from     = min ( y - r )  to  max ( y + r )
  * where dx, dz are measured from the rotation centre. The cylinder is convex, so
  * the extreme point of its projection always lies on one of the two rim circles;
@@ -1038,14 +1043,14 @@ function collectDrawn(
  * NOT a fill target. It only ever pulls the fit back, never pushes it in.
  */
 function measureSpinSweep(viewer: GLViewer, spec: FrameSpec): number {
-  const collected = collectDrawn(viewer, spec);
+  const collected = collectFramed(viewer, spec);
   if (!collected) return 0;
-  const { drawn, centre } = collected;
+  const { atoms, centre } = collected;
 
   let radius = 0;
   let yTop = -Infinity;
   let yBottom = Infinity;
-  for (const { p, r } of drawn) {
+  for (const { p, r } of atoms) {
     radius = Math.max(radius, Math.hypot(p.x - centre.x, p.z - centre.z) + r);
     yTop = Math.max(yTop, p.y + r);
     yBottom = Math.min(yBottom, p.y - r);
@@ -1072,11 +1077,12 @@ function measureSpinSweep(viewer: GLViewer, spec: FrameSpec): number {
 }
 
 /**
- * Signed extent of the rendered ATOM silhouette, and of the viewport, both in
- * CSS pixels, measured through 3Dmol's own projection. Returns null when the
- * viewer is not in a measurable state.
+ * Signed extent of the ATOM silhouette — every atom, hidden ones included (see
+ * collectFramed) — and of the viewport, both in CSS pixels, measured through
+ * 3Dmol's own projection. Returns null when the viewer is not in a measurable
+ * state.
  *
- * Each drawn atom contributes FOUR probes — its centre offset by its own
+ * Each atom contributes FOUR probes — its centre offset by its own
  * radius along +/-screenX and +/-screenY — so the sphere edge is projected by
  * 3Dmol rather than approximated with one shared radius and one shared scale.
  * That makes the estimate correct per atom AND correct under perspective (an
@@ -1095,31 +1101,18 @@ function measureProjectedExtent(
   viewer: GLViewer,
   spec: FrameSpec
 ): ProjectedExtent | null {
-  const collected = collectDrawn(viewer, spec);
+  const collected = collectFramed(viewer, spec);
   if (!collected) return null;
-  const { drawn } = collected;
+  const { atoms, centre } = collected;
 
-  // Probe the projection at the centroid of the DRAWN atoms — a point that is
-  // always inside the molecule, so pxPerAngstrom is measured where the
-  // structure actually is.
-  let sx = 0;
-  let sy = 0;
-  let sz = 0;
-  for (const { p } of drawn) {
-    sx += p.x;
-    sy += p.y;
-    sz += p.z;
-  }
-  const basis = probeProjection(viewer, {
-    x: sx / drawn.length,
-    y: sy / drawn.length,
-    z: sz / drawn.length,
-  });
+  // Probe the projection at the centroid — a point that is always inside the
+  // molecule, so pxPerAngstrom is measured where the structure actually is.
+  const basis = probeProjection(viewer, centre);
   if (!basis) return null;
 
   const { screenX: u, screenY: v } = basis;
   const probes: Point3[] = [];
-  for (const { p, r } of drawn) {
+  for (const { p, r } of atoms) {
     probes.push(
       { x: p.x + r * u.x, y: p.y + r * u.y, z: p.z + r * u.z },
       { x: p.x - r * u.x, y: p.y - r * u.y, z: p.z - r * u.z },
@@ -1170,11 +1163,15 @@ function measureProjectedExtent(
  * Atoms whose CENTRE is already outside the safe box do not constrain anything:
  * that is a framing failure (a fit that hit MAX_TOTAL_FRAMING_ZOOM, say), and
  * answering it by deleting the arrows would hide it rather than fix it.
+ *
+ * The arrows of HIDDEN atoms constrain it too, although they are not drawn. That
+ * keeps the scale, like the fit, independent of "Hide C–H bonds": hiding can only
+ * remove arrows, so measuring the drawn subset alone would let the arrows that
+ * remain GROW on the toggle — a control that rescales what it did not touch.
  */
 function measureArrowCeiling(
   viewer: GLViewer,
   result: CalculationResult,
-  hidden: ReadonlySet<number>,
   probeScale: number
 ): number | null {
   const forces = result.forces;
@@ -1186,7 +1183,6 @@ function measureArrowCeiling(
     const p = positions[i];
     const f = forces[i];
     if (!p || !f) continue;
-    if (hidden.has(i)) continue;
     if (!Math.hypot(f[0], f[1], f[2])) continue;
     points.push(
       { x: p[0], y: p[1], z: p[2] },
@@ -1452,12 +1448,7 @@ function frameAndMeasure(
   nominalArrowScale: number
 ): { metrics: FrameMetrics | null; arrowCeiling: number | null } {
   const metrics = frameView(viewer, spec);
-  const arrowCeiling = measureArrowCeiling(
-    viewer,
-    result,
-    spec.hidden,
-    nominalArrowScale
-  );
+  const arrowCeiling = measureArrowCeiling(viewer, result, nominalArrowScale);
   return { metrics, arrowCeiling };
 }
 
@@ -1527,8 +1518,8 @@ function hasSize(el: HTMLElement | null | undefined): el is HTMLElement {
 
 /**
  * The structure's own size in ANGSTROMS: twice the largest centroid-to-atom
- * distance. Only used to bound the force arrows, so a rotation-invariant scalar
- * is what is wanted here — not a projected extent.
+ * distance. Only used to set the force-arrow scale, so a rotation-invariant
+ * scalar is what is wanted here — not a projected extent.
  */
 function structureSpan(result: CalculationResult): number {
   const positions = result.positions;
@@ -1552,23 +1543,18 @@ function structureSpan(result: CalculationResult): number {
 }
 
 /**
- * Angstroms drawn per eV/A of force, for THIS structure: the nominal
- * FORCE_ARROW_SCALE, reduced if that would make the longest arrow exceed
- * MAX_FORCE_ARROW_FRACTION of the structure's span.
+ * Angstroms drawn per eV/A of force for THIS structure, before the screen-space
+ * ceiling: an arrow for ARROW_REFERENCE_FORCE is MAX_FORCE_ARROW_FRACTION of the
+ * structure's span, capped at FORCE_ARROW_SCALE.
  *
- * One factor for every arrow, so lengths stay proportional to |F|. Never
- * increased: a relaxed geometry has near-zero forces and must look like it,
- * rather than being inflated to fill the frame with arrows that mean nothing.
+ * Reads the GEOMETRY only, never the forces — that is the D9 fix, see
+ * ARROW_REFERENCE_FORCE. So every result for one structure starts from the same
+ * scale, whichever model produced it and however relaxed it is: a relaxed
+ * geometry has near-zero forces and looks it, on the same ruler.
  */
-function forceArrowScale(result: CalculationResult): number {
-  const forces = result.forces;
-  if (!forces || forces.length === 0) return FORCE_ARROW_SCALE;
-  let maxForce = 0;
-  for (const f of forces) {
-    maxForce = Math.max(maxForce, Math.hypot(f[0], f[1], f[2]));
-  }
-  if (!(maxForce > 0)) return FORCE_ARROW_SCALE;
-  const cap = (MAX_FORCE_ARROW_FRACTION * structureSpan(result)) / maxForce;
+function referenceArrowScale(result: CalculationResult): number {
+  const cap =
+    (MAX_FORCE_ARROW_FRACTION * structureSpan(result)) / ARROW_REFERENCE_FORCE;
   return Math.min(FORCE_ARROW_SCALE, cap);
 }
 
@@ -1640,6 +1626,12 @@ function arrowReferenceTick(
   const px = pxFor(chosen);
   if (!Number.isFinite(px) || px <= 0) return null;
   return { force: chosen, px };
+}
+
+/** An arrow scale as the legend prints it: "1.0", "0.50", "0.020". */
+function formatArrowScale(scale: number): string {
+  if (scale >= 1) return scale.toFixed(1);
+  return scale.toPrecision(2);
 }
 
 function buildXYZ(result: CalculationResult): string {
@@ -1952,14 +1944,14 @@ function togglePick(current: number[], picked: number[]): number[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Apply representation, C–H hiding, force arrows and selection shells.
+ * Apply representation, C–H hiding, force arrows and the selection highlight.
  *
- * Everything drawn as a SHAPE (arrows, selection shells) is torn down and
- * rebuilt here, because 3Dmol has no per-shape identity we can diff against.
- * Order matters: the base style, then the green selected style, then the hidden
- * set on top of both — setStyle replaces rather than merges when `add` is
- * falsy, so the last write to an atom wins and a hidden atom stays hidden even
- * if it is somehow still in the selection.
+ * Everything drawn as a SHAPE (the arrows) is torn down and rebuilt here,
+ * because 3Dmol has no per-shape identity we can diff against. Order matters:
+ * the base style, then the green selected style, then the hidden set on top of
+ * both — setStyle replaces rather than merges when `add` is falsy, so the last
+ * write to an atom wins and a hidden atom stays hidden even if it is somehow
+ * still in the selection.
  */
 function applyView(
   viewer: GLViewer,
@@ -1971,10 +1963,11 @@ function applyView(
 ): void {
   viewer.removeAllShapes();
   viewer.setStyle({}, repStyle(opts.representation));
-  if (opts.selection.length > 0) {
+  const byIndex = new Map(atoms.map((a) => [a.index, a]));
+  for (const index of opts.selection) {
     viewer.setStyle(
-      { index: [...opts.selection] },
-      selectedStyle(opts.representation)
+      { index },
+      selectedStyle(byIndex.get(index)?.elem, opts.representation)
     );
   }
   const hiddenSet = opts.hideNonpolarH ? new Set(hidden) : new Set<number>();
@@ -1987,10 +1980,10 @@ function applyView(
     result.forces.forEach((force, i) => {
       const pos = result.positions![i];
       if (!pos) return;
-      // No arrow on an atom that is not drawn. A green vector sprouting from
-      // where a hidden hydrogen ISN'T is not a force reading, it is a line from
-      // nowhere — and those five arrows were the widest thing on the canvas
-      // after "Hide C–H bonds" magnified the fit by 1.43x.
+      // No arrow on an atom that is not drawn (D11). A green vector sprouting
+      // from where a hidden hydrogen ISN'T is not a force reading, it is a line
+      // from nowhere. Its force still bounds the arrow scale, though — see
+      // measureArrowCeiling — so hiding cannot rescale the arrows that remain.
       if (hiddenSet.has(i)) return;
       viewer.addArrow({
         start: { x: pos[0], y: pos[1], z: pos[2] },
@@ -2003,20 +1996,6 @@ function applyView(
         color: "#228833", // Paul Tol green — matches "force vectors" legend
       });
     });
-  }
-
-  if (opts.selection.length > 0) {
-    const byIndex = new Map(atoms.map((a) => [a.index, a]));
-    for (const index of opts.selection) {
-      const atom = byIndex.get(index);
-      if (!atom || hiddenSet.has(index)) continue;
-      viewer.addSphere({
-        center: { x: atom.x, y: atom.y, z: atom.z },
-        radius: selectionHaloRadius(atom.elem, opts.representation),
-        color: SELECTION_COLOUR,
-        opacity: SELECTION_OPACITY,
-      });
-    }
   }
 
   viewer.render();
@@ -2084,8 +2063,8 @@ function ToolbarButton({
         coarse ? HIT_SQUARE : HIT_SQUARE_FINE
       } ${
         active
-          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-          : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-primary)]"
+          ? "border-accent-primary bg-accent-primary/20 text-accent-strong"
+          : "border-border-emphasis bg-bg-elevated text-text-muted hover:border-accent-primary/60 hover:text-accent-strong"
       }`}
     >
       {children}
@@ -2122,11 +2101,11 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       title={hint}
-      className={`flex w-full items-center gap-2 px-3 text-left text-xs text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/10 disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`flex w-full items-center gap-2 px-3 text-left text-xs text-text-primary transition-colors hover:bg-accent-primary/10 disabled:cursor-not-allowed disabled:opacity-40 ${
         coarse ? "min-h-[44px] py-3" : "py-2"
       }`}
     >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--color-accent-primary)]">
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-accent-strong">
         {checkable ? checked ? <Check className="h-3.5 w-3.5" /> : null : icon}
       </span>
       <span className="flex-1 whitespace-nowrap font-mono">{label}</span>
@@ -2272,10 +2251,11 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
   const is3Dmol = engine === "3dmol";
 
   /**
-   * The Angstroms-per-eV/A the arrows WOULD be drawn at from the structure and
-   * the forces alone, before the measured screen-space ceiling.
+   * The Angstroms-per-eV/A the arrows WOULD be drawn at from the structure's
+   * geometry alone, before the measured screen-space ceiling. Not from the
+   * forces: see ARROW_REFERENCE_FORCE.
    */
-  const nominalArrowScale = useMemo(() => forceArrowScale(result), [result]);
+  const nominalArrowScale = useMemo(() => referenceArrowScale(result), [result]);
 
   /**
    * The scale they are ACTUALLY drawn at, and the one the legend prints: the
@@ -2289,10 +2269,17 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     [nominalArrowScale, arrowCeiling]
   );
 
-  const arrowScaleLabel = useMemo(
-    () => (arrowScale >= 1 ? arrowScale.toFixed(1) : arrowScale.toFixed(2)),
-    [arrowScale]
+  /**
+   * The rung the geometry alone would give, with no screen-space ceiling. When the
+   * drawn scale is below it the ceiling has cut the arrows, and that cut is the
+   * one way the scale can still differ between two results for one structure —
+   * so the legend names it rather than letting it pass silently.
+   */
+  const uncutArrowScale = useMemo(
+    () => effectiveArrowScale(nominalArrowScale, null),
+    [nominalArrowScale]
   );
+  const arrowScaleCut = arrowScale < uncutArrowScale;
 
   /** Length reference for the legend — see arrowReferenceTick. */
   const arrowTick = useMemo(
@@ -2365,17 +2352,11 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
       const opts = optionsRef.current;
       // Re-solve the arrow ceiling too: it is a SCREEN-space bound, so a change
       // of canvas size changes it even though the structure has not moved.
-      const nominal = forceArrowScale(result);
+      const nominal = referenceArrowScale(result);
       const solved = frameAndMeasure(
         v,
         result,
-        {
-          rep: opts.representation,
-          hidden: opts.hideNonpolarH
-            ? new Set(hiddenRef.current)
-            : new Set<number>(),
-          spinning: opts.spin,
-        },
+        { rep: opts.representation, spinning: opts.spin },
         nominal
       );
       setPxPerAngstrom(solved.metrics?.pxPerAngstrom ?? null);
@@ -2516,7 +2497,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
 
       // First paint uses the nominal arrow scale; resize() immediately below
       // solves the fit, measures the ceiling and rebuilds the arrows if it binds.
-      const bootScale = effectiveArrowScale(forceArrowScale(result), null);
+      const bootScale = effectiveArrowScale(referenceArrowScale(result), null);
       applyView(viewer, result, records, opts, hiddenRef.current, bootScale);
       drawnArrowScaleRef.current = bootScale;
 
@@ -2573,7 +2554,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     };
   }, [result, engine, xyzData]);
 
-  // ── 3Dmol.js: re-apply style / arrows / selection shells ──
+  // ── 3Dmol.js: re-apply style / arrows / selection highlight ──
   useEffect(() => {
     if (engine !== "3dmol") return;
     const v = viewerInstance.current;
@@ -2619,6 +2600,10 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
   // if it would actually clip, which for the default view it does not: 137 px/A
   // needed against 164 permitted. See SWEEP_SAFE_FILL.
   //
+  // NOT keyed on `hideNonpolarH`: hidden atoms are framed as if drawn (see
+  // TARGET_FILL), so hiding C–H is a restyle, not a re-frame. Keying it here is
+  // what magnified the remaining atoms 1.41x on every toggle.
+  //
   // NOT keyed on `arrowScale`: the ceiling is an OUTPUT of the fit, and feeding
   // it back in would be a loop.
   useEffect(() => {
@@ -2628,7 +2613,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     const solved = frameAndMeasure(
       v,
       result,
-      { rep: representation, hidden: hiddenSet, spinning: spin },
+      { rep: representation, spinning: spin },
       nominalArrowScale
     );
     setPxPerAngstrom(solved.metrics?.pxPerAngstrom ?? null);
@@ -2649,7 +2634,6 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     result,
     atoms,
     hiddenIndices,
-    hiddenSet,
     representation,
     spin,
     nominalArrowScale,
@@ -2723,7 +2707,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     const solved = frameAndMeasure(
       v,
       result,
-      { rep: representation, hidden: hiddenSet, spinning: spin },
+      { rep: representation, spinning: spin },
       nominalArrowScale
     );
     setPxPerAngstrom(solved.metrics?.pxPerAngstrom ?? null);
@@ -2739,7 +2723,6 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
     result,
     atoms,
     hiddenIndices,
-    hiddenSet,
     representation,
     spin,
     nominalArrowScale,
@@ -2937,17 +2920,17 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
   return (
     <div
       ref={containerRef}
-      className={`group relative rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4 transition-all ${
+      className={`group relative rounded-lg border border-border-subtle bg-bg-secondary p-4 transition-all ${
         fullscreen ? "flex h-screen flex-col" : ""
       }`}
     >
       {/* ── Header & toolbar ── */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <h3 className="font-mono text-sm font-bold text-[var(--color-accent-primary)]">
-            3D STRUCTURE VIEWER
+          <h3 className="text-sm font-semibold text-text-primary">
+            3D structure viewer
           </h3>
-          <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          <span className="font-mono text-xs text-text-muted">
             {result.symbols?.length || 0} atoms
           </span>
         </div>
@@ -2962,7 +2945,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
           <div
             role="radiogroup"
             aria-label="Viewer engine"
-            className="flex rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]"
+            className="flex rounded border border-border-emphasis bg-bg-elevated"
           >
             <button
               type="button"
@@ -2970,12 +2953,12 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               aria-checked={is3Dmol}
               onClick={() => setEngine("3dmol")}
               title="3Dmol.js viewer (force arrows supported)"
-              className={`flex items-center justify-center rounded-l font-mono text-[10px] transition-colors ${
+              className={`flex items-center justify-center rounded-l font-mono text-xs transition-colors ${
                 coarse ? "h-11 px-3" : "h-8 px-2"
               } ${
                 is3Dmol
-                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                  ? "bg-accent-primary/20 text-accent-strong"
+                  : "text-text-muted hover:text-accent-strong"
               }`}
             >
               3Dmol
@@ -2986,12 +2969,12 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               aria-checked={!is3Dmol}
               onClick={() => setEngine("weas")}
               title="WEAS viewer (ml-peg compatible)"
-              className={`flex items-center justify-center rounded-r font-mono text-[10px] transition-colors ${
+              className={`flex items-center justify-center rounded-r font-mono text-xs transition-colors ${
                 coarse ? "h-11 px-3" : "h-8 px-2"
               } ${
                 !is3Dmol
-                  ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                  ? "bg-accent-primary/20 text-accent-strong"
+                  : "text-text-muted hover:text-accent-strong"
               }`}
             >
               WEAS
@@ -3004,7 +2987,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
               <div
                 role="radiogroup"
                 aria-label="Representation"
-                className="flex rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]"
+                className="flex rounded border border-border-emphasis bg-bg-elevated"
               >
                 {(
                   [
@@ -3025,8 +3008,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                       coarse ? HIT_SQUARE : HIT_SQUARE_FINE
                     } ${
                       representation === key
-                        ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                        : "text-[var(--color-text-muted)] hover:text-[var(--color-accent-primary)]"
+                        ? "bg-accent-primary/20 text-accent-strong"
+                        : "text-text-muted hover:text-accent-strong"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -3076,7 +3059,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                     <div
                       role="menu"
                       aria-label="Viewer settings"
-                      className={`absolute right-0 z-30 min-w-[13rem] overflow-hidden rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] py-1 shadow-lg ${
+                      className={`absolute right-0 z-30 min-w-[13rem] overflow-hidden rounded border border-border-emphasis bg-bg-elevated py-1 shadow-lg ${
                         coarse ? "top-12" : "top-9"
                       }`}
                     >
@@ -3227,7 +3210,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
           >
             {marquee && (
               <div
-                className="absolute border border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15"
+                className="absolute border border-accent-primary bg-accent-primary/15"
                 style={{
                   left: Math.min(marquee.x0, marquee.x1),
                   top: Math.min(marquee.y0, marquee.y1),
@@ -3242,35 +3225,35 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
         {/* ── Measurement readout (top-left, like the bar) ── */}
         {is3Dmol && selection.length > 0 && (
           <div className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)]">
-            <div className="rounded border border-[var(--color-accent-primary)]/60 bg-[var(--color-bg-elevated)]/95 px-2.5 py-1.5 shadow-sm backdrop-blur-sm">
+            <div className="rounded border border-accent-primary/60 bg-bg-elevated/95 px-2.5 py-1.5 shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <Ruler className="h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+                <Ruler className="h-3.5 w-3.5 shrink-0 text-accent-strong" />
                 <div className="min-w-0">
                   {measurement ? (
                     <>
-                      <p className="font-mono text-xs font-bold text-[var(--color-accent-primary)]">
+                      <p className="font-mono text-xs font-bold text-accent-strong">
                         {measurement.kind}
                         {measurement.value !== "—" && (
-                          <span className="text-[var(--color-text-primary)]">
+                          <span className="text-text-primary">
                             {" "}
                             {measurement.value}
                           </span>
                         )}
                       </p>
-                      <p className="truncate font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="truncate font-mono text-xs text-text-muted">
                         {measurement.path}
                         {measurement.note ? ` · ${measurement.note}` : ""}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="font-mono text-xs font-bold text-[var(--color-accent-primary)]">
+                      <p className="font-mono text-xs font-bold text-accent-strong">
                         {selectedAtoms[0]
                           ? atomLabel(selectedAtoms[0])
                           : "1 atom"}{" "}
                         selected
                       </p>
-                      <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="font-mono text-xs text-text-muted">
                         add a 2nd atom for a distance in Å
                       </p>
                     </>
@@ -3286,7 +3269,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                   onClick={() => setSelection([])}
                   title={pointerFine ? "Clear selection (Esc)" : "Clear selection"}
                   aria-label="Clear selection"
-                  className="pointer-events-auto relative ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-accent-primary)]/10 hover:text-[var(--color-accent-primary)]"
+                  className="pointer-events-auto relative ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-text-muted transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-accent-primary/10 hover:text-accent-strong"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -3298,16 +3281,16 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
         {/* ── Hover info box ── */}
         {is3Dmol && hover && !marquee && (
           <div
-            className="pointer-events-none absolute z-20 max-w-[16rem] -translate-x-1/2 -translate-y-full rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/95 px-2 py-1 shadow-sm"
+            className="pointer-events-none absolute z-20 max-w-[16rem] -translate-x-1/2 -translate-y-full rounded border border-border-emphasis bg-bg-elevated/95 px-2 py-1 shadow-sm"
             style={{
               left: Math.max(8, hover.x),
               top: Math.max(24, hover.y - 8),
             }}
           >
-            <p className="font-mono text-[11px] font-bold text-[var(--color-text-primary)]">
+            <p className="font-mono text-xs font-bold text-text-primary">
               {hover.text}
             </p>
-            <p className="whitespace-nowrap font-mono text-[10px] text-[var(--color-text-muted)]">
+            <p className="whitespace-nowrap font-mono text-xs text-text-muted">
               {hover.detail}
             </p>
           </div>
@@ -3328,7 +3311,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
             <button
               type="button"
               onClick={() => setMarqueeArmed(false)}
-              className={`flex items-center gap-1.5 rounded border border-[var(--color-accent-primary)]/60 bg-[var(--color-bg-elevated)]/95 px-2 text-left font-mono text-[10px] text-[var(--color-accent-primary)] shadow-sm ${
+              className={`flex items-center gap-1.5 rounded border border-accent-primary/60 bg-bg-elevated/95 px-2 text-left font-mono text-xs text-accent-strong shadow-sm ${
                 coarse ? "min-h-[44px] py-2" : "py-1"
               }`}
             >
@@ -3367,9 +3350,9 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                 id="viewer-gestures"
                 role="group"
                 aria-label="Gestures and controls"
-                className="absolute bottom-full right-0 mb-2 w-[16rem] rounded border border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/95 p-2.5 shadow-lg backdrop-blur-sm"
+                className="absolute bottom-full right-0 mb-2 w-[16rem] rounded border border-border-emphasis bg-bg-elevated/95 p-2.5 shadow-lg backdrop-blur-sm"
               >
-                <ul className="space-y-1 font-mono text-[11px] leading-snug text-[var(--color-text-muted)]">
+                <ul className="space-y-1 font-mono text-xs leading-snug text-text-muted">
                   {(is3Dmol
                     ? pointerFine
                       ? [
@@ -3397,7 +3380,7 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                     <li key={line} className="flex gap-1.5">
                       <span
                         aria-hidden="true"
-                        className="text-[var(--color-accent-primary)]"
+                        className="text-accent-strong"
                       >
                         ·
                       </span>
@@ -3418,8 +3401,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
                 coarse ? HIT_SQUARE : "h-7 w-7"
               } ${
                 helpOpen
-                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]/90 text-[var(--color-text-muted)] hover:border-[var(--color-accent-primary)]/60 hover:text-[var(--color-accent-primary)]"
+                  ? "border-accent-primary bg-accent-primary/20 text-accent-strong"
+                  : "border-border-emphasis bg-bg-elevated/90 text-text-muted hover:border-accent-primary/60 hover:text-accent-strong"
               }`}
             >
               <HelpCircle className="h-3.5 w-3.5" />
@@ -3429,8 +3412,8 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
 
         {/* Loading spinner (3Dmol only — WEAS has its own) */}
         {is3Dmol && loading && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-bg-elevated)]">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-border-subtle)] border-t-[var(--color-accent-primary)]" />
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg-elevated">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-border-subtle border-t-accent-primary" />
           </div>
         )}
       </div>
@@ -3441,24 +3424,29 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
           its scale, so this stays visible rather than moving into the popover
           with the gestures.
 
-          The TICK is the answer to a measured defect: the same ethanol geometry
-          gave "0.82 Å per eV/Å" under MACE-OFF and "1.0" under MACE-MP-0, so two
-          results of one molecule had non-comparable arrow lengths with nothing on
-          screen to say so. The scale cannot be pinned — the two runs really do
-          differ in |F|max by 22%, and no rounding merges every such pair (see
-          ARROW_SCALE_RUNGS). A reference of known force CAN be compared by eye,
-          because its drawn length IS the scale. */}
+          The scale is set by the GEOMETRY (see ARROW_REFERENCE_FORCE), so two
+          results for one structure print the same number whichever model ran.
+          It used to be set by |F|max: the same ethanol geometry printed "1.0 Å
+          per eV/Å" under MACE-MP-0 and "0.50" under MACE-OFF, and the larger
+          forces drew the shorter arrows. The one thing that can still move it is
+          the screen-space ceiling, and when that cuts the arrows the legend says
+          so, with the scale it cut from. The TICK backs the number up: a
+          reference of known force whose drawn length IS the scale, so a cut
+          scale is visible without reading anything. */}
       {is3Dmol && hasForces && showForces && arrowScale > 0 && (
-        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-[var(--color-text-muted)]">
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-text-muted">
           <span>
-            Green arrows = force vectors · {arrowScaleLabel} Å per eV/Å
+            Green arrows = force vectors · {formatArrowScale(arrowScale)} Å per
+            eV/Å
+            {arrowScaleCut &&
+              ` (cut from ${formatArrowScale(uncutArrowScale)} to fit the frame)`}
           </span>
           {arrowTick && (
             <span className="flex items-center gap-1.5">
               <span aria-hidden="true">·</span>
               <span
                 aria-hidden="true"
-                className="inline-block h-[3px] rounded-sm bg-[#228833]"
+                className="inline-block h-[3px] rounded-sm bg-data-green"
                 style={{ width: `${arrowTick.px.toFixed(1)}px` }}
               />
               <span>= {arrowTick.force} eV/Å</span>
@@ -3532,11 +3520,12 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
  *   no caption whatsoever. Do not put the gestures back into the caption.
  *
  * SELECTION & MEASUREMENT:
- *   Click an atom to select it: its own geometry is repainted in the accent
- *   green and a translucent shell is drawn just outside it. The recolour is what
- *   carries the highlight — a translucent shell alone was measured at a green
- *   channel only 2 above red and blue over a Jmol carbon, which reads as
- *   darkening rather than as green. Clicking a bond selects both of its atoms.
+ *   Click an atom to select it: it is redrawn, opaque, in the accent green and
+ *   0.10 A larger than its neighbours (SELECTION_HALO_PAD). There is no
+ *   translucent shell: on this transparent canvas 3Dmol blends translucent shapes
+ *   against its white clear colour, and a 0.62-opacity halo measured a green
+ *   channel 5 BELOW the page it sat on. Do not bring one back without measuring
+ *   its pixels over the page. Clicking a bond selects both of its atoms.
  *   Ctrl/Cmd-drag (or gear > Box-select mode, which is the touch route)
  *   box-selects. 2 atoms give a distance in Å, 3 an angle in degrees about the
  *   middle atom, 4 a signed dihedral in degrees — selection ORDER sets the
@@ -3566,18 +3555,17 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
  *   reintroduce a single shared pad, and do not special-case spacefill.
  *
  * FRAMING — WHAT THE FIT IS SOLVED FOR, AND WHAT IT IGNORES:
- *   Five rules, each of which was a measured defect before it was a rule.
+ *   Six rules, each of which was a measured defect before it was a rule.
  *   1. Fit the ATOMS. Force arrows are not probed and the framing effect is not
  *      keyed on `showForces`, so toggling the arrows cannot change the
  *      molecule's size by even a pixel. Feeding arrow TIPS to the solver is
  *      what left the default result view at 12% of the box width.
  *   2. Bound the arrows instead, with ONE shared scale so lengths stay
  *      proportional to |F|, and print the resulting Å-per-eV/Å in the legend.
- *      The bound is MEASURED in screen space (ARROW_TIP_SAFE_FILL), because a
- *      structure-relative clamp cannot work: the clamp scales with the span and
- *      the fit scales with the projected silhouette, and hiding five C–H
- *      hydrogens magnified the fit 1.43x while leaving the arrows' Angstroms
- *      alone, which clipped them at both edges of the canvas.
+ *      The scale comes from the GEOMETRY, never from |F|max, so every result for
+ *      one structure is drawn on one ruler (ARROW_REFERENCE_FORCE); the bound is
+ *      MEASURED in screen space (ARROW_TIP_SAFE_FILL), and when it cuts the
+ *      scale the legend says so.
  *   3. Re-centre on the projected bounding box, via rotationGroup's post-
  *      rotation x/y offset (setFramingPan) — NOT translateScene, which would
  *      turn rotate() into an orbit.
@@ -3590,6 +3578,10 @@ export function MoleculeViewer3D({ result }: MoleculeViewer3DProps) {
  *      cost 27% of the apparent size the instant auto-rotate was engaged.
  *      See SWEEP_SAFE_FILL, including what this still does not fix.
  *   5. Never let a ceiling zoom IN. Ceilings only ever pull the fit back.
+ *   6. Frame the STRUCTURE, not the declutter setting. Hidden C–H hydrogens are
+ *      fitted, swept and arrow-bounded as if drawn, so "Hide C–H bonds" moves no
+ *      remaining atom and rescales no remaining arrow. Fitting the drawn subset
+ *      magnified it 1.41x on every toggle.
  *
  * SPECULAR HIGHLIGHTS — SETTLED, DO NOT RE-OPEN:
  *   An earlier round listed "no gloss" as a gap needing a 3Dmol fork. It is

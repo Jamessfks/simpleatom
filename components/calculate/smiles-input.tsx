@@ -100,7 +100,7 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
             SMILES string
           </Label>
           <FlaskConical
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
             strokeWidth={1.75}
           />
           <Input
@@ -139,15 +139,15 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
 
       {/* Error display */}
       {error && (
-        <div className="flex items-start gap-2 rounded-md border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-3 py-2">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-error)]" strokeWidth={1.75} />
-          <p className="font-mono text-xs text-[var(--color-error)]/90">{error}</p>
+        <div className="flex items-start gap-2 rounded-md border border-error/30 bg-error/5 px-3 py-2">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" strokeWidth={1.75} />
+          <p className="font-mono text-xs text-error/90">{error}</p>
         </div>
       )}
 
       {/* Example molecules */}
       <div>
-        <p className="mb-2 font-mono text-xs text-[var(--color-text-muted)]">
+        <p className="mb-2 font-mono text-xs text-text-muted">
           Common molecules — click to use:
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -158,10 +158,10 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
               onClick={() => handleExampleClick(mol)}
               disabled={isConverting}
               title={`SMILES: ${mol.smiles}`}
-              className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-xs text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent-primary)]/50 hover:text-[var(--color-accent-primary)] disabled:opacity-50"
+              className="rounded-md border border-border-subtle bg-bg-surface px-2 py-1 font-mono text-xs text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-strong disabled:opacity-50"
             >
               <span>{mol.name}</span>
-              <span className="ml-1 text-[var(--color-text-muted)]">{mol.formula}</span>
+              <span className="ml-1 text-text-muted">{mol.formula}</span>
             </button>
           ))}
         </div>

@@ -39,25 +39,25 @@ export function BenchmarkProgress({
   }, [startTime]);
 
   return (
-    <Card className="gap-0 rounded-xl bg-[var(--color-bg-secondary)] p-6">
+    <Card className="gap-0 rounded-xl bg-bg-secondary p-6">
       {/* Overall progress */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent-primary)]" />
-            <span className="font-sans text-sm font-semibold text-[var(--color-text-primary)]">
+            <Loader2 className="h-4 w-4 animate-spin text-accent-strong" />
+            <span className="font-sans text-sm font-semibold text-text-primary">
               Running Benchmark
             </span>
           </div>
-          <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          <span className="font-mono text-xs text-text-muted">
             {models.length} models × {structureIds.length} structures = {total} calculations
           </span>
         </div>
         {/* Indeterminate shimmer bar */}
-        <div className="relative h-2 overflow-hidden rounded-full bg-[var(--color-bg-elevated)]">
-          <div className="absolute inset-0 h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-[var(--color-accent-primary)]/60 to-transparent" />
+        <div className="relative h-2 overflow-hidden rounded-full bg-bg-elevated">
+          <div className="absolute inset-0 h-full w-1/3 animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-transparent via-accent-primary/60 to-transparent" />
         </div>
-        <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
+        <div className="mt-2 flex justify-between font-mono text-xs text-text-muted">
           <span>Elapsed: {formatTime(elapsed)}</span>
           <span>Server is processing all calculations in batch...</span>
         </div>
@@ -68,19 +68,19 @@ export function BenchmarkProgress({
         {structureIds.map((sid) => (
           <Card
             key={sid}
-            className="gap-0 rounded-lg bg-[var(--color-bg-elevated)] px-3 py-2"
+            className="gap-0 rounded-lg bg-bg-elevated px-3 py-2"
           >
-            <p className="mb-1.5 truncate font-mono text-xs font-semibold text-[var(--color-text-secondary)]">
+            <p className="mb-1.5 truncate font-mono text-xs font-semibold text-text-secondary">
               {structureNames[sid] || sid}
             </p>
             <div className="flex gap-1.5">
               {models.map((m, i) => (
                 <div key={i} className="flex items-center gap-1" title={m.label}>
                   <span className="relative h-2.5 w-2.5">
-                    <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-accent-primary)]/50" />
-                    <span className="relative block h-2.5 w-2.5 rounded-full bg-[var(--color-accent-primary)]" />
+                    <span className="absolute inset-0 animate-ping rounded-full bg-accent-primary/50" />
+                    <span className="relative block h-2.5 w-2.5 rounded-full bg-accent-primary" />
                   </span>
-                  <span className="font-mono text-[9px] text-[var(--color-text-muted)]">
+                  <span className="font-mono text-xs text-text-muted">
                     {m.size[0].toUpperCase()}
                   </span>
                 </div>

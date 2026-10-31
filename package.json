@@ -1,39 +1,37 @@
 {
   "name": "simpleatom",
-  "version": "1.3.0",
+  "version": "2.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit -p .",
+    "gen:contract": "node scripts/gen-contract.mjs",
+    "check:contract": "node scripts/gen-contract.mjs --check",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@radix-ui/react-scroll-area": "^1.2.10",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-tabs": "^1.1.13",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/supabase-js": "^2.95.3",
-    "@types/three": "^0.183.1",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.3.1",
     "3dmol": "^2.5.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "ketcher-core": "^3.12.0",
-    "ketcher-react": "^3.12.0",
-    "ketcher-standalone": "^3.12.0",
+    "ketcher-core": "^3.18.0",
+    "ketcher-react": "^3.18.0",
+    "ketcher-standalone": "^3.18.0",
     "lucide-react": "^0.563.0",
-    "nanoid": "^5.1.6",
-    "next": "16.1.6",
+    "nanoid": "^5.1.16",
+    "next": "^16.4.2",
     "plotly.js-dist-min": "^3.4.0",
     "radix-ui": "^1.6.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-plotly.js": "^2.6.0",
-    "recharts": "^3.7.0",
-    "tailwind-merge": "^3.4.0",
-    "three": "^0.183.1"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -42,9 +40,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "^16.4.2",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.1.6",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

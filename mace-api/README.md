@@ -7,188 +7,49 @@ sdk: docker
 app_port: 7860
 ---
 
-# MACE Calculation API (v1.3.0)
+# SimpleAtom MACE API (v2.2.0)
 
-FastAPI backend for running MACE machine learning interatomic potential calculations and surface slab generation. Deployed on Hugging Face Spaces with Docker.
+The backend of [SimpleAtom](https://mace-lake.vercel.app): FastAPI over one
+calculation engine (`calculate.py`, ASE + mace-torch). This Space is deployed
+**only by CI** from [Jamessfks/simpleatom](https://github.com/Jamessfks/simpleatom);
+changes pushed here by hand are overwritten on the next deploy.
 
 ## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/calculate` | Run MACE calculation (single-point, geometry-opt, or MD) |
-| `POST` | `/generate-surface` | Generate surface slab from bulk structure (Miller indices) |
-| `GET` | `/health` | Health check |
-| `GET` | `/` | API info and endpoint listing |
+|---|---|---|
+| `POST` | `/v1/jobs` | Queue a calculation (multipart `files`, `params`); returns `202 {jobId}` |
+| `GET` | `/v1/jobs/{id}` | Status, real progress (phase, BFGS/MD step) and the result |
+| `DELETE` | `/v1/jobs/{id}` | Cancel |
+| `POST` | `/calculate` | Run one calculation and wait (same worker) |
+| `POST` | `/smiles-to-xyz` | SMILES → 3D XYZ (RDKit ETKDG + MMFF94) |
+| `GET` | `/capabilities` | Profile, limits, offered models |
+| `GET` | `/health` | Liveness, version and the deployed git commit |
 
-### `POST /calculate`
-
-**Content-Type:** `multipart/form-data`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `files` | File[] | Structure file(s): `.xyz`, `.cif`, `.poscar`/`.vasp`, `.pdb` |
-| `params` | string (JSON) | Calculation parameters (see below) |
-
-**Params JSON:**
-
-```json
-{
-  "modelType": "MACE-MP-0",
-  "modelSize": "medium",
-  "precision": "float32",
-  "device": "cpu",
-  "calculationType": "single-point",
-  "dispersion": false,
-  "forceThreshold": 0.05,
-  "maxOptSteps": 500,
-  "temperature": 300,
-  "timeStep": 1.0,
-  "friction": 0.005,
-  "mdSteps": 100,
-  "mdEnsemble": "NVT",
-  "pressure": 0
-}
-```
-
-**Response (success):**
-
-```json
-{
-  "status": "success",
-  "energy": -10.738,
-  "forces": [[0.0, 0.0, 0.0], ...],
-  "positions": [[0.0, 0.0, 0.0], ...],
-  "symbols": ["Si", "Si"],
-  "lattice": [[5.43, 0, 0], [0, 5.43, 0], [0, 0, 5.43]],
-  "properties": { "volume": 160.1 },
-  "message": "Calculation completed for structure.xyz using MACE",
-  "trajectory": null
-}
-```
-
-For MD calculations, the response includes a `trajectory` field:
-
-```json
-{
-  "trajectory": {
-    "energies": [-10.7, -10.6, ...],
-    "positions": [[[0,0,0], ...], ...],
-    "step": [0, 1, 2, ...]
-  }
-}
-```
-
-### `POST /generate-surface`
-
-**Content-Type:** `application/json`
-
-```json
-{
-  "xyzData": "2\nLattice=\"5.43 0 0 0 5.43 0 0 0 5.43\" ...\nSi 0.0 0.0 0.0\nSi 1.36 1.36 1.36",
-  "h": 1, "k": 1, "l": 1,
-  "slabThickness": 12.0,
-  "vacuumThickness": 15.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "xyzData": "...",
-  "atomCount": 24,
-  "message": "(111) surface with 4 layers, 24 atoms"
-}
-```
-
----
+What `params` may contain, and every limit on this deployment (the `hosted`
+profile), is in the generated
+[request contract](https://github.com/Jamessfks/simpleatom/blob/main/docs/reference/contract.md).
+Refusals return 4xx with `{"status": "error", "error": {"code", "message", "field"}}`.
+Full reference: [HTTP API](https://github.com/Jamessfks/simpleatom/blob/main/docs/reference/api.md).
 
 ## Models
 
-| Model | Best For | Elements | Training Data |
-|-------|----------|----------|---------------|
-| **MACE-MP-0** | Materials, crystals, surfaces | 89 elements | Materials Project DFT (PBE+U) |
-| **MACE-OFF** | Organic molecules | H, C, N, O, F, P, S, Cl, Br, I | wB97M-D3BJ coupled-cluster |
+MACE-MPA-0 (default; MIT), MACE-MP-0 (MIT), MACE-OFF23 (Academic Software
+License — non-commercial). Only checkpoints whose SHA-256 is pinned in
+`contract.json` are ever loaded; uploaded `.model` files are refused here
+because loading one executes code from the file.
 
-Models download and cache automatically on first use (~30s initial download).
-
-### D3 dispersion (`"dispersion": true`)
-
-Only MACE-MP-0 applies it. The correction is computed by `TorchDFTD3Calculator`,
-which ships in **`torch-dftd`** — a separate distribution from `mace-torch`, listed
-in `requirements.txt`. Without it the request is rejected up front, before the
-checkpoint is downloaded, with an error naming the package; it is not silently
-skipped. `torch-dftd` pulls in `pymatgen` (imported at module scope), which is the
-bulk of its ~130 MB installed footprint.
-
-**Important:** MACE-OFF already includes dispersion in its training data. Do not enable D3 dispersion correction with MACE-OFF (double-counting). Requesting it there is not an error — the flag is dropped, `result["params"]["dispersion"]` reports `false`, and a warning records that it was dropped and why. The same applies to custom checkpoints, which never build a D3 calculator.
-
----
-
-## Local Development
+## Run it yourself
 
 ```bash
-cd mace-api
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 7860
+pip install --require-hashes --no-deps -r requirements.lock.txt   # Linux x86_64, CPU
+# or, anywhere: pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1
+python calculate_local.py ethanol.xyz '{"modelType":"MACE-OFF","modelSize":"small"}'
 ```
 
-### Standalone Scripts
+Set `SIMPLEATOM_PROFILE=local` for local limits and custom models, and
+`MACE_API_TOKEN` to require the front end's proxy key.
 
-**calculate_local.py** — called by Next.js via subprocess when no `MACE_API_URL` is set:
-
-```bash
-python calculate_local.py <structure_file> [params_json] [--model-path <path>]
-
-# Examples:
-python calculate_local.py ethanol.xyz '{"calculationType":"single-point","modelType":"MACE-OFF","modelSize":"small"}'
-python calculate_local.py bulk_si.xyz '{"calculationType":"geometry-opt","modelType":"MACE-MP-0","forceThreshold":0.01}'
-python calculate_local.py custom_struct.xyz '{"modelType":"custom"}' --model-path my_model.model
-```
-
-**generate_surface.py** — ASE surface slab generator:
-
-```bash
-python generate_surface.py '{"xyzData":"...","h":1,"k":1,"l":0,"slabThickness":12,"vacuumThickness":15}'
-```
-
-**validate_calculation.py** — scientific result validation:
-
-```bash
-python ../test_scripts/validate_calculation.py --test              # Run full verification suite
-python ../test_scripts/validate_calculation.py '<result_json>'     # Validate a single result
-python ../test_scripts/validate_calculation.py result.json         # Validate from file
-```
-
----
-
-## Units
-
-| Quantity | Unit | Notes |
-|----------|------|-------|
-| Energy | eV | Total potential energy |
-| Forces | eV/Angstrom | Per-atom, 3 components |
-| Positions | Angstrom | Cartesian coordinates |
-| Lattice | Angstrom | 3x3 matrix (periodic systems) |
-| Volume | Angstrom^3 | Periodic systems only |
-| Temperature | K | MD input parameter |
-| Time step | fs | MD input, converted via `ase.units.fs` |
-| Pressure | GPa | User input, converted to bar internally (x10,000) |
-
----
-
-## Deployment (Hugging Face Spaces)
-
-1. Create a new Space on huggingface.co (SDK: Docker)
-2. Push the `mace-api/` folder contents to the Space repo
-3. The Space builds the Docker image and starts the API on port 7860
-4. Set `MACE_API_URL` in the Vercel frontend to `https://<username>-<space-name>.hf.space`
-
-### Requirements
-
-- Python 3.10+
-- PyTorch 2.0+ (2.6+ supported with patched `torch.load`)
-- mace-torch >= 0.3.0
-- ASE >= 3.22.0
-- torch-dftd >= 0.5.1 (D3 dispersion backend for MACE-MP-0; not pulled in by mace-torch)
+Units: energy eV, forces eV/Å, distances Å, time fs, temperature K, stress and
+pressure GPa.

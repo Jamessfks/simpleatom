@@ -60,15 +60,31 @@ interface WeasViewerProps {
  * This mirrors the approach in ml_peg/app/utils/weas.py but embeds the data
  * directly instead of fetching from a URL (since we already have the data).
  */
+/**
+ * Pinned WEAS build. The viewer used to import `unpkg.com/weas/dist/...` with
+ * no version, i.e. whatever was published last, with no integrity check — any
+ * new upstream release (or a compromised one) ran inside this page. The pin
+ * plus a Subresource Integrity hash means only this exact file executes. To
+ * upgrade: change the version, recompute
+ * `openssl dgst -sha384 -binary index.mjs | openssl base64 -A`, verify.
+ */
+const WEAS_URL = "https://unpkg.com/weas@0.2.10/dist/index.mjs";
+const WEAS_SRI = "sha384-efVjXe8Nmdlz3NBXJGqnS1ku5f6aE8PKCASUrdS120Se5ysqMUTurEQf1TPNgMH1";
+
+/**
+ * A JS string literal that is safe inside an inline <script>. JSON handles
+ * quotes, backslashes and newlines; escaping `<` stops a `</script>` in the
+ * data — which can come from a shared, world-writable MACE Link row — from
+ * closing the script element early.
+ */
+function scriptLiteral(value: string): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
 function generateWeasHTML(
   structureData: string,
   format: "xyz" | "cif"
 ): string {
-  // Escape backticks and backslashes in the structure data for JS template literal
-  const escapedData = structureData
-    .replace(/\\/g, "\\\\")
-    .replace(/`/g, "\\`")
-    .replace(/\$/g, "\\$");
 
   return `<!DOCTYPE html>
 <html>
@@ -89,13 +105,16 @@ function generateWeasHTML(
 <body>
   <div id="viewer"></div>
 
+  <script type="importmap">
+    ${JSON.stringify({ imports: { weas: WEAS_URL }, integrity: { [WEAS_URL]: WEAS_SRI } })}
+  </script>
   <script type="module">
     /**
      * WEAS viewer — loaded from CDN (same source as ml-peg).
      * Supports XYZ and CIF formats.
      * See: https://github.com/superstar54/weas
      */
-    import { WEAS, parseXYZ, parseCIF } from 'https://unpkg.com/weas/dist/index.mjs';
+    import { WEAS, parseXYZ, parseCIF } from 'weas';
 
     const domElement = document.getElementById("viewer");
 
@@ -120,8 +139,8 @@ function generateWeasHTML(
     }, 500);
 
     // Structure data embedded inline
-    const structureData = \`${escapedData}\`;
-    const format = "${format}";
+    const structureData = ${scriptLiteral(structureData)};
+    const format = ${scriptLiteral(format)};
 
     try {
       if (format === "cif") {
@@ -199,8 +218,8 @@ export function WeasViewer({
         />
       )}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-primary)]/80">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-accent-primary)]/30 border-t-[var(--color-accent-primary)]" />
+        <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/80">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-primary/30 border-t-accent-primary" />
         </div>
       )}
     </div>

@@ -56,8 +56,8 @@ export function BenchmarkTiming({ result }: TimingProps) {
 
   if (stats.length === 0) {
     return (
-      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-6 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">No timing data available.</p>
+      <Card className="gap-0 rounded-lg bg-bg-secondary p-6 text-center">
+        <p className="text-sm text-text-muted">No timing data available.</p>
       </Card>
     );
   }
@@ -73,8 +73,8 @@ export function BenchmarkTiming({ result }: TimingProps) {
   return (
     <div className="space-y-6">
       {/* Horizontal bar chart */}
-      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-4">
-        <h3 className="mb-2 font-sans text-sm font-bold text-[var(--color-text-primary)]">
+      <Card className="gap-0 rounded-lg bg-bg-secondary p-4">
+        <h3 className="mb-2 font-sans text-sm font-bold text-text-primary">
           Computation Time by Structure
         </h3>
         <Plot
@@ -99,24 +99,24 @@ export function BenchmarkTiming({ result }: TimingProps) {
       </Card>
 
       {/* Summary */}
-      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-5">
-        <h3 className="mb-4 font-sans text-sm font-bold text-[var(--color-text-primary)]">
+      <Card className="gap-0 rounded-lg bg-bg-secondary p-5">
+        <h3 className="mb-4 font-sans text-sm font-bold text-text-primary">
           Timing Summary
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {stats.map((s) => (
             <div
               key={s.label}
-              className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-4"
+              className="rounded-lg border border-border-subtle bg-bg-elevated p-4"
               style={{ borderLeftWidth: 3, borderLeftColor: s.color }}
             >
-              <p className="mb-1 font-mono text-[10px] uppercase tracking-wider" style={{ color: s.color }}>
+              <p className="mb-1 text-xs" style={{ color: s.color }}>
                 {s.label}
               </p>
-              <p className="font-mono text-xl font-bold text-[var(--color-text-primary)]">
+              <p className="font-mono text-xl font-bold text-text-primary">
                 {s.total.toFixed(1)}s
               </p>
-              <p className="font-mono text-xs text-[var(--color-text-muted)]">
+              <p className="font-mono text-xs text-text-muted">
                 Avg: {s.avg.toFixed(1)}s per structure
               </p>
             </div>
@@ -124,16 +124,16 @@ export function BenchmarkTiming({ result }: TimingProps) {
         </div>
 
         {speedups.length > 0 && fastest && (
-          <div className="mt-4 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] px-4 py-3">
-            <p className="font-mono text-xs text-[var(--color-text-muted)]">
+          <div className="mt-4 rounded border border-border-subtle bg-bg-primary px-4 py-3">
+            <p className="font-mono text-xs text-text-muted">
               {speedups.map((s) => (
                 <span key={s.label}>
-                  <span className="text-[var(--color-text-secondary)]">{fastest.label}</span> is{" "}
-                  <span className="font-bold text-[var(--color-accent-primary)]">
+                  <span className="text-text-secondary">{fastest.label}</span> is{" "}
+                  <span className="font-bold text-accent-strong">
                     {s.ratio.toFixed(1)}×
                   </span>{" "}
                   faster than{" "}
-                  <span className="text-[var(--color-text-secondary)]">{s.label}</span>
+                  <span className="text-text-secondary">{s.label}</span>
                   {". "}
                 </span>
               ))}

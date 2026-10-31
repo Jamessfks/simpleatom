@@ -34,9 +34,11 @@ Run by `python3 test_scripts/daily_gate.py`. Every number here was measured, not
 | Gate | Bar | Notes |
 |---|---|---|
 | `npm run build` | compiles | A type error blocks every other piece |
-| `npx eslint .` | **≤ 33 problems** | Measured 2026-09-11. Monotonically non-increasing |
+| `npx eslint .` | **≤ 15 problems** | Re-measured 2026-10-20 under eslint-config-next 16.4.2 (`LINT_BASELINE`). Monotonically non-increasing |
 | `validate_calculation.py --test` | `all_passed: true` | The scientific gate |
 | `test_provenance.py` | **40 tests, OK** | Count is part of the gate; deletions are regressions |
+| `test_backend_contract.py` | **≥ 20 tests, OK** | Contract, checkpoint trust, CLI guards, shared fixtures (v2.2.0) |
+| `test_science_regressions.py` | **≥ 9 tests, OK** | D5/D6/D16/D18, MPA-0 pin, translation invariance (v2.2.0) |
 | `public/demo/silicon.cif` | nearest neighbour **2.3516 Å** (a·√3/4) | Regresses to ~0.43 Å if fractional-coordinate handling breaks |
 
 **Guards that must keep failing loudly.** If any returns a result, a silent fallthrough is
@@ -58,7 +60,7 @@ Set `KMP_DUPLICATE_LIB_OK=TRUE` or the Python gates die with OMP Error #15 on ma
 
 ## The bars
 
-Five, each owning the surface it is actually best at. Two are new as of 2026-09-11 and were
+Seven, each owning the surface it is actually best at. Two are new as of 2026-09-11 and were
 added to close the hole named in `CONTINUE.md`: **Rowan's job-config and results screens are
 behind a login**, which is the most common way this method fails.
 
@@ -70,6 +72,7 @@ behind a login**, which is the most common way this method fails.
 | 4 | [Mol*](https://molstar.org/viewer/) | Viewer controls, settings, measurement | **200.** Fully public **and interactive** — no login |
 | 5 | [Matbench Discovery](https://matbench-discovery.materialsproject.org/) | The numeric half: what MACE actually scores | **200.** Fully public leaderboard |
 | 6 | [NOMAD](https://nomad-lab.eu/prod/v1/gui/search/entries) · [API](https://nomad-lab.eu/prod/v1/api/v1/entries?page_size=1) | Provenance, result metadata | **200.** Public GUI **and** REST API |
+| 7 | [Schrödinger](https://www.schrodinger.com) | App-screen finish: type scale, spacing rhythm, CTA treatment, contrast (ADR-0029) | **200.** Public marketing site; the products themselves are not public, so a critic judges *finish*, not workflow |
 
 Detail files: [`bars/materials-project.md`](bars/materials-project.md),
 [`bars/acesuit-mace.md`](bars/acesuit-mace.md).
@@ -93,7 +96,7 @@ without writing a line of UI. It publishes what the model SimpleAtom runs actual
 Two criteria follow directly. **(a)** No SimpleAtom surface may imply DFT-equivalent accuracy
 without the qualifier these numbers support — MACE-MP-0 is rank 34, and "DFT-accuracy" in the
 README is a claim this table adjudicates. **(b)** MACE-MPA-0 beats MACE-MP-0 on every metric
-published; SimpleAtom offers it nowhere. That is a product gap a critic can name without
+published; until v2.2.0 SimpleAtom offered it nowhere (it is now the default). That was a product gap a critic could name without
 opening a browser.
 
 **NOMAD** is the provenance bar, and the only *public* production system that presents a

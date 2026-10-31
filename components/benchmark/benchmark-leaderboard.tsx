@@ -34,6 +34,19 @@ interface LeaderboardProps {
   result: BenchmarkResult;
 }
 
+/**
+ * Sort indicator. Defined at module scope: declared inside the component it
+ * was a new component type on every render, so React remounted it each time.
+ */
+function SortIcon({ k, active, dir }: { k: SortKey; active: SortKey; dir: SortDir }) {
+  if (active !== k) return null;
+  return dir === "asc" ? (
+    <ChevronUp className="inline h-3 w-3" />
+  ) : (
+    <ChevronDown className="inline h-3 w-3" />
+  );
+}
+
 export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
   const [sortKey, setSortKey] = useState<SortKey>("structure");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -91,15 +104,6 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
     }
   };
 
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k) return null;
-    return sortDir === "asc" ? (
-      <ChevronUp className="inline h-3 w-3" />
-    ) : (
-      <ChevronDown className="inline h-3 w-3" />
-    );
-  };
-
   const lowestEnergyPerRow = (row: BenchmarkStructureResult): number | null => {
     const energies = row.models
       .filter((m) => m.status === "success" && m.energyPerAtom != null)
@@ -126,28 +130,28 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
   }, [result, modelLabels]);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[var(--color-border-subtle)]">
+    <div className="overflow-x-auto rounded-lg border border-border-subtle">
       <Table className="font-mono text-xs">
-        <TableHeader className="sticky top-0 z-10 bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]">
+        <TableHeader className="sticky top-0 z-10 bg-bg-elevated text-text-muted">
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-auto w-5 px-2 py-2.5" />
             <TableHead
-              className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+              className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-text-muted hover:text-text-secondary"
               onClick={() => handleSort("structure")}
             >
-              Structure <SortIcon k="structure" />
+              Structure <SortIcon k="structure" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
-              className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+              className="h-auto cursor-pointer whitespace-normal px-3 py-2.5 text-left text-text-muted hover:text-text-secondary"
               onClick={() => handleSort("category")}
             >
-              Category <SortIcon k="category" />
+              Category <SortIcon k="category" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
-              className="h-auto cursor-pointer px-3 py-2.5 text-right text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+              className="h-auto cursor-pointer px-3 py-2.5 text-right text-text-muted hover:text-text-secondary"
               onClick={() => handleSort("atoms")}
             >
-              Atoms <SortIcon k="atoms" />
+              Atoms <SortIcon k="atoms" active={sortKey} dir={sortDir} />
             </TableHead>
             <TableHead
               className="h-auto whitespace-normal px-3 py-2.5 text-right"
@@ -162,23 +166,23 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
             {modelLabels.map((label, i) => (
               <TableHead
                 key={label}
-                className="h-auto cursor-pointer px-3 py-2.5 text-right text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                className="h-auto cursor-pointer px-3 py-2.5 text-right text-text-muted hover:text-text-secondary"
                 onClick={() => handleSort(`model-${i}`)}
               >
                 <span style={{ color: MODEL_COLORS[i] }}>{label}</span>{" "}
-                <span className="text-[var(--color-text-muted)]">(E/atom)</span>{" "}
-                <SortIcon k={`model-${i}`} />
+                <span className="text-text-muted">(E/atom)</span>{" "}
+                <SortIcon k={`model-${i}`} active={sortKey} dir={sortDir} />
               </TableHead>
             ))}
             <TableHead
-              className="h-auto cursor-pointer px-3 py-2.5 text-right text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+              className="h-auto cursor-pointer px-3 py-2.5 text-right text-text-muted hover:text-text-secondary"
               onClick={() => handleSort("deltaE")}
             >
-              ΔE<sub>max</sub> <SortIcon k="deltaE" />
+              ΔE<sub>max</sub> <SortIcon k="deltaE" active={sortKey} dir={sortDir} />
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody className="text-[var(--color-text-secondary)]">
+        <TableBody className="text-text-secondary">
           {sorted.map((row) => {
             const de = deltaE(row);
             const highDisagreement = de > 10;
@@ -188,22 +192,22 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
             return (
               <Fragment key={row.structureId}>
                 <TableRow
-                  className={`cursor-pointer border-t border-b-0 border-[var(--color-border-subtle)]/60 transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                    highDisagreement ? "bg-[var(--color-error)]/3" : ""
+                  className={`cursor-pointer border-t border-b-0 border-border-subtle/60 transition-colors hover:bg-bg-elevated ${
+                    highDisagreement ? "bg-error/3" : ""
                   }`}
                   onClick={() =>
                     setExpandedRow(isExpanded ? null : row.structureId)
                   }
                 >
-                  <TableCell className="text-center text-[var(--color-text-muted)]">
+                  <TableCell className="text-center text-text-muted">
                     <ChevronRight
                       className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`}
                     />
                   </TableCell>
-                  <TableCell className="whitespace-normal font-semibold text-[var(--color-text-primary)]">
+                  <TableCell className="whitespace-normal font-semibold text-text-primary">
                     {row.structureName}
                   </TableCell>
-                  <TableCell className="whitespace-normal text-[var(--color-text-muted)]">
+                  <TableCell className="whitespace-normal text-text-muted">
                     {formatCategoryName(row.category)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{row.atomCount}</TableCell>
@@ -220,7 +224,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                     if (m.status === "error") {
                       return (
                         <TableCell key={mi} className="text-right">
-                          <span className="inline-flex items-center gap-1 text-[var(--color-error)]" title={m.error}>
+                          <span className="inline-flex items-center gap-1 text-error" title={m.error}>
                             <AlertTriangle className="h-3 w-3" /> Error
                           </span>
                         </TableCell>
@@ -230,7 +234,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                     return (
                       <TableCell
                         key={mi}
-                        className={`text-right tabular-nums ${isLowest ? "bg-[var(--color-success)]/8 text-[var(--color-success)]" : ""}`}
+                        className={`text-right tabular-nums ${isLowest ? "bg-success/8 text-success" : ""}`}
                         title={m.energy?.toFixed(8) ?? ""}
                       >
                         {m.energyPerAtom?.toFixed(4) ?? "N/A"} eV
@@ -240,10 +244,10 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                   <TableCell
                     className={`text-right tabular-nums font-bold ${
                       highDisagreement
-                        ? "text-[var(--color-error)]"
+                        ? "text-error"
                         : de > 5
-                          ? "text-[var(--color-warning)]"
-                          : "text-[var(--color-text-muted)]"
+                          ? "text-warning"
+                          : "text-text-muted"
                     }`}
                   >
                     {de.toFixed(1)} meV
@@ -253,10 +257,10 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                   <TableRow className="border-b-0 hover:bg-transparent">
                     <TableCell
                       colSpan={5 + modelLabels.length + 1}
-                      className="whitespace-normal border-t border-[var(--color-border-subtle)]/30 bg-[var(--color-bg-primary)] px-4 py-3"
+                      className="whitespace-normal border-t border-border-subtle/30 bg-bg-primary px-4 py-3"
                     >
                       {row.reference?.cohesiveEnergy && (
-                        <p className="mb-2 font-mono text-[10px] text-[var(--color-data-yellow)]">
+                        <p className="mb-2 font-mono text-xs text-data-yellow">
                           Ref. cohesive energy: {row.reference.cohesiveEnergy.value.toFixed(2)} eV/atom
                           ({row.reference.cohesiveEnergy.source})
                           {row.reference.latticeConstant && (
@@ -275,10 +279,10 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
         </TableBody>
 
         {/* Aggregate footer */}
-        <TableFooter className="border-t-2 border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)]">
+        <TableFooter className="border-t-2 border-border-emphasis bg-bg-elevated">
           <TableRow className="hover:bg-transparent">
             <TableCell />
-            <TableCell className="font-sans text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <TableCell className="font-sans text-xs font-semibold text-text-muted">
               Aggregate
             </TableCell>
             <TableCell />
@@ -286,10 +290,10 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
             <TableCell />
             {aggregates.map((agg, i) => (
               <TableCell key={i} className="text-right">
-                <div className="font-mono text-xs tabular-nums text-[var(--color-text-secondary)]">
+                <div className="font-mono text-xs tabular-nums text-text-secondary">
                   {agg.avgE != null ? `Avg: ${agg.avgE.toFixed(4)} eV` : "N/A"}
                 </div>
-                <div className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                <div className="font-mono text-xs text-text-muted">
                   Time: {agg.totalTime.toFixed(1)}s
                 </div>
               </TableCell>
@@ -307,7 +311,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
         comparisons, and a caption is the only place a reader will actually see
         it. The valid numeric comparison lives on the "vs Materials Project" tab.
       */}
-      <p className="border-t border-[var(--color-border-subtle)] px-4 py-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+      <p className="border-t border-border-subtle px-4 py-3 font-mono text-xs leading-relaxed text-text-muted">
         <span style={{ color: DATA_COLORS.yellow }}>Exp. cohesive</span> is an{" "}
         <span className="font-semibold">experimental</span> cohesive energy from the literature
         (Kittel 8th ed., CRC Handbook) — not a DFT total energy, and not comparable to the model
@@ -334,7 +338,7 @@ function ExpandedForceDetails({
 
   if (maxAtoms === 0) {
     return (
-      <p className="font-mono text-xs text-[var(--color-text-muted)]">
+      <p className="font-mono text-xs text-text-muted">
         No force data available for this structure.
       </p>
     );
@@ -342,15 +346,15 @@ function ExpandedForceDetails({
 
   return (
     <div>
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+      <p className="mb-2 text-xs text-text-muted">
         Per-Atom Force Magnitudes (eV/Å)
       </p>
-      <div className="max-h-48 overflow-auto rounded border border-[var(--color-border-subtle)]">
-        <Table className="font-mono text-[11px]">
-          <TableHeader className="sticky top-0 bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]">
+      <div className="max-h-48 overflow-auto rounded border border-border-subtle">
+        <Table className="font-mono text-xs">
+          <TableHeader className="sticky top-0 bg-bg-elevated text-text-muted">
             <TableRow className="hover:bg-transparent">
-              <TableHead className="h-auto px-2 py-1 text-left text-[var(--color-text-muted)]">#</TableHead>
-              <TableHead className="h-auto px-2 py-1 text-left text-[var(--color-text-muted)]">Elem</TableHead>
+              <TableHead className="h-auto px-2 py-1 text-left text-text-muted">#</TableHead>
+              <TableHead className="h-auto px-2 py-1 text-left text-text-muted">Elem</TableHead>
               {row.models.map((m, i) => (
                 <TableHead key={i} className="h-auto px-2 py-1 text-right" style={{ color: modelColors[i] }}>
                   |F| {m.modelLabel.split(" ")[0]}
@@ -358,12 +362,12 @@ function ExpandedForceDetails({
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody className="text-[var(--color-text-secondary)]">
+          <TableBody className="text-text-secondary">
             {Array.from({ length: maxAtoms }).map((_, ai) => {
               const sym = row.models.find((m) => m.symbols?.[ai])?.symbols?.[ai] ?? "—";
               return (
-              <TableRow key={ai} className="border-t border-b-0 border-[var(--color-border-subtle)]/40">
-                <TableCell className="px-2 py-0.5 text-[var(--color-text-muted)]">{ai + 1}</TableCell>
+              <TableRow key={ai} className="border-t border-b-0 border-border-subtle/40">
+                <TableCell className="px-2 py-0.5 text-text-muted">{ai + 1}</TableCell>
                 <TableCell className="px-2 py-0.5 font-semibold">{sym}</TableCell>
                 {row.models.map((m, mi) => {
                   const f = m.forces?.[ai];
@@ -383,7 +387,7 @@ function ExpandedForceDetails({
         </Table>
       </div>
       {maxAtoms < Math.max(...row.models.map((m) => m.forces?.length ?? 0)) && (
-        <p className="mt-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="mt-1 font-mono text-xs text-text-muted">
           Showing first {maxAtoms} atoms
         </p>
       )}

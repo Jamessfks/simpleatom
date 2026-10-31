@@ -9,7 +9,7 @@
  */
 
 /** Standard light-theme layout for all MACE Plotly charts. */
-export const BASE_LAYOUT: Record<string, any> = {
+export const BASE_LAYOUT: Partial<Plotly.Layout> = {
   paper_bgcolor: "rgba(0,0,0,0)",
   plot_bgcolor: "rgba(0,0,0,0)",
   font: {
@@ -38,7 +38,7 @@ export const BASE_LAYOUT: Record<string, any> = {
 };
 
 /** Plotly modebar config — show export buttons, hide Plotly logo. */
-export const BASE_CONFIG: Record<string, any> = {
+export const BASE_CONFIG: Partial<Plotly.Config> = {
   displaylogo: false,
   modeBarButtonsToAdd: ["toImage"],
   toImageButtonOptions: {

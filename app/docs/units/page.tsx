@@ -13,13 +13,13 @@ export default function UnitsPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Science
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           Units &amp; conventions
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           MACE and ASE share one consistent internal unit system. SimpleAtom
           displays values in these units directly — no hidden conversions —
           so what you see in a chart or an exported file is exactly what
@@ -149,10 +149,11 @@ export default function UnitsPage() {
         </table>
 
         <Callout type="warning" title="Critical conversion: pressure">
-          Pressure entered in GPa is converted to ASE&rsquo;s internal bar
-          units as <code>pressure_GPa &times; 1e4 = pressure_bar</code>. This
-          conversion only applies at the NPT input boundary — internally,
-          ASE and MACE both work in eV/Å³.
+          Pressure is entered in GPa and converted with ASE&rsquo;s own
+          constant, <code>pressure_GPa &times; ase.units.GPa</code>, into the
+          eV/Å³ that ASE and MACE work in (1 GPa &asymp; 0.00624 eV/Å³). Stress
+          and pressure in results are converted back to GPa. Nothing in
+          SimpleAtom uses bar.
         </Callout>
 
         <h2 id="pitfalls">Common pitfalls</h2>
@@ -178,7 +179,7 @@ export default function UnitsPage() {
           </li>
           <li>
             <strong>
-              MACE-MP-0 and MACE-OFF use different energy-reference
+              The MACE-MP family and MACE-OFF use different energy-reference
               conventions.
             </strong>{" "}
             Their absolute energies differ by roughly an order of magnitude
@@ -186,8 +187,8 @@ export default function UnitsPage() {
           </li>
         </ul>
         <Callout type="warning" title="Do not compare absolute energies across models">
-          MACE-MP-0 (&minus;1 to &minus;15 eV/atom) and MACE-OFF (&minus;100
-          to &minus;600 eV/atom) use different isolated-atom energy
+          The MACE-MP family (MPA-0 and MP-0, &minus;1 to &minus;15 eV/atom)
+          and MACE-OFF (&minus;100 to &minus;600 eV/atom) use different energy
           references. Never compare their absolute energies directly —
           compare energy <em>differences</em> computed with the{" "}
           <em>same</em> model instead. See{" "}

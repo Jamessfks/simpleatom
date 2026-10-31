@@ -56,7 +56,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
       })
     );
 
-    const anns: any[] = [];
+    const anns: Partial<Plotly.Annotations>[] = [];
     for (let pi = 0; pi < pairs.length; pi++) {
       for (let si = 0; si < result.results.length; si++) {
         const val = z[pi][si];
@@ -70,7 +70,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
             size: 10,
             family: "Geist Mono, ui-monospace, monospace",
           },
-        } as any);
+        });
       }
     }
 
@@ -79,8 +79,8 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
 
   if (pairLabels.length === 0) {
     return (
-      <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-6 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">
+      <Card className="gap-0 rounded-lg bg-bg-secondary p-6 text-center">
+        <p className="text-sm text-text-muted">
           Need at least 2 models to generate agreement heatmap.
         </p>
       </Card>
@@ -88,11 +88,11 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
   }
 
   return (
-    <Card className="gap-0 rounded-lg bg-[var(--color-bg-secondary)] p-4">
-      <h3 className="mb-2 font-sans text-sm font-bold text-[var(--color-text-primary)]">
+    <Card className="gap-0 rounded-lg bg-bg-secondary p-4">
+      <h3 className="mb-2 font-sans text-sm font-bold text-text-primary">
         Model Agreement Heatmap
       </h3>
-      <p className="mb-3 text-xs text-[var(--color-text-muted)]">
+      <p className="mb-3 text-xs text-text-muted">
         Pairwise energy disagreement (|ΔE| in meV/atom) for each structure. Light cells indicate
         consensus; bright cells reveal contention.
       </p>
@@ -110,14 +110,14 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
               [1, "#EE6677"],
             ],
             colorbar: {
-              title: { text: "|ΔE| (meV)", side: "right" },
+              // `titlefont` is deprecated in Plotly; the font lives on the title.
+              title: { text: "|ΔE| (meV)", side: "right", font: { color: "#5C574E", size: 10 } },
               tickfont: { color: "#5C574E", size: 10 },
-              titlefont: { color: "#5C574E", size: 10 },
             },
             hovertemplate:
               "<b>%{x}</b><br>%{y}<br>|ΔE| = %{z:.2f} meV<extra></extra>",
             showscale: true,
-          } as any,
+          },
         ]}
         layout={{
           ...BASE_LAYOUT,

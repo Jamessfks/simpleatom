@@ -1,12 +1,17 @@
 /**
  * Type definitions for MACE calculations.
  *
- * Supports both built-in foundation models (MACE-MP-0, MACE-OFF) and
- * user-uploaded custom models (fine-tuned .model files).
+ * Model ids, sizes and calculation types come from the registry in
+ * mace-api/contract.json (via lib/generated/contract.ts), so a type the UI can
+ * send is a type the backend implements. Supports the foundation models
+ * (MACE-MPA-0, MACE-MP-0, MACE-OFF) and user-uploaded custom checkpoints.
  */
 
+import type { ModelId } from "@/lib/contract";
+
 export type ModelSize = "small" | "medium" | "large";
-export type ModelType = "MACE-MP-0" | "MACE-OFF" | "custom";
+/** A registry model id. "MACE-OFF23" is accepted by the backend as an alias of "MACE-OFF". */
+export type ModelType = ModelId;
 export type Precision = "float32" | "float64";
 export type Device = "cpu" | "cuda";
 export type CalculationType =
@@ -68,22 +73,45 @@ export interface CalculationParams {
   finalFmax?: number;
   /**
    * MD: `Stationary()` was applied after the Maxwell-Boltzmann draw, so the
-   * system starts with zero net momentum. Worth knowing when reading
-   * `trajectory.temperatures`: ASE's `get_temperature()` divides by 3N
-   * degrees of freedom regardless, so with the centre-of-mass mode pinned
-   * the reported temperature reads low by (3N−3)/3N — ~11% for a 9-atom
-   * molecule, ~1% for a 100-atom one. Under Langevin the thermostat
-   * re-excites that mode, so 3N is the right divisor there.
+   * system starts with zero net momentum.
    */
   comMomentumRemoved?: boolean;
+  /**
+   * MD: degrees of freedom `trajectory.temperatures` is computed over —
+   * 3N for NVT (Langevin thermalises every mode, centre of mass included),
+   * 3N−3 for NVE and NPT (momentum stays zero). Absent on results from
+   * before v2.2.0, whose temperatures used ASE's 3N divisor throughout and,
+   * for NVT, ran hot (D18).
+   */
+  temperatureDegreesOfFreedom?: number;
+  /** Upstream's model key the registry mapped modelType/modelSize to. */
+  upstreamModel?: string;
+  /** SPDX-style licence id of the model that ran ("MIT", "ASL"). */
+  license?: string;
+  /** Every k-th step was recorded in `trajectory` to stay within budget. */
+  trajectoryStride?: number;
+  /** NPT barostat settings actually used. */
+  nptThermostatTimeFs?: number;
+  nptBarostatTimeFs?: number;
+  nptBulkModulusGPa?: number;
+  /** Set when the deployment's time budget ended the run early. */
+  stoppedEarly?: StoppedEarly;
+}
+
+/** A run ended by the deployment's time budget, with an honest partial result. */
+export interface StoppedEarly {
+  reason: "time-budget";
+  atStep: number;
+  budgetSeconds: number;
 }
 
 export interface CalculationResult {
-  status: "success" | "error" | "timeout";
+  status: "success" | "error";
   energy?: number;
   forces?: number[][];
   positions?: number[][];
-  lattice?: number[][];
+  /** Cell vectors (Å); null for a non-periodic structure (D7). */
+  lattice?: number[][] | null;
   symbols?: string[];
   trajectory?: {
     /**
@@ -110,9 +138,15 @@ export interface CalculationResult {
     step: number[];
   };
   properties?: {
-    volume?: number;
-    density?: number;
-    pressure?: number;
+    /** Cell volume (Å³); null for a non-periodic structure (D7). */
+    volume?: number | null;
+    /**
+     * Stress tensor in GPa, Voigt order xx, yy, zz, yz, xz, xy (ASE sign
+     * convention). Fully periodic cells only; null otherwise (D6).
+     */
+    stress?: number[] | null;
+    /** Pressure in GPa, −trace(stress)/3. Fully periodic cells only (D6). */
+    pressure?: number | null;
   };
   message?: string;
   params?: Partial<CalculationParams>;
@@ -160,10 +194,14 @@ export interface CalculationResult {
   referenceEnergy?: number;
   referenceForces?: number[][];
 
-  /** Original SMILES string when input came from SMILES conversion */
-  smilesString?: string;
-  /** How the structure was provided */
-  inputSource?: "file" | "smiles" | "catalog";
+  /**
+   * The model's licence notice when it carries one (MACE-OFF is ASL:
+   * non-commercial use only). Shown with the result; not a warning.
+   */
+  licenseNotice?: string;
+
+  /** Set when the deployment's time budget ended the run early. */
+  stoppedEarly?: StoppedEarly;
 
   /**
    * Reproducibility manifest built by `mace-api/provenance.py`. OPTIONAL:

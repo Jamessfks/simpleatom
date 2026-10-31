@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { profile, serverProfileName } from "@/lib/contract";
+import {
+  ApiError,
+  MACE_API_URL,
+  errorResponse,
+  runPythonJson,
+} from "@/lib/server/backend";
 
-const MACE_API_URL = (() => {
-  const url = process.env.MACE_API_URL?.trim();
-  if (!url) return undefined;
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return `https://${url}`;
-  }
-  return url;
-})();
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 /**
  * SMILES → XYZ Conversion API
@@ -16,121 +17,66 @@ const MACE_API_URL = (() => {
  * Accepts JSON body: { smiles: string }
  * Returns JSON: { xyz, num_atoms, smiles_canonical, formula }
  *
- * Mode selection mirrors /api/calculate:
- * 1. MACE_API_URL set → forward to remote backend
- * 2. MACE_API_URL not set → run locally via Python subprocess
+ * Mode selection mirrors /api/calculate: forward to MACE_API_URL when set,
+ * otherwise run mace-api/smiles_to_xyz.py locally.
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const smiles = body?.smiles;
-
-    if (!smiles || typeof smiles !== "string" || !smiles.trim()) {
-      return NextResponse.json(
-        { error: "Missing or empty 'smiles' field" },
-        { status: 400 }
-      );
-    }
-
-    // ── Remote backend ──
-    if (MACE_API_URL) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60_000);
-
-      try {
-        const response = await fetch(`${MACE_API_URL}/smiles-to-xyz`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ smiles: smiles.trim() }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const err = await response.text();
-          throw new Error(err || `SMILES API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.status === "error") {
-          throw new Error(data.message || "SMILES conversion failed");
-        }
-        return NextResponse.json(data);
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err instanceof Error) throw err;
-        throw new Error("SMILES API request failed");
-      }
-    }
-
-    // ── Local mode: Python subprocess ──
-    const { join } = await import("node:path");
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const execFileAsync = promisify(execFile);
-
-    const scriptPath = join(process.cwd(), "mace-api", "smiles_to_xyz.py");
-
-    let stdout: string;
-    let stderr: string;
+    const profileName = serverProfileName();
+    let body: unknown;
     try {
-      const result = await execFileAsync(
-        "python3",
-        [scriptPath, smiles.trim()],
-        {
-          timeout: 60_000,
-          maxBuffer: 10 * 1024 * 1024,
-          env: { ...process.env, PYTHONUNBUFFERED: "1", KMP_DUPLICATE_LIB_OK: "TRUE" },
-        }
+      body = await request.json();
+    } catch {
+      throw new ApiError("Expected a JSON body { smiles: string }.", 400, "invalid_body");
+    }
+    const smiles = (body as { smiles?: unknown })?.smiles;
+    if (typeof smiles !== "string" || !smiles.trim()) {
+      throw new ApiError("Missing or empty 'smiles' field", 400, "invalid_smiles", "smiles");
+    }
+    const trimmed = smiles.trim();
+    const maxLength = profile(profileName).maxSmilesLength;
+    if (trimmed.length > maxLength) {
+      throw new ApiError(
+        `SMILES is ${trimmed.length} characters; this deployment accepts at most ${maxLength}.`,
+        422,
+        "limit_exceeded",
+        "smiles",
       );
-      stdout = result.stdout;
-      stderr = result.stderr;
-    } catch (execErr: unknown) {
-      const err = execErr as { stdout?: string; stderr?: string };
-      stdout = err.stdout ?? "";
-      stderr = err.stderr ?? "";
+    }
 
-      const jsonStart = stdout.indexOf("{");
-      if (jsonStart !== -1) {
-        try {
-          const errData = JSON.parse(stdout.slice(jsonStart));
-          if (errData.message || errData.error) {
-            throw new Error(errData.message || errData.error);
-          }
-        } catch (parseErr) {
-          if (!(parseErr instanceof SyntaxError)) throw parseErr;
-        }
+    if (MACE_API_URL) {
+      const token = process.env.MACE_API_TOKEN;
+      let response: Response;
+      try {
+        response = await fetch(`${MACE_API_URL}/smiles-to-xyz`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "X-SimpleAtom-Proxy-Key": token } : {}),
+          },
+          body: JSON.stringify({ smiles: trimmed }),
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(55_000)]),
+        });
+      } catch {
+        throw new ApiError("The SMILES service could not be reached. Try again shortly.", 502, "backend_unreachable");
       }
-
-      const stderrTail = stderr.trim().split("\n").pop() ?? "";
-      throw new Error(
-        stderrTail || stdout.trim().slice(0, 300) || "SMILES conversion failed"
-      );
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || data.status === "error") {
+        const message =
+          data?.error?.message || data?.message || `SMILES conversion failed (HTTP ${response.status}).`;
+        throw new ApiError(message, response.ok ? 400 : response.status, data?.error?.code || "smiles_failed", "smiles");
+      }
+      return NextResponse.json(data);
     }
 
-    if (stderr) {
-      console.warn("[SMILES conversion stderr]", stderr.slice(0, 500));
-    }
-
-    const jsonStart = stdout.indexOf("{");
-    if (jsonStart === -1) {
-      throw new Error(stdout || "No JSON output from SMILES converter");
-    }
-
-    const data = JSON.parse(stdout.slice(jsonStart));
-    if (data.status === "error") {
-      throw new Error(data.message || "SMILES conversion returned an error");
-    }
-
+    const data = await runPythonJson("smiles_to_xyz.py", [trimmed], {
+      profile: profileName,
+      signal: request.signal,
+      timeoutMs: 55_000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
     return NextResponse.json(data);
   } catch (error) {
-    console.error("SMILES conversion error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "SMILES conversion failed",
-      },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

@@ -22,7 +22,7 @@ export default function DocsLayout({
           <aside className="mb-8 lg:mb-0 lg:sticky lg:top-20 lg:self-start">
             <DocsSidebar />
           </aside>
-          <main className="min-w-0">{children}</main>
+          <main id="main" className="min-w-0">{children}</main>
         </div>
       </div>
       <SiteFooter />

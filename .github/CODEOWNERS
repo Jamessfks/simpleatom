@@ -1,0 +1,5 @@
+# Scientific code and its gates need the maintainer's review.
+/mace-api/        @Jamessfks
+/test_scripts/    @Jamessfks
+/supabase/        @Jamessfks
+/.github/         @Jamessfks

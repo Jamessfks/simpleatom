@@ -1,6 +1,6 @@
-site_name: MACE Web Calculator
+site_name: SimpleAtom
 site_url: https://mace-web.readthedocs.io/
-site_description: Browser-based interface for MACE machine learning interatomic potentials
+site_description: Contributor documentation for SimpleAtom, a web interface to MACE machine-learning interatomic potentials
 site_author: Zicheng Zhao
 
 repo_name: Jamessfks/simpleatom
@@ -30,23 +30,63 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+strict: true
+
+# Internal process notes (the gauntlet method, bars, daily gate output) stay in
+# the repository but are not published as documentation (ADR-0028).
+exclude_docs: |
+  v2/
+  requirements.txt
+
 nav:
   - Home: index.md
-  - Getting Started:
-      - Quick Start: getting-started.md
-      - Troubleshooting: troubleshooting.md
-  - User Guide:
-      - Calculator: guide/calculator.md
-      - Benchmark Suite: guide/benchmark.md
-      - MACE Link: guide/sharing.md
-  - Science:
-      - Models: science/models.md
-      - Units & Conventions: science/units.md
-      - Validation: science/validation.md
-  - Developer:
-      - Architecture: dev/architecture.md
-      - API Reference: dev/api.md
-      - Deployment: dev/deployment.md
+  - Explanation:
+      - Architecture: explanation/architecture.md
+      - Scientific integrity: explanation/scientific-integrity.md
+  - How-to:
+      - Install and run locally: how-to/install.md
+      - Deploy: how-to/deploy.md
+      - Troubleshoot: how-to/troubleshoot.md
+  - Reference:
+      - HTTP API: reference/api.md
+      - Request contract: reference/contract.md
+      - Environment variables: reference/environment.md
+  - Decisions:
+      - Index: adr/README.md
+      - "0000 — Record architecture decisions as MADR with an executable confirmation": adr/0000-record-architecture-decisions.md
+      - "0001 — Run calculations in two modes over one shared engine": adr/0001-dual-mode-execution.md
+      - "0002 — Host the backend on Hugging Face Spaces, deployed only by CI": adr/0002-host-backend-on-hf-spaces.md
+      - "0003 — The Python backend is the security boundary": adr/0003-backend-is-the-security-boundary.md
+      - "0004 — Refuse unsupported requests instead of falling through": adr/0004-refuse-unsupported-requests.md
+      - "0005 — Default precision follows upstream; overrides are recorded": adr/0005-precision-follows-upstream.md
+      - "0006 — Optimise with BFGS only, positions only, and always report convergence": adr/0006-bfgs-only-report-convergence.md
+      - "0007 — Make molecular dynamics reproducible and its temperature honest": adr/0007-reproducible-honest-md.md
+      - "0008 — Results are self-describing through an allow-listed params echo": adr/0008-self-describing-results.md
+      - "0009 — Attach a reproducibility manifest; never fabricate": adr/0009-reproducibility-manifest.md
+      - "0010 — Run the validator on every result, advisory only": adr/0010-advisory-validator.md
+      - "0011 — Share results insert-only on Supabase (MACE Link)": adr/0011-insert-only-supabase-sharing.md
+      - "0012 — Serve embeds at /r/<id>/embed; deny framing elsewhere": adr/0012-embed-route-framing.md
+      - "0013 — Keep two 3D viewers: 3Dmol.js and a pinned WEAS": adr/0013-two-3d-viewers.md
+      - "0014 — A light, token-driven theme: Fraunces + Inter, Paul Tol data colours": adr/0014-light-token-theme.md
+      - "0015 — One chrome width site-wide": adr/0015-one-chrome-width.md
+      - "0016 — Judge quality by blind builder/critic rounds against fetched public bars": adr/0016-gauntlet-method.md
+      - "0017 — Accumulate daily work on `daily`, never on auto-deploying `main`": adr/0017-daily-branch.md
+      - "0018 — Scope: MACE potentials only — no electron-density properties, phonons or fine-tuning": adr/0018-scope-mace-only.md
+      - "0019 — Read structures so periodicity survives; compare like with like": adr/0019-periodicity-survives-parsing.md
+      - "0020 — Unpickle only pinned checkpoints; refuse custom models on the public instance": adr/0020-trusted-checkpoint-loading.md
+      - "0021 — One model registry; MACE-MPA-0 is the materials default": adr/0021-model-registry-mpa0-default.md
+      - "0022 — One request contract with bounds, shared by Python and TypeScript": adr/0022-shared-request-contract.md
+      - "0023 — Long-running calculations are jobs: submit, real progress, cancel": adr/0023-calculations-as-jobs.md
+      - "0024 — MACE Link writes go through a validating server route": adr/0024-share-through-a-server-route.md
+      - "0025 — Pin the scientific stack exactly; gate upgrades on physics": adr/0025-pin-scientific-dependencies.md
+      - "0026 — CI gates every merge; deploys depend on CI": adr/0026-ci-gates-every-merge.md
+      - "0027 — Release path: security fixes ship by PR; `daily` is adopted on a cadence": adr/0027-release-path.md
+      - "0028 — One documentation source per audience": adr/0028-documentation-architecture.md
+      - "0029 — App-surface finish bar: schrodinger.com discipline, landing layout frozen": adr/0029-app-finish-bar.md
+      - "0030 — Stay on mace-torch 0.3.x until a published v1.0 passes the engine-parity gate": adr/0030-mace-v1-migration.md
+      - Template: adr/template.md
+  - Audits:
+      - 2026-10-20: audits/2026-10-20.md
 
 markdown_extensions:
   - admonition

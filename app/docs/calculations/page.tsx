@@ -13,13 +13,13 @@ export default function CalculationsPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Science
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           Calculations &amp; parameters
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           SimpleAtom exposes three calculation types, each a thin,
           browser-friendly layer over ASE and the underlying{" "}
           <code>MACECalculator</code>. This page explains what each type
@@ -127,8 +127,9 @@ export default function CalculationsPage() {
               <td>NPT</td>
               <td>Barostat</td>
               <td>
-                Temperature (K), pressure (GPa), and a periodic system with a
-                defined cell.
+                Temperature (K), pressure (GPa), and a fully periodic cell
+                (refused otherwise). ASE&rsquo;s Melchionna integrator with a
+                75 fs barostat time and a 100 GPa bulk-modulus estimate.
               </td>
             </tr>
           </tbody>
@@ -152,6 +153,15 @@ export default function CalculationsPage() {
             NVT thermostat couples the system to the target temperature.
           </li>
           <li>
+            <strong>Reported temperature:</strong> the kinetic temperature over
+            the degrees of freedom that actually carry energy — 3N for NVT,
+            where the thermostat acts on every mode, and 3N&minus;3 for NVE and
+            NPT, where the centre-of-mass momentum stays at zero. The number
+            used is recorded with the result. (Before v2.2.0 an ASE default
+            made NVT runs on molecules with mixed masses equilibrate roughly
+            40% above the target; that is fixed.)
+          </li>
+          <li>
             <strong>Pressure (GPa):</strong> the NPT target pressure,
             entered in GPa and converted internally — see{" "}
             <Link href="/docs/units">Units &amp; conventions</Link>.
@@ -167,30 +177,54 @@ export default function CalculationsPage() {
           </li>
           <li>
             <strong>What a trajectory records:</strong> potential energy,
-            kinetic energy, total energy and the instantaneous temperature at
-            every frame. The Energy tab plots total energy and potential energy
+            kinetic energy, total energy and the instantaneous temperature for
+            each recorded frame. Long runs on large structures record every
+            k-th step so the result stays a manageable size; the stride is
+            stated in the result when it is above one. The Energy tab plots total energy and potential energy
             as separate, named series, so the NVE claim above is one you can
             check on the chart rather than take on trust; the Summary tab
             reports the total-energy drift over the run and the mean
             temperature against your target.
           </li>
         </ul>
-        <Callout type="note" title="Phonon spectrum — planned">
-          Phonon spectrum calculation is on the roadmap but not yet
-          supported in SimpleAtom. For now, vibrational analysis must be
-          performed on a fully converged geometry using an external
-          workflow.
+        <Callout type="note" title="Phonon spectrum — not supported">
+          Phonon and vibrational analysis are not implemented in SimpleAtom;
+          a request for one is refused with an error rather than answered
+          with something else. Run it on a fully converged geometry with an
+          external workflow.
         </Callout>
+
+        <h2 id="limits">Progress, cancelling and limits</h2>
+        <p>
+          A calculation runs as a job. While it runs you see its real stage
+          (reading the structure, loading the model, computing) and, for an
+          optimisation or MD run, the current step — with the maximum force or
+          the temperature — reported by the backend, not estimated. Cancel
+          stops the computation itself, not just the page.
+        </p>
+        <p>
+          The public site shares one CPU between everyone, so it caps the
+          structure size and run length (for example 1,000 atoms and 10,000
+          steps for MD) and gives each run a time budget. A run that reaches
+          the budget ends with the steps it completed, clearly marked as
+          stopped early — an optimisation stopped that way is reported as not
+          converged. Running SimpleAtom locally lifts these limits. The exact
+          numbers are in the{" "}
+          <a href="https://github.com/Jamessfks/simpleatom/blob/main/docs/reference/contract.md">
+            request contract
+          </a>
+          .
+        </p>
 
         <h2 id="dispersion">D3 dispersion correction</h2>
         <p>
           Adds Grimme&rsquo;s semi-empirical DFT-D3 van der Waals correction
-          on top of MACE-MP-0 predictions. It matters for layered materials,
+          on top of MACE-MPA-0 or MACE-MP-0 predictions. It matters for layered materials,
           molecular adsorption, and molecular crystals where dispersion
           forces are significant.
         </p>
-        <Callout type="warning" title="D3 is MACE-MP-0 only">
-          D3 dispersion is only meaningful for MACE-MP-0. MACE-OFF is
+        <Callout type="warning" title="D3 is for the MACE-MP family only">
+          D3 dispersion is only meaningful for MACE-MPA-0 and MACE-MP-0. MACE-OFF is
           trained on &omega;B97M-D3BJ reference data, which already includes
           dispersion — enabling D3 on top of it double-counts the
           correction. SimpleAtom disables the D3 toggle automatically when
@@ -306,7 +340,7 @@ export default function CalculationsPage() {
               <td>
                 <code>dispersion</code>
               </td>
-              <td>On/off toggle; MACE-MP-0 only.</td>
+              <td>On/off toggle; MACE-MPA-0 and MACE-MP-0 only.</td>
             </tr>
             <tr>
               <td>Custom Model Upload</td>

@@ -1,3 +1,5 @@
+> **Superseded snapshot.** Written 2026-08-09 against the code at that time; many findings are fixed. Current state: [docs/audits/2026-10-20.md](../audits/2026-10-20.md) and `docs/v2/defects.json`.
+
 # SimpleAtom v2.0 — Current-State Audit
 
 Captured 2026-08-09, branch `v2.0`, commit `e34e40b`. Read-only audit — no code was

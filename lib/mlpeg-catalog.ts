@@ -64,7 +64,7 @@ export interface CatalogEntry {
   /** List of unique elements */
   elements: string[];
   /** Recommended MACE model type for this structure */
-  recommendedModel: "MACE-MP-0" | "MACE-OFF";
+  recommendedModel: "MACE-MPA-0" | "MACE-OFF";
   /** XYZ-formatted string of the structure */
   xyzData: string;
   /**
@@ -131,7 +131,7 @@ export const MLPEG_CATALOG: CatalogCategory[] = [
         formula: "Si",
         atomCount: 2,
         elements: ["Si"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -4.63, source: "Exp (Kittel, 8th ed.; Farid & Godby PRB 43 14248: 4.62±0.08)" },
           latticeConstant: { value: 5.431, source: "Exp (Kittel, 8th ed.)" },
@@ -149,7 +149,7 @@ Si 1.357500 1.357500 1.357500`,
         formula: "Cu",
         atomCount: 4,
         elements: ["Cu"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -3.49, source: "Exp (Kittel, 8th ed.)" },
           latticeConstant: { value: 3.615, source: "Exp (Kittel, 8th ed.)" },
@@ -169,7 +169,7 @@ Cu 1.807500 1.807500 0.000000`,
         formula: "NaCl",
         atomCount: 8,
         elements: ["Na", "Cl"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -3.34, source: "Exp (CRC Handbook; -6.68 eV/formula unit ÷ 2 atoms)" },
           latticeConstant: { value: 5.640, source: "Exp (CRC Handbook)" },
@@ -193,7 +193,7 @@ Cl 2.820000 2.820000 2.820000`,
         formula: "Fe",
         atomCount: 2,
         elements: ["Fe"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -4.28, source: "Exp (Kittel, 8th ed.)" },
           latticeConstant: { value: 2.870, source: "Exp (Kittel, 8th ed.)" },
@@ -211,7 +211,7 @@ Fe 1.435000 1.435000 1.435000`,
         formula: "C",
         atomCount: 2,
         elements: ["C"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         reference: {
           cohesiveEnergy: { value: -7.37, source: "Exp (Kittel, 8th ed.)" },
           latticeConstant: { value: 3.567, source: "Exp (Kittel, 8th ed.)" },
@@ -416,7 +416,7 @@ H 2.479118 -0.629118 -0.629118`,
         formula: "Cu (slab)",
         atomCount: 3,
         elements: ["Cu"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         xyzData: `3
 Lattice="2.556 0.0 0.0 1.278 2.213 0.0 0.0 0.0 20.0" Properties=species:S:1:pos:R:3 pbc="T T T"
 Cu 0.000000 0.000000 10.000000
@@ -431,7 +431,7 @@ Cu 2.556000 1.475400 14.174000`,
         formula: "Si (slab)",
         atomCount: 4,
         elements: ["Si"],
-        recommendedModel: "MACE-MP-0",
+        recommendedModel: "MACE-MPA-0",
         xyzData: `4
 Lattice="3.840 0.0 0.0 1.920 3.325 0.0 0.0 0.0 25.0" Properties=species:S:1:pos:R:3 pbc="T T T"
 Si 0.000000 0.000000 10.000000

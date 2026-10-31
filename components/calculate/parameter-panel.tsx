@@ -20,15 +20,18 @@
  * parent passes `structureElements` / `isPeriodic`, and stay inert otherwise.
  */
 
+import { StepTitle } from "@/components/calculate/step-title";
 import { useEffect, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
+import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
+import { MODELS, PARAMS, findModel, isMaceOffModel, licenseNotice, modelSizes } from "@/lib/contract";
+import { useCapabilities } from "@/lib/use-capabilities";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -109,12 +112,11 @@ const CALC_TYPES: CalcTypeOption[] = [
  */
 const PRECISION_AUTO = "auto";
 
-/** Elements MACE-OFF was trained on (organic chemistry space only). Per
- * CLAUDE.md's Model Selection rules; used to warn when a loaded structure
- * falls outside MACE-OFF's domain. */
-const MACE_OFF_ELEMENTS = new Set([
-  "H", "C", "N", "O", "F", "P", "S", "Cl", "Br", "I",
-]);
+const SIZE_LABELS: Record<string, string> = {
+  small: "Small — fastest",
+  medium: "Medium — balanced",
+  large: "Large — most accurate",
+};
 
 export function ParameterPanel({
   params,
@@ -129,8 +131,16 @@ export function ParameterPanel({
     value: CalculationParams[K],
   ) => onChange({ ...params, [key]: value });
 
+  const caps = useCapabilities();
+  const model = findModel(params.modelType);
   const isCustom = params.modelType === "custom";
-  const isOFF = params.modelType === "MACE-OFF";
+  const isOFF = isMaceOffModel(params.modelType);
+  const dispersionAllowed = model?.dispersion.allowed ?? false;
+  const sizes = modelSizes(params.modelType);
+  const notice = licenseNotice(params.modelType);
+  // Step ceilings: the tighter of the physical bound and this deployment's cap.
+  const maxOptSteps = Math.min(PARAMS.maxOptSteps.max, caps.limits.maxOptSteps);
+  const maxMdSteps = Math.min(PARAMS.mdSteps.max, caps.limits.maxMdSteps);
 
   // Elements outside MACE-OFF's training domain, if the loaded structure is known.
   const unsupportedElements = isOFF
@@ -159,11 +169,17 @@ export function ParameterPanel({
     const next = { ...params };
     let changed = false;
 
-    if (
-      (params.modelType === "MACE-OFF" || params.modelType === "custom") &&
-      params.dispersion
-    ) {
+    if (!findModel(params.modelType)?.dispersion.allowed && params.dispersion) {
       next.dispersion = false;
+      changed = true;
+    }
+
+    // Sizes are per model (MACE-MPA-0 ships only "medium"): keep the current
+    // one if the new model has it, otherwise take the model's default.
+    const available = modelSizes(params.modelType);
+    const fallback = findModel(params.modelType)?.defaultSize;
+    if (available.length > 0 && !available.includes(params.modelSize) && fallback) {
+      next.modelSize = fallback as CalculationParams["modelSize"];
       changed = true;
     }
 
@@ -196,7 +212,7 @@ export function ParameterPanel({
       {/* ── Model ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-lg">Model</CardTitle>
+          <StepTitle step={2}>Model</StepTitle>
           <CardDescription>
             Choose a MACE foundation model or upload a fine-tuned checkpoint.
           </CardDescription>
@@ -204,7 +220,7 @@ export function ParameterPanel({
         <CardContent className="space-y-5">
           <Field
             label="Model type"
-            tooltip="MACE-MP-0: materials & crystals (89 elements). MACE-OFF: organic molecules only — H, C, N, O, F, P, S, Cl, Br, I. Custom: your own .model checkpoint."
+            tooltip="MACE-MPA-0: materials & crystals, 89 elements — upstream's default. MACE-MP-0: the 2023 materials model, kept so earlier results can be reproduced. MACE-OFF: organic molecules only — H, C, N, O, F, P, S, Cl, Br, I. Custom: your own .model checkpoint (local or self-hosted only)."
           >
             <Select
               value={params.modelType}
@@ -212,43 +228,51 @@ export function ParameterPanel({
                 updateParam("modelType", v as CalculationParams["modelType"])
               }
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="w-full">
+                {/* The closed select shows the model name only; the option
+                    list carries the domain and element count. */}
+                <SelectValue>
+                  {params.modelType === "custom" ? "Custom checkpoint" : (findModel(params.modelType)?.label ?? params.modelType)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MACE-MP-0">
-                  MACE-MP-0 — materials, 89 elements
-                </SelectItem>
-                <SelectItem value="MACE-OFF">
-                  MACE-OFF — organic molecules
-                </SelectItem>
-                <SelectItem value="custom">
-                  Custom — upload .model file
-                </SelectItem>
+                {MODELS.filter((m) => m.loader !== "checkpoint" || caps.customModels).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.loader === "checkpoint"
+                      ? "Custom — upload .model file"
+                      : `${m.label} — ${m.domain === "materials" ? `materials, ${m.elementCount} elements` : "organic molecules"}`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
 
           {isOFF && (
-            <div className="space-y-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3">
-              <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+            <div className="space-y-2 rounded-lg border border-border-subtle bg-bg-surface p-3">
+              <p className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-strong" />
                 <span>
                   Trained only on organic elements:{" "}
-                  <strong className="font-mono text-[var(--color-text-primary)]">
+                  <strong className="font-mono text-text-primary">
                     H, C, N, O, F, P, S, Cl, Br, I
                   </strong>
                   . Structures with other elements (metals, noble gases, etc.)
                   are outside its training domain.
                 </span>
               </p>
+              {notice && (
+                <p className="text-xs leading-relaxed text-text-secondary">
+                  <strong className="font-semibold text-text-primary">Licence:</strong>{" "}
+                  {notice}
+                </p>
+              )}
               {unsupportedElements.length > 0 && (
-                <p className="flex items-start gap-2 rounded border border-[var(--color-error)]/40 bg-[var(--color-error)]/10 p-2 text-xs leading-relaxed text-[var(--color-error)]">
+                <p className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-2 text-xs leading-relaxed text-error">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     This structure contains{" "}
                     <strong>{unsupportedElements.join(", ")}</strong>, which
-                    MACE-OFF does not support. Switch to MACE-MP-0 for this
+                    MACE-OFF does not support. Switch to MACE-MPA-0 for this
                     structure.
                   </span>
                 </p>
@@ -257,9 +281,9 @@ export function ParameterPanel({
           )}
 
           {isCustom && (
-            <div className="space-y-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
-              <p className="flex items-start gap-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-accent-primary)]" />
+            <div className="space-y-3 rounded-lg border border-border-subtle bg-bg-surface p-4">
+              <p className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-strong" />
                 <span>
                   Upload a MACE-compatible <code className="font-mono">.model</code>{" "}
                   checkpoint — a fine-tuned model from{" "}
@@ -269,7 +293,7 @@ export function ParameterPanel({
               </p>
 
               {!customModelFile ? (
-                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-[var(--color-border-emphasis)] bg-[var(--color-bg-elevated)] p-4 text-center transition-colors hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-soft)]">
+                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft">
                   <input
                     type="file"
                     accept=".model"
@@ -280,20 +304,20 @@ export function ParameterPanel({
                     }}
                     className="absolute inset-0 cursor-pointer opacity-0"
                   />
-                  <Upload className="mx-auto mb-1 h-5 w-5 text-[var(--color-text-muted)]" />
-                  <p className="text-xs text-[var(--color-text-secondary)]">
+                  <Upload className="mx-auto mb-1 h-5 w-5 text-text-muted" />
+                  <p className="text-xs text-text-secondary">
                     Drop a .model file or click to browse
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-2.5">
+                <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-bg-elevated p-2.5">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[var(--color-accent-primary)]" />
+                    <FileText className="h-4 w-4 text-accent-strong" />
                     <div>
-                      <p className="font-mono text-xs text-[var(--color-text-primary)]">
+                      <p className="font-mono text-xs text-text-primary">
                         {customModelFile.name}
                       </p>
-                      <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                      <p className="font-mono text-xs text-text-muted">
                         {(customModelFile.size / 1024 / 1024).toFixed(1)} MB
                       </p>
                     </div>
@@ -302,7 +326,7 @@ export function ParameterPanel({
                     type="button"
                     onClick={() => onCustomModelChange(null)}
                     aria-label="Remove custom model"
-                    className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]"
+                    className="rounded p-1 text-text-muted transition-colors hover:text-error"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -333,20 +357,27 @@ export function ParameterPanel({
               onValueChange={(v) =>
                 updateParam("modelSize", v as CalculationParams["modelSize"])
               }
-              disabled={isCustom}
+              disabled={isCustom || sizes.length <= 1}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="small">Small — fastest</SelectItem>
-                <SelectItem value="medium">Medium — balanced</SelectItem>
-                <SelectItem value="large">Large — most accurate</SelectItem>
+                {sizes.map((size) => (
+                  <SelectItem key={size} value={size}>
+                    {SIZE_LABELS[size] ?? size}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {!isCustom && sizes.length === 1 && (
+              <p className="text-xs text-text-muted">
+                {model?.label} is published in one size.
+              </p>
+            )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field
               label="Precision"
               tooltip={
@@ -370,8 +401,8 @@ export function ParameterPanel({
                   )
                 }
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="w-full">
+                  <SelectValue>{params.precision ?? "Auto"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={PRECISION_AUTO}>
@@ -381,7 +412,7 @@ export function ParameterPanel({
                   <SelectItem value="float64">float64 — precise</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
+              <p className="text-xs leading-relaxed text-text-muted">
                 {isCustom
                   ? "Custom checkpoints run in the dtype they were saved in."
                   : "Auto follows upstream MACE: float64 for MACE-OFF and for geometry optimization, float32 otherwise. An explicit choice is always honoured — the result will say which dtype actually ran."}
@@ -395,7 +426,7 @@ export function ParameterPanel({
                   updateParam("device", v as CalculationParams["device"])
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -411,7 +442,7 @@ export function ParameterPanel({
       {/* ── Calculation ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif text-lg">Calculation</CardTitle>
+          <StepTitle step={3}>Calculation</StepTitle>
           <CardDescription>
             Pick what to compute; parameters below adapt to your choice.
           </CardDescription>
@@ -433,10 +464,10 @@ export function ParameterPanel({
                 htmlFor={`ct-${opt.value}`}
                 className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                   opt.disabled
-                    ? "cursor-not-allowed border-[var(--color-border-subtle)] opacity-55"
+                    ? "cursor-not-allowed border-dashed border-border-subtle"
                     : params.calculationType === opt.value
-                      ? "cursor-pointer border-[var(--color-accent-primary)] bg-[var(--color-accent-soft)]"
-                      : "cursor-pointer border-[var(--color-border-subtle)] hover:border-[var(--color-border-emphasis)] hover:bg-[var(--color-bg-secondary)]"
+                      ? "cursor-pointer border-accent-primary bg-accent-soft"
+                      : "cursor-pointer border-border-subtle hover:border-border-emphasis hover:bg-bg-secondary"
                 }`}
               >
                 <RadioGroupItem
@@ -446,15 +477,23 @@ export function ParameterPanel({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-sm font-medium text-[var(--color-text-primary)]">
+                  <span
+                    className={`block text-sm font-medium ${
+                      opt.disabled ? "text-text-muted" : "text-text-primary"
+                    }`}
+                  >
                     {opt.label}
                     {opt.disabled && (
-                      <span className="ml-2 rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-[10px] font-normal text-[var(--color-text-muted)]">
+                      <span className="ml-2 rounded-full bg-bg-secondary px-2 py-0.5 text-xs font-normal text-text-muted">
                         soon
                       </span>
                     )}
                   </span>
-                  <span className="mt-0.5 block text-xs text-[var(--color-text-secondary)]">
+                  <span
+                    className={`mt-0.5 block text-xs ${
+                      opt.disabled ? "text-text-muted" : "text-text-secondary"
+                    }`}
+                  >
                     {opt.hint}
                   </span>
                 </span>
@@ -462,30 +501,30 @@ export function ParameterPanel({
             ))}
           </RadioGroup>
 
-          <div className="border-t border-[var(--color-border-subtle)] pt-5">
-            {/* D3 dispersion — meaningful only for MACE-MP-0 */}
+          <div className="border-t border-border-subtle pt-5">
+            {/* D3 dispersion — meaningful only for the MACE-MP family */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Label htmlFor="dispersion" className="text-sm">
                   D3 dispersion correction
                 </Label>
-                <InfoTip text="Grimme D3 correction. Only meaningful for MACE-MP-0 — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
+                <InfoTip text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
               </div>
               <Switch
                 id="dispersion"
-                checked={params.dispersion && !isOFF && !isCustom}
-                disabled={isOFF || isCustom}
+                checked={params.dispersion && dispersionAllowed}
+                disabled={!dispersionAllowed}
                 onCheckedChange={(c) => updateParam("dispersion", c)}
               />
             </div>
             {isOFF && (
-              <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-1.5 text-xs text-text-muted">
                 Disabled — MACE-OFF already includes dispersion; enabling D3
                 would double-count it.
               </p>
             )}
             {isCustom && (
-              <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-1.5 text-xs text-text-muted">
                 Disabled — dispersion is not applied to custom model
                 checkpoints; it depends on how the model was trained.
               </p>
@@ -500,8 +539,8 @@ export function ParameterPanel({
                   hint="Convergence: max force per atom (fmax). 0.05 for general use; tighten to 0.01 for production-quality geometries."
                   value={params.forceThreshold ?? 0.05}
                   onChange={(v) => updateParam("forceThreshold", v)}
-                  min={0.001}
-                  max={1}
+                  min={PARAMS.forceThreshold.min}
+                  max={PARAMS.forceThreshold.max}
                   step={0.01}
                 />
                 <NumberField
@@ -509,8 +548,8 @@ export function ParameterPanel({
                   hint="Upper bound on BFGS iterations; the run stops early once fmax is reached."
                   value={params.maxOptSteps ?? 500}
                   onChange={(v) => updateParam("maxOptSteps", v)}
-                  min={10}
-                  max={5000}
+                  min={PARAMS.maxOptSteps.min}
+                  max={maxOptSteps}
                 />
               </div>
             )}
@@ -543,7 +582,7 @@ export function ParameterPanel({
                     </SelectContent>
                   </Select>
                   {isPeriodic === false && (
-                    <p className="text-[10px] text-[var(--color-text-muted)]">
+                    <p className="text-xs text-text-muted">
                       NPT is unavailable — this structure has no periodic
                       cell (not a crystal/bulk structure). Only NVE/NVT apply.
                     </p>
@@ -560,8 +599,8 @@ export function ParameterPanel({
                   }
                   value={params.temperature ?? 300}
                   onChange={(v) => updateParam("temperature", v)}
-                  min={0}
-                  max={5000}
+                  min={PARAMS.temperature.min}
+                  max={PARAMS.temperature.max}
                 />
 
                 {(params.mdEnsemble ?? "NVT") === "NVT" && (
@@ -571,8 +610,8 @@ export function ParameterPanel({
                     hint="Langevin thermostat coupling strength"
                     value={params.friction ?? 0.005}
                     onChange={(v) => updateParam("friction", v)}
-                    min={0.0001}
-                    max={0.1}
+                    min={PARAMS.friction.min}
+                    max={PARAMS.friction.max}
                     step={0.001}
                   />
                 )}
@@ -583,8 +622,8 @@ export function ParameterPanel({
                     unit="GPa"
                     value={params.pressure ?? 0}
                     onChange={(v) => updateParam("pressure", v)}
-                    min={0}
-                    max={1000}
+                    min={PARAMS.pressure.min}
+                    max={PARAMS.pressure.max}
                   />
                 )}
 
@@ -596,23 +635,23 @@ export function ParameterPanel({
                     warning={timeStepWarning}
                     value={timeStepValue}
                     onChange={(v) => updateParam("timeStep", v)}
-                    min={0.1}
-                    max={4}
+                    min={PARAMS.timeStep.min}
+                    max={PARAMS.timeStep.max}
                     step={0.1}
                   />
                   <NumberField
                     label="MD steps"
                     value={params.mdSteps ?? 100}
                     onChange={(v) => updateParam("mdSteps", v)}
-                    min={1}
-                    max={100000}
+                    min={PARAMS.mdSteps.min}
+                    max={maxMdSteps}
                   />
                 </div>
               </div>
             )}
 
             {params.calculationType === "single-point" && (
-              <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-4 text-xs text-text-muted">
                 No additional parameters required for a single-point evaluation.
               </p>
             )}
@@ -637,7 +676,7 @@ function Field({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
-        <Label className="text-xs font-medium text-[var(--color-text-secondary)]">
+        <Label className="text-xs font-medium text-text-secondary">
           {label}
         </Label>
         {tooltip && <InfoTip text={tooltip} />}
@@ -647,13 +686,19 @@ function Field({
   );
 }
 
+/**
+ * Hover/focus tooltip that also opens on tap: Radix tooltips ignore touch, so
+ * without the click handler this explanation was unreachable on a phone.
+ */
 function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Tooltip>
+    <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]"
+          onClick={() => setOpen(true)}
+          className="touch-target rounded-full text-text-muted transition-colors hover:text-accent-strong"
           aria-label="More information"
         >
           <Info className="h-3.5 w-3.5" />
@@ -701,10 +746,10 @@ function NumberField({
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-[var(--color-text-secondary)]">
+      <Label className="text-xs font-medium text-text-secondary">
         {label}
         {unit && (
-          <span className="ml-1 font-normal text-[var(--color-text-muted)]">
+          <span className="ml-1 font-normal text-text-muted">
             ({unit})
           </span>
         )}
@@ -746,17 +791,17 @@ function NumberField({
         step={step ?? 1}
       />
       {hint && (
-        <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-text-muted">
           {hint}
         </p>
       )}
       {rangeText && (
-        <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
+        <p className="font-mono text-xs text-text-muted">
           {rangeText}
         </p>
       )}
       {warning && (
-        <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-[var(--color-warning)]">
+        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{warning}</span>
         </p>

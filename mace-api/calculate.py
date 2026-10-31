@@ -7,41 +7,46 @@ geometry optimization, molecular dynamics). Both the CLI wrapper
 """
 
 import logging
+import math
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
+import contract
 import provenance
+import safe_load
+from contract import ContractError
+
+_CONTRACT = contract.load_contract()
 
 # Calculation types that have a real implementation below. This is the
 # security boundary: the API can be POSTed to directly, so the frontend check
 # is not sufficient. Anything outside this set MUST fail loudly — silently
 # falling back to a single-point run would return a plausible-looking energy
-# for a calculation that never happened.
-SUPPORTED_CALCULATION_TYPES = ("single-point", "geometry-opt", "molecular-dynamics")
+# for a calculation that never happened. Defined in contract.json.
+SUPPORTED_CALCULATION_TYPES = tuple(_CONTRACT["calculationTypes"])
 
-# Model families that have a real loader in get_mace_calculator(). Same
-# security-boundary reasoning as SUPPORTED_CALCULATION_TYPES, applied to the
-# model instead of the calculation: an unrecognised modelType that falls
-# through to mace_mp() returns MACE-MP-0 numbers under another model's name,
-# and those numbers are shareable via MACE Link and exportable to PDF.
-SUPPORTED_MODEL_TYPES = ("MACE-MP-0", "MACE-OFF", "MACE-OFF23", "custom")
+# Every modelType spelling the registry accepts (canonical ids, then aliases).
+# Same security-boundary reasoning, applied to the model: an unrecognised
+# modelType that fell through to mace_mp() would return MACE-MP numbers under
+# another model's name, shareable via MACE Link and exportable to PDF.
+SUPPORTED_MODEL_TYPES = contract.model_ids()
 
 # modelType values that map to upstream's mace_off() loader.
-MACE_OFF_MODEL_TYPES = ("MACE-OFF", "MACE-OFF23")
+MACE_OFF_MODEL_TYPES = tuple(
+    name for m in contract.models() if m["loader"] == "mace_off"
+    for name in (m["id"], *m["aliases"])
+)
 
 # Floating-point precisions MACE accepts as `default_dtype`.
-SUPPORTED_PRECISIONS = ("float32", "float64")
+SUPPORTED_PRECISIONS = tuple(_CONTRACT["precisions"])
 
 # Types the UI/type system knows about but the backend cannot compute.
 # Rejecting these honestly is the correct behaviour; a stub returning numbers
 # would be worse than an error.
-_UNIMPLEMENTED_HINTS = {
-    "phonon": (
-        "Phonon/vibrational analysis is not implemented in SimpleAtom. "
-        "It must be run through an external workflow on a fully converged geometry."
-    ),
-}
+_UNIMPLEMENTED_HINTS = _CONTRACT["refusedCalculationTypes"]
 
 # Default RNG seed for molecular dynamics. MD draws initial velocities from a
 # Maxwell-Boltzmann distribution and the Langevin thermostat applies random
@@ -49,7 +54,61 @@ _UNIMPLEMENTED_HINTS = {
 # including one a user shares via MACE Link. Fixed by default so results are
 # verifiable; override with params["seed"] to generate independent replicas.
 # (Matches the seeding convention in smiles_to_xyz.py.)
-DEFAULT_MD_SEED = 42
+DEFAULT_MD_SEED = _CONTRACT["params"]["seed"]["default"]
+
+# NPT barostat. ASE's pfactor is ptime² · B (ase/md/melchionna.py docstring):
+# a barostat time of ~75 fs and a bulk-modulus estimate of ~100 GPa for
+# solids. SimpleAtom used to pass 75·fs², which omits B and squares only the
+# unit — a barostat ~47× softer than the one it was meant to configure (D17).
+NPT_THERMOSTAT_TIME_FS = 25.0
+NPT_BAROSTAT_TIME_FS = 75.0
+NPT_BULK_MODULUS_GPA = 100.0
+
+
+class RunCancelled(Exception):
+    """The caller withdrew the request; the partial run is discarded."""
+
+
+class _StopEarly(Exception):
+    """Internal: the time budget ran out; finish with what was computed."""
+
+    def __init__(self, step: int):
+        super().__init__(step)
+        self.step = step
+
+
+@dataclass
+class RunHooks:
+    """
+    Progress, cancellation and time budget for one calculation.
+
+    `tick()` is called once per optimiser or MD step. It reports progress at
+    most four times a second, raises `RunCancelled` when the caller has gone
+    away, and raises `_StopEarly` once the deadline passes so the run ends with
+    an honest partial result instead of being killed mid-step.
+    """
+
+    deadline: float | None = None
+    on_progress: Callable[[dict], None] | None = None
+    is_cancelled: Callable[[], bool] | None = None
+    _last_emit: float = field(default=0.0, repr=False)
+
+    def phase(self, name: str) -> None:
+        """A stage boundary (reading, loading the model, computing): always reported."""
+        if self.is_cancelled is not None and self.is_cancelled():
+            raise RunCancelled()
+        if self.on_progress is not None:
+            self.on_progress({"phase": name, "step": None, "totalSteps": None})
+
+    def tick(self, phase: str, step: int, total: int | None, **extra) -> None:
+        if self.is_cancelled is not None and self.is_cancelled():
+            raise RunCancelled()
+        now = time.monotonic()
+        if self.on_progress is not None and (now - self._last_emit >= 0.25 or step == total):
+            self._last_emit = now
+            self.on_progress({"phase": phase, "step": step, "totalSteps": total, **extra})
+        if self.deadline is not None and now > self.deadline:
+            raise _StopEarly(step)
 
 
 def resolve_seed(raw) -> int:
@@ -57,13 +116,20 @@ def resolve_seed(raw) -> int:
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return DEFAULT_MD_SEED
     if isinstance(raw, bool):  # bool is an int subclass — reject explicitly
-        raise ValueError("Invalid seed: expected a non-negative integer, got a boolean.")
+        raise ContractError("Invalid seed: expected a non-negative integer, got a boolean.",
+                            code="invalid_number", field="seed")
     try:
         seed = int(raw)
     except (TypeError, ValueError):
-        raise ValueError(f"Invalid seed: expected a non-negative integer, got {raw!r}.")
+        raise ContractError(f"Invalid seed: expected a non-negative integer, got {raw!r}.",
+                            code="invalid_number", field="seed")
     if seed < 0:
-        raise ValueError(f"Invalid seed: must be non-negative, got {seed}.")
+        raise ContractError(f"Invalid seed: must be non-negative, got {seed}.",
+                            code="out_of_range", field="seed")
+    if seed > _CONTRACT["params"]["seed"]["max"]:
+        raise ContractError(
+            f"Invalid seed: must be at most {_CONTRACT['params']['seed']['max']}, got {seed}.",
+            code="out_of_range", field="seed")
     return seed
 
 
@@ -72,72 +138,27 @@ def validate_calculation_type(raw) -> str:
     Normalise and validate the requested calculation type.
 
     A missing/empty value defaults to "single-point" (the documented default).
-    Any value that is present but not implemented raises ValueError rather
-    than quietly running something else.
+    Any value that is present but not implemented raises rather than quietly
+    running something else. Rules live in contract.json.
     """
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
-        return "single-point"
-
-    if not isinstance(raw, str):
-        raise ValueError(
-            f"Invalid calculationType: expected a string, got {type(raw).__name__}. "
-            f"Supported types: {', '.join(SUPPORTED_CALCULATION_TYPES)}."
-        )
-
-    calc_type = raw.strip()
-    if calc_type in SUPPORTED_CALCULATION_TYPES:
-        return calc_type
-
-    msg = (
-        f"Unsupported calculationType '{calc_type}'. "
-        f"Supported types: {', '.join(SUPPORTED_CALCULATION_TYPES)}."
-    )
-    hint = _UNIMPLEMENTED_HINTS.get(calc_type.lower())
-    if hint:
-        msg = f"{msg} {hint}"
-    raise ValueError(msg)
+    return contract.resolve_calculation_type(raw)
 
 
 def validate_model_type(raw, has_model_path: bool) -> str:
     """
-    Normalise and validate the requested model type.
+    Normalise and validate the requested model type; returns the canonical id.
 
-    Mirrors validate_calculation_type(): a value that is present but not
-    recognised raises rather than quietly loading a different model. A missing
-    value defaults to "custom" when a checkpoint was uploaded and to
-    "MACE-MP-0" otherwise (the documented default).
+    A value that is present but not in the registry raises rather than quietly
+    loading a different model. A missing value defaults to "custom" when a
+    checkpoint was uploaded and to the registry default (MACE-MPA-0, upstream's
+    own default since v0.3.10) otherwise.
 
     "custom" with no uploaded checkpoint is rejected explicitly. That request
     used to fall through to mace_mp() and return MACE-MP-0 *medium* energies
     and forces with result["params"]["modelType"] == "custom" — numbers
     permanently attributed to a model that was never loaded.
     """
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
-        return "custom" if has_model_path else "MACE-MP-0"
-
-    if not isinstance(raw, str):
-        raise ValueError(
-            f"Invalid modelType: expected a string, got {type(raw).__name__}. "
-            f"Supported models: {', '.join(SUPPORTED_MODEL_TYPES)}."
-        )
-
-    model_type = raw.strip()
-    if model_type not in SUPPORTED_MODEL_TYPES:
-        raise ValueError(
-            f"Unsupported modelType '{model_type}'. "
-            f"Supported models: {', '.join(SUPPORTED_MODEL_TYPES)}."
-        )
-
-    if model_type == "custom" and not has_model_path:
-        raise ValueError(
-            "modelType 'custom' requires an uploaded MACE .model checkpoint, but "
-            "no model file was supplied. Upload the checkpoint, or select "
-            "MACE-MP-0 or MACE-OFF. Running a foundation model and labelling the "
-            "result 'custom' would attribute the numbers to a model that was "
-            "never loaded."
-        )
-
-    return model_type
+    return contract.resolve_model(raw, has_model_path)["id"]
 
 
 def upstream_default_precision(model_type: str, calc_type: str) -> str:
@@ -150,7 +171,8 @@ def upstream_default_precision(model_type: str, calc_type: str) -> str:
     * `mace_off()` defaults to ``default_dtype="float64"``
       (foundations_models.py:209), unlike `mace_mp()`'s ``"float32"``. That
       difference is deliberate and has held since v0.3.6. Defaulting MACE-OFF
-      to float32 inverts it.
+      to float32 inverts it. The registry records each model's upstream
+      default as `upstreamDefaultDtype`.
     * Both wrappers print, at construction, on every run:
       "Using float32 for MACECalculator, which is faster but less accurate.
       Recommended for MD. Use float64 for geometry optimization."
@@ -162,7 +184,8 @@ def upstream_default_precision(model_type: str, calc_type: str) -> str:
     recommendation, run_calculation() records a warning on the result rather
     than silently overriding the caller.
     """
-    if model_type in MACE_OFF_MODEL_TYPES:
+    model = contract.find_model(model_type)
+    if model is not None and model.get("upstreamDefaultDtype") == "float64":
         return "float64"
     if calc_type == "geometry-opt":
         return "float64"
@@ -180,16 +203,18 @@ def resolve_precision(raw, model_type: str, calc_type: str) -> tuple[str, bool]:
         return upstream_default_precision(model_type, calc_type), False
 
     if not isinstance(raw, str):
-        raise ValueError(
+        raise ContractError(
             f"Invalid precision: expected a string, got {type(raw).__name__}. "
-            f"Supported precisions: {', '.join(SUPPORTED_PRECISIONS)}."
+            f"Supported precisions: {', '.join(SUPPORTED_PRECISIONS)}.",
+            code="unsupported_precision", field="precision",
         )
 
     precision = raw.strip()
     if precision not in SUPPORTED_PRECISIONS:
-        raise ValueError(
+        raise ContractError(
             f"Unsupported precision '{precision}'. "
-            f"Supported precisions: {', '.join(SUPPORTED_PRECISIONS)}."
+            f"Supported precisions: {', '.join(SUPPORTED_PRECISIONS)}.",
+            code="unsupported_precision", field="precision",
         )
     return precision, True
 
@@ -329,8 +354,9 @@ def detect_format(filename: str) -> str:
     stricter parser rejects a file, so a malformed comment line degrades rather
     than failing the run.
     """
+    name = Path(filename).name
     ext = Path(filename).suffix.lower()
-    if ext == ".xyz":
+    if ext in (".xyz", ".extxyz"):
         return "extxyz"
     if ext == ".cif":
         return "cif"
@@ -338,11 +364,16 @@ def detect_format(filename: str) -> str:
         return "vasp"
     if ext == ".pdb":
         return "proteindatabank"
+    # VASP's own convention is a bare file called POSCAR or CONTCAR. Those used
+    # to fall through to the XYZ reader and fail on the first line.
+    if name.upper() in _CONTRACT["bareStructureNames"]:
+        return "vasp"
     return "xyz"
 
 
-def resolve_device(requested: str) -> str:
+def resolve_device(requested) -> str:
     """Resolve compute device, falling back to CPU if CUDA is unavailable."""
+    requested = contract.resolve_choice(requested, "device", _CONTRACT["devices"], "cpu")
     if requested == "cuda":
         try:
             import torch
@@ -353,33 +384,37 @@ def resolve_device(requested: str) -> str:
     return requested
 
 
-def get_mace_calculator(model_type: str, model_size: str, device: str, dispersion: bool, precision: str = "float32"):
+def get_mace_calculator(model_type: str, model_size: str | None, device: str, dispersion: bool, precision: str = "float32"):
     """
     Return an ASE calculator for a MACE foundation model.
 
-    There is no fall-through branch. An unrecognised model_type raises, so a
-    caller that bypasses validate_model_type() cannot get MACE-MP-0 results
-    under a different label.
+    There is no fall-through branch. An unrecognised model_type or size raises,
+    so a caller that bypasses validate_model_type() cannot get MACE-MP results
+    under a different label. The size is mapped through the registry to
+    upstream's model key and is never handed to upstream as-is: mace_mp() and
+    mace_off() treat any unknown string as a URL to download or a path to load.
     """
-    model_size = model_size or "medium"
+    model = contract.find_model(model_type)
+    if model is None or model["loader"] not in ("mace_mp", "mace_off"):
+        raise ContractError(
+            f"No foundation-model loader for modelType '{model_type}'. "
+            f"Supported models: {', '.join(SUPPORTED_MODEL_TYPES)}.",
+            code="unsupported_model", field="modelType",
+        )
+    size = contract.resolve_model_size(model, model_size)
+    upstream_key = contract.upstream_model_key(model, size)
 
-    if model_type in MACE_OFF_MODEL_TYPES:
+    if model["loader"] == "mace_off":
         from mace.calculators import mace_off
         # Upstream's mace_off() has no `dispersion` parameter: MACE-OFF23 is
         # trained on wB97M-D3BJ data, so D3 is already in the model. Dropping
         # the flag here is the right physics; run_calculation() records that it
         # was dropped instead of echoing it back as if it had been applied.
-        return mace_off(model=model_size, device=device, default_dtype=precision)
+        return mace_off(model=upstream_key, device=device, default_dtype=precision)
 
-    if model_type == "MACE-MP-0":
-        from mace.calculators import mace_mp
-        return mace_mp(model=model_size, device=device, dispersion=dispersion,
-                       default_dtype=precision)
-
-    raise ValueError(
-        f"No foundation-model loader for modelType '{model_type}'. "
-        f"Supported models: {', '.join(SUPPORTED_MODEL_TYPES)}."
-    )
+    from mace.calculators import mace_mp
+    return mace_mp(model=upstream_key, device=device, dispersion=dispersion,
+                   default_dtype=precision)
 
 
 def get_custom_calculator(model_path: str, device: str):
@@ -447,6 +482,27 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
     """
     symbols = [a.symbol for a in atoms]
     lattice = atoms.get_cell().tolist() if atoms.pbc.any() else None
+    warnings = list(warnings or [])
+
+    properties = {"volume": float(atoms.get_volume()) if atoms.pbc.any() else None,
+                  "stress": None, "pressure": None}
+    # Stress and pressure only for a fully periodic cell (D6). For a molecule
+    # or a slab the "volume" a stress would be divided by is a padding box
+    # invented by the neighbour list, so the number is an artefact of that box
+    # (upstream masks it for exactly this reason, ACEsuit/mace #1684). Voigt
+    # order xx, yy, zz, yz, xz, xy; ASE's sign convention, so pressure is
+    # minus the mean of the diagonal.
+    if atoms.pbc.all():
+        try:
+            from ase import units
+            stress_gpa = atoms.get_stress(voigt=True) / units.GPa
+            properties["stress"] = [float(x) for x in stress_gpa]
+            properties["pressure"] = float(-stress_gpa[:3].mean())
+        except Exception as exc:  # noqa: BLE001 — a missing stress must not lose the result
+            warnings.append(
+                f"Stress could not be computed ({type(exc).__name__}: {exc}); "
+                "pressure is not reported."
+            )
 
     if warnings:
         msg = f"{msg} | Warnings: {' '.join(warnings)}"
@@ -458,7 +514,7 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
         "positions": atoms.get_positions().tolist(),
         "symbols": symbols,
         "lattice": lattice,
-        "properties": {"volume": float(atoms.get_volume()) if atoms.pbc.any() else None},
+        "properties": properties,
         "params": dict(effective_params),
         "message": msg,
         "timeTaken": round(time.time() - calc_start, 3),
@@ -605,7 +661,139 @@ def attach_validation(result: dict) -> dict:
     return result
 
 
-def run_calculation(filepath: str, params: dict, model_path: str | None = None) -> dict:
+def _display_name(display_name: str | None, filepath: str) -> str:
+    """
+    The name a result should carry for its input file.
+
+    Uploads are written to disk under a random name (a client-chosen filename
+    must never become a path), so the original name travels separately. It is
+    reduced to a bare basename and trimmed: it appears in messages, the
+    provenance manifest, PDF exports and MACE Links.
+    """
+    name = Path(display_name or "").name.strip() if display_name else ""
+    if not name:
+        name = Path(filepath).name
+    printable = "".join(ch for ch in name if ch.isprintable())
+    return printable[:120] or "structure"
+
+
+def _resolve_run_params(calc_type: str, params: dict, profile_name: str) -> dict:
+    """
+    Validate every calculation-specific parameter up front.
+
+    Each value must be finite and inside contract.json's physical bounds, and
+    step counts must fit this deployment's caps — all before a structure is
+    read or a model is downloaded, so an out-of-range request costs nothing.
+    """
+    if calc_type == "geometry-opt":
+        resolved = {
+            "forceThreshold": float(contract.resolve_number(params, "forceThreshold")),
+            "maxOptSteps": int(contract.resolve_number(params, "maxOptSteps")),
+        }
+        contract.check_step_cap("maxOptSteps", resolved["maxOptSteps"], profile_name)
+        return resolved
+    if calc_type == "molecular-dynamics":
+        resolved = {
+            "temperature": float(contract.resolve_number(params, "temperature")),
+            "timeStep": float(contract.resolve_number(params, "timeStep")),
+            "friction": float(contract.resolve_number(params, "friction")),
+            "mdSteps": int(contract.resolve_number(params, "mdSteps")),
+            # An unrecognised ensemble used to fall through to NVE and run
+            # under the requested label.
+            "mdEnsemble": contract.resolve_choice(
+                params.get("mdEnsemble"), "mdEnsemble", _CONTRACT["mdEnsembles"], "NVT"),
+        }
+        if resolved["mdEnsemble"] == "NPT":
+            resolved["pressure"] = float(contract.resolve_number(params, "pressure"))
+        contract.check_step_cap("mdSteps", resolved["mdSteps"], profile_name)
+        return resolved
+    return {}
+
+
+def _read_structure(filepath: str, display: str, warnings: list[str]):
+    """
+    Read the FIRST frame of a structure file.
+
+    ase.io.read() with no index returns the LAST frame of a multi-frame file
+    (ase/io/formats.py maps None to -1), while the UI previews the first — so
+    a trajectory upload was computed on a different geometry from the one the
+    user saw (D16). index=0 makes them agree.
+    """
+    from ase.io import read
+
+    fmt = detect_format(filepath)
+    try:
+        atoms = read(filepath, format=fmt, index=0)
+    except Exception as exc:
+        # extxyz is stricter than the plain xyz reader: a malformed comment line
+        # that simple_read_xyz would ignore can make it raise. Degrade to the
+        # permissive reader rather than failing the run — the cost is losing any
+        # cell the comment line declared, which is exactly what we had before.
+        if fmt != "extxyz":
+            raise ContractError(
+                f"Could not read '{display}' as {fmt} ({type(exc).__name__}: {exc}).",
+                code="unreadable_structure", field="structure",
+            ) from exc
+        try:
+            atoms = read(filepath, format="xyz", index=0)
+        except Exception as exc2:
+            raise ContractError(
+                f"Could not read '{display}' as XYZ ({type(exc2).__name__}: {exc2}).",
+                code="unreadable_structure", field="structure",
+            ) from exc2
+        warnings.append(
+            f"Could not parse '{display}' as extended XYZ "
+            f"({type(exc).__name__}); fell back to the plain XYZ reader. Any "
+            "Lattice/pbc declared on the comment line was ignored, so this was "
+            "treated as a non-periodic structure."
+        )
+    if len(atoms) == 0:
+        raise ContractError(f"'{display}' contains no atoms.",
+                            code="unreadable_structure", field="structure")
+    return atoms, fmt
+
+
+def validate_request(params: dict, has_model_path: bool, profile_name: str) -> dict:
+    """
+    Every check that needs only the request, never the structure or a model.
+
+    Raises ContractError for anything contract.json refuses. Used by
+    run_calculation() and by the job queue (jobs.py), which refuses a bad
+    request with a 4xx before it ever waits in line.
+    """
+    if has_model_path and not contract.custom_models_allowed(profile_name):
+        raise ContractError(
+            "Custom model checkpoints are disabled on this deployment. Loading a "
+            "MACE .model file executes code from the file, so the public "
+            "instance only runs pinned foundation models. Run SimpleAtom "
+            "locally (or self-host with ALLOW_CUSTOM_MODELS=1) to use your own "
+            "checkpoint. Nothing was computed.",
+            code="custom_models_disabled", field="model", status=403,
+        )
+    calc_type = validate_calculation_type(params.get("calculationType"))
+    requested_model = validate_model_type(params.get("modelType"), has_model_path)
+    model_type = "custom" if has_model_path else requested_model
+    model = contract.find_model(model_type)
+    resolved = {
+        "calc_type": calc_type,
+        "requested_model": requested_model,
+        "model_type": model_type,
+        "model": model,
+        "model_size": contract.resolve_model_size(model, params.get("modelSize")),
+        "seed": resolve_seed(params.get("seed")),
+        "run_params": _resolve_run_params(calc_type, params, profile_name),
+        "device": resolve_device(params.get("device")),
+        "dispersion_requested": contract.resolve_bool(params.get("dispersion"), "dispersion"),
+    }
+    resolved["precision"], resolved["precision_requested"] = resolve_precision(
+        params.get("precision"), model_type, calc_type
+    )
+    return resolved
+
+
+def run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
+                    profile: str | None = None, display_name: str | None = None,
+                    hooks: RunHooks | None = None) -> dict:
     """
     Run a MACE calculation on a structure file.
 
@@ -613,70 +801,77 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
         filepath: Path to atomic structure file (XYZ, CIF, POSCAR, PDB).
         params: Calculation parameters dict (matches CalculationParams TS type).
         model_path: Optional path to a custom .model checkpoint.
+        profile: Resource profile from contract.json ("hosted" or "local").
+            Defaults to SIMPLEATOM_PROFILE, else "local".
+        display_name: The uploaded file's original name, for messages and the
+            manifest. The file on disk is deliberately named something else.
+        hooks: Progress, cancellation and time-budget callbacks.
 
     Returns:
         Result dict with energy, forces, positions, trajectory, etc.
 
     Raises:
-        ValueError: if calculationType is not one of SUPPORTED_CALCULATION_TYPES,
-            if modelType is not one of SUPPORTED_MODEL_TYPES (including
-            "custom" with no uploaded checkpoint), if precision is not one of
-            SUPPORTED_PRECISIONS, or if the RNG seed is not a non-negative
-            integer.
+        ContractError (a ValueError) for any request contract.json refuses —
+            an unsupported calculation, model, size, precision, ensemble or
+            device; a non-boolean flag; a number out of range; a structure or
+            run over this deployment's caps; a custom model where custom
+            models are disabled. Nothing is computed in any of these cases.
+        safe_load.UntrustedCheckpointError if a checkpoint fails its pin.
+        RunCancelled if hooks report that the caller went away.
     """
+    profile_name = profile or contract.profile_name("local")
+    hooks = hooks or RunHooks()
+    if hooks.deadline is None:
+        budget = contract.profile(profile_name)["timeBudgetSeconds"]
+        hooks.deadline = time.monotonic() + budget if budget else None
+
     # Validate first, before any expensive work (file I/O, model download and
     # load), so an unsupported request fails immediately and unambiguously.
-    calc_type = validate_calculation_type(params.get("calculationType"))
-    model_type = validate_model_type(params.get("modelType"), bool(model_path))
-    seed = resolve_seed(params.get("seed"))
-
-    from ase.io import read
+    req = validate_request(params, bool(model_path), profile_name)
+    calc_type, model_type, model = req["calc_type"], req["model_type"], req["model"]
+    model_size, seed, run_params = req["model_size"], req["seed"], req["run_params"]
+    device, dispersion_requested = req["device"], req["dispersion_requested"]
+    precision, precision_requested = req["precision"], req["precision_requested"]
 
     # Declared before the structure is read: the extended-XYZ fallback below is
     # the first thing that can need to warn.
     warnings: list[str] = []
 
-    fmt = detect_format(filepath)
-    try:
-        atoms = read(filepath, format=fmt)
-    except Exception as exc:
-        # extxyz is stricter than the plain xyz reader: a malformed comment line
-        # that simple_read_xyz would ignore can make it raise. Degrade to the
-        # permissive reader rather than failing the run — the cost is losing any
-        # cell the comment line declared, which is exactly what we had before.
-        if fmt != "extxyz":
-            raise
-        atoms = read(filepath, format="xyz")
+    if model_path and req["requested_model"] != "custom":
         warnings.append(
-            f"Could not parse '{Path(filepath).name}' as extended XYZ "
-            f"({type(exc).__name__}); fell back to the plain XYZ reader. Any "
-            "Lattice/pbc declared on the comment line was ignored, so this was "
-            "treated as a non-periodic structure."
+            f"A custom .model checkpoint was uploaded, so it was used instead of "
+            f"the requested modelType '{req['requested_model']}'."
         )
-    filename = Path(filepath).name
+
+    hooks.phase("reading-structure")
+    filename = _display_name(display_name, filepath)
+    atoms, fmt = _read_structure(filepath, filename, warnings)
+    steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
+    contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
+    if run_params.get("mdEnsemble") == "NPT" and not atoms.pbc.all():
+        raise ContractError(
+            "NPT needs a fully periodic cell (pbc on all three axes): pressure is "
+            "not defined for an isolated molecule or a slab. Use NVT or NVE, or "
+            "upload a periodic structure. Nothing was computed.",
+            code="npt_requires_periodic", field="mdEnsemble",
+        )
 
     ref_data = extract_reference_data(atoms)
 
-    model_size = params.get("modelSize", "medium") or "medium"
-    device = resolve_device(params.get("device", "cpu"))
-    dispersion_requested = bool(params.get("dispersion", False))
-    precision, precision_requested = resolve_precision(
-        params.get("precision"), model_type, calc_type
+    hooks.phase("loading-model")
+    # The only files this process will unpickle: pinned foundation
+    # checkpoints, plus the uploaded one when this deployment allows it.
+    trusted = safe_load.trusted_checkpoints(
+        contract.allowed_checkpoint_sha256(),
+        trusted_paths=(model_path,) if model_path else (),
     )
-
-    if model_path and model_type != "custom":
-        warnings.append(
-            f"A custom .model checkpoint was uploaded, so it was used instead of "
-            f"the requested modelType '{model_type}'."
-        )
-        model_type = "custom"
 
     # Watch torch.load across BOTH loader branches. "MACE-OFF small" names a
     # download URL, not a fixed set of weights; the file that torch.load
     # actually opens is the only reproducible identifier, and the manifest
     # hashes it below. Costs nothing when no checkpoint can be identified —
     # the manifest then records null and says so.
-    with provenance.capture_checkpoint_loads() as checkpoints:
+    with trusted, provenance.capture_checkpoint_loads() as checkpoints:
         if model_type == "custom":
             # `precision` is deliberately NOT passed to MACECalculator: upstream
             # then adopts the checkpoint's own dtype, which is the safest choice
@@ -692,9 +887,10 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
             # Checked before the checkpoint is fetched and loaded: a missing D3
             # backend is a property of the environment, not of this structure, and
             # there is no reason to spend a model download to discover it. Only
-            # MACE-MP-0 reaches torch-dftd — the MACE-OFF and custom paths drop the
-            # flag with a warning a few lines below, which is the right physics.
-            if dispersion_requested and model_type == "MACE-MP-0":
+            # the MACE-MP family reaches torch-dftd — the MACE-OFF and custom
+            # paths drop the flag with a warning a few lines below, which is the
+            # right physics.
+            if dispersion_requested and model["dispersion"]["allowed"]:
                 require_dispersion_backend()
 
             recommended = upstream_default_precision(model_type, calc_type)
@@ -715,19 +911,24 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
     # Report the flag only if upstream actually built SumCalculator([mace, d3]).
     dispersion_active = dispersion_is_active(calc)
     if dispersion_requested and not dispersion_active:
-        if model_type in MACE_OFF_MODEL_TYPES:
-            reason = (
-                "MACE-OFF is trained on wB97M-D3BJ data, which already includes "
-                "dispersion, and upstream's mace_off() has no dispersion parameter"
-            )
-        elif model_type == "custom":
-            reason = "the custom-checkpoint path does not build a D3 calculator"
-        else:
-            reason = "no D3 calculator was constructed"
-        warnings.append(f"D3 dispersion was requested but NOT applied: {reason}.")
+        reason = model["dispersion"]["reason"] or "no D3 calculator was constructed"
+        warnings.append(f"D3 dispersion was requested but NOT applied: {reason}")
 
     # Read the dtype off the loaded model rather than echoing the request.
     effective_precision = detect_calculator_dtype(calc)
+
+    # Force torch's PROCESS-GLOBAL default dtype to agree with the model just
+    # loaded, instead of trusting MACECalculator.__init__ to have done it. In
+    # the long-lived server a previous request can leave the process on the
+    # other dtype, and tensors built without an explicit dtype then come out
+    # at the wrong precision with no error (also fixed upstream in #1659, which
+    # is not in any release yet). One calculation at a time (main.py) is what
+    # makes setting a global safe.
+    if effective_precision in ("float32", "float64"):
+        import torch
+        wanted = torch.float64 if effective_precision == "float64" else torch.float32
+        if torch.get_default_dtype() != wanted:
+            torch.set_default_dtype(wanted)
 
     # Upstream's own warnings during model construction — notably the silent
     # checkpoint downcast — which used to be swallowed by logging.disable().
@@ -745,13 +946,16 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
         "device": device,
         "dispersion": dispersion_active,
     }
+    if model_type != "custom":
+        effective_params["upstreamModel"] = contract.upstream_model_key(model, model_size)
+        effective_params["license"] = model["license"]["id"]
     if effective_precision is not None:
         effective_params["precision"] = effective_precision
     elif model_type != "custom":
         effective_params["precision"] = precision
     if model_path:
         # Basename only — never echo the server-side temp path.
-        effective_params["customModelName"] = Path(model_path).name
+        effective_params["customModelName"] = _display_name(params.get("customModelName"), model_path)
 
     # ── Reproducibility manifest ────────────────────────────────────────────
     # MUST be built here, before dispatch: geometry-opt and MD move the atoms,
@@ -782,22 +986,30 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
     except Exception as exc:  # noqa: BLE001 — provenance must never break a run
         manifest = provenance.unavailable_manifest(f"{type(exc).__name__}: {exc}")
 
+    hooks.phase("computing")
     calc_start = time.time()
+    context = _RunContext(atoms=atoms, filename=filename, calc_start=calc_start,
+                          ref_data=ref_data, effective_params=effective_params,
+                          warnings=warnings, manifest=manifest, hooks=hooks,
+                          profile_name=profile_name)
 
     if calc_type == "geometry-opt":
-        result = _run_geometry_opt(atoms, params, filename, calc_start, ref_data,
-                                   effective_params, warnings, manifest)
+        result = _run_geometry_opt(context, run_params)
     elif calc_type == "molecular-dynamics":
-        result = _run_md(atoms, params, filename, calc_start, ref_data,
-                         effective_params, seed, warnings, manifest)
+        result = _run_md(context, run_params, seed)
     elif calc_type == "single-point":
-        result = _run_single_point(atoms, filename, calc_start, ref_data,
-                                   effective_params, warnings, manifest)
+        result = _run_single_point(context)
     else:
         # Unreachable — validate_calculation_type() gates this above. Kept as a
         # guard so that adding a type to SUPPORTED_CALCULATION_TYPES without a
         # handler fails loudly instead of silently returning a single-point result.
         raise ValueError(f"No handler implemented for calculationType '{calc_type}'")
+
+    # A licence notice is not a warning about the result, so it travels in its
+    # own field (shown with the result, in the PDF and on MACE Link) rather
+    # than in `warnings`. MACE-OFF23 is ASL: non-commercial use only.
+    if model["license"]["notice"]:
+        result["licenseNotice"] = model["license"]["notice"]
 
     # Second opinion on the physics, attached to the result. Advisory only —
     # see attach_validation(). Runs last so it sees the final geometry, the
@@ -805,135 +1017,240 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None) 
     return attach_validation(result)
 
 
-def _run_single_point(atoms, filename, calc_start, ref_data, effective_params,
-                      warnings=None, manifest=None):
-    energy = atoms.get_potential_energy()
-    forces = atoms.get_forces()
-    msg = f"Calculation completed for {filename} using MACE"
-    return _build_result(atoms, energy, forces, msg, calc_start, ref_data,
-                         effective_params, warnings=warnings, manifest=manifest)
+@dataclass
+class _RunContext:
+    atoms: object
+    filename: str
+    calc_start: float
+    ref_data: dict
+    effective_params: dict
+    warnings: list
+    manifest: dict | None
+    hooks: RunHooks
+    profile_name: str
+
+    def build(self, energy, forces, msg, trajectory=None) -> dict:
+        return _build_result(self.atoms, energy, forces, msg, self.calc_start,
+                             self.ref_data, self.effective_params,
+                             trajectory=trajectory, warnings=self.warnings,
+                             manifest=self.manifest)
+
+    def stopped_early(self, kind: str, at_step: int, total: int) -> None:
+        budget = contract.profile(self.profile_name)["timeBudgetSeconds"]
+        self.effective_params["stoppedEarly"] = {
+            "reason": "time-budget", "atStep": at_step, "budgetSeconds": budget,
+        }
+        self.warnings.append(
+            f"Stopped early: this deployment's {budget}-second time budget ran out "
+            f"at {kind} step {at_step} of {total}. Everything reported is from the "
+            f"steps that ran; run SimpleAtom locally for longer jobs."
+        )
 
 
-def _run_geometry_opt(atoms, params, filename, calc_start, ref_data, effective_params,
-                      warnings=None, manifest=None):
+class _FrameRecorder:
+    """
+    Trajectory frames at a fixed stride, so the JSON stays inside budget.
+
+    Scalar series and positions share one stride, so every array stays aligned
+    with `step`. The final state is always recorded, whatever the stride.
+    """
+
+    def __init__(self, stride: int, series: tuple[str, ...]):
+        self.stride = stride
+        self.step: list[int] = []
+        self.positions: list = []
+        self.series = {name: [] for name in series}
+
+    def _append(self, step: int, positions, values: dict) -> None:
+        self.step.append(int(step))
+        self.positions.append(positions.tolist())
+        for name in self.series:
+            self.series[name].append(float(values[name]))
+
+    def offer(self, step: int, positions, **values) -> None:
+        if step % self.stride == 0:
+            self._append(step, positions, values)
+
+    def finish(self, step: int, positions, **values) -> None:
+        if not self.step or self.step[-1] != step:
+            self._append(step, positions, values)
+
+
+def _run_single_point(ctx: _RunContext):
+    energy = ctx.atoms.get_potential_energy()
+    forces = ctx.atoms.get_forces()
+    msg = f"Calculation completed for {ctx.filename} using MACE"
+    return ctx.build(energy, forces, msg)
+
+
+def _max_force(forces) -> float:
     import numpy as np
+    return float(np.linalg.norm(np.asarray(forces), axis=1).max()) if len(forces) else 0.0
+
+
+def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     from ase.optimize import BFGS
 
-    fmax = float(params.get("forceThreshold", 0.05))
-    max_steps = int(params.get("maxOptSteps", 500))
-    effective_params.update({"forceThreshold": fmax, "maxOptSteps": max_steps})
+    atoms = ctx.atoms
+    fmax = run_params["forceThreshold"]
+    max_steps = run_params["maxOptSteps"]
+    ctx.effective_params.update({"forceThreshold": fmax, "maxOptSteps": max_steps})
 
-    opt_energies = []
-    opt_positions = []
-    opt_steps = []
-
-    def record_opt_step():
-        opt_energies.append(float(atoms.get_potential_energy()))
-        opt_positions.append(atoms.get_positions().tolist())
-        opt_steps.append(len(opt_energies) - 1)
-
+    stride = contract.trajectory_stride(len(atoms), max_steps, ctx.profile_name)
+    frames = _FrameRecorder(stride, ("energies",))
     opt = BFGS(atoms, logfile=None)
-    opt.attach(record_opt_step)
-    record_opt_step()  # record initial state (step 0)
+
+    def on_step():
+        # ASE calls observers once at nsteps == 0 (the initial geometry) and
+        # once after every step, with nsteps already incremented
+        # (ase/optimize/optimize.py Dynamics.irun). This used to ALSO record
+        # step 0 by hand before run(), so every trajectory began with a
+        # duplicated frame and labels one higher than the step they showed (D5).
+        step = int(opt.nsteps)
+        energy = float(atoms.get_potential_energy())
+        frames.offer(step, atoms.get_positions(), energies=energy)
+        ctx.hooks.tick("geometry-opt", step, max_steps, energy=energy,
+                       fmax=_max_force(atoms.get_forces()))
+
+    opt.attach(on_step)
 
     # ASE's Optimizer.run() returns True only if fmax was reached, and False
     # when `steps` was exhausted first (ase 3.27.0, Optimizer.run ->
     # Dynamics.run -> irun). Discarding that return value made a run that hit
     # the maxOptSteps ceiling indistinguishable from a converged one.
-    converged = bool(opt.run(fmax=fmax, steps=max_steps))
+    stopped_at = None
+    try:
+        converged = bool(opt.run(fmax=fmax, steps=max_steps))
+    except _StopEarly as stop:
+        converged = False
+        stopped_at = stop.step
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
-    final_fmax = (
-        float(np.linalg.norm(np.asarray(forces), axis=1).max()) if len(forces) else 0.0
-    )
+    final_fmax = _max_force(forces)
+    frames.finish(int(opt.nsteps), atoms.get_positions(), energies=float(energy))
 
-    effective_params.update({
+    ctx.effective_params.update({
         "converged": converged,
         "optSteps": int(opt.nsteps),
         "finalFmax": final_fmax,
     })
+    if stride > 1:
+        ctx.effective_params["trajectoryStride"] = stride
 
     if converged:
         msg = (
-            f"Geometry optimization CONVERGED for {filename}: max force "
+            f"Geometry optimization CONVERGED for {ctx.filename}: max force "
             f"{final_fmax:.4f} eV/Å is at or below the fmax target of {fmax} eV/Å, "
             f"reached in {opt.nsteps} of at most {max_steps} BFGS steps."
         )
     else:
         # Stated in the message, not only in params, because the message is
         # what survives PDF export and MACE Link sharing.
+        limit = (f"the time budget after {opt.nsteps} BFGS steps" if stopped_at is not None
+                 else f"the maxOptSteps limit of {max_steps}")
         msg = (
-            f"Geometry optimization DID NOT CONVERGE for {filename}: stopped after "
-            f"{opt.nsteps} BFGS steps at the maxOptSteps limit of {max_steps} with "
-            f"max force {final_fmax:.4f} eV/Å, still above the fmax target of "
-            f"{fmax} eV/Å. The reported geometry is NOT a relaxed minimum — raise "
-            f"maxOptSteps or loosen forceThreshold and re-run."
+            f"Geometry optimization DID NOT CONVERGE for {ctx.filename}: stopped at "
+            f"{limit} with max force {final_fmax:.4f} eV/Å, still above the fmax "
+            f"target of {fmax} eV/Å. The reported geometry is NOT a relaxed minimum "
+            f"— raise maxOptSteps or loosen forceThreshold and re-run."
         )
-        warnings = list(warnings or [])
-        warnings.append(
+        if stopped_at is not None:
+            ctx.stopped_early("BFGS", int(opt.nsteps), max_steps)
+        ctx.warnings.append(
             f"Optimization not converged: {final_fmax:.4f} eV/Å > fmax {fmax} eV/Å "
             f"after {opt.nsteps}/{max_steps} steps."
         )
 
     trajectory = {
-        "energies": opt_energies,
-        "positions": opt_positions,
-        "step": opt_steps,
+        "energies": frames.series["energies"],
+        "positions": frames.positions,
+        "step": frames.step,
     }
-    result = _build_result(atoms, energy, forces, msg, calc_start, ref_data,
-                           effective_params, trajectory=trajectory, warnings=warnings,
-                           manifest=manifest)
+    result = ctx.build(energy, forces, msg, trajectory=trajectory)
     # Top-level too: convergence is an outcome, not a parameter.
     result["converged"] = converged
+    if stopped_at is not None:
+        result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
     return result
 
 
-def _run_md(atoms, params, filename, calc_start, ref_data, effective_params, seed,
-            warnings=None, manifest=None):
+def kinetic_temperature(kinetic_energy_ev: float, dof: int) -> float:
+    """Instantaneous kinetic temperature, K: T = 2·KE / (dof · k_B)."""
+    from ase import units
+    return 2.0 * kinetic_energy_ev / (dof * units.kB) if dof > 0 else 0.0
+
+
+def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     import numpy as np
     from ase import units
     from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 
-    temp_K = float(params.get("temperature", 300))
-    dt_fs = float(params.get("timeStep", 1.0))
-    friction = float(params.get("friction", 0.005))
-    md_steps = int(params.get("mdSteps", 100))
-    ensemble = params.get("mdEnsemble", "NVT")
+    atoms = ctx.atoms
+    temp_K = run_params["temperature"]
+    dt_fs = run_params["timeStep"]
+    friction = run_params["friction"]
+    md_steps = run_params["mdSteps"]
+    ensemble = run_params["mdEnsemble"]
 
-    effective_params.update({
+    # Degrees of freedom for the reported temperature (D8, D18).
+    #
+    # NVE and NPT: Stationary() below zeroes the centre-of-mass momentum and
+    # both integrators conserve it, so 3 of the 3N degrees of freedom never
+    # carry kinetic energy. ASE's get_temperature() divides by 3N regardless,
+    # which read ~11% low for a 9-atom molecule.
+    #
+    # NVT: Langevin runs with fixcm=False (see below), so the thermostat
+    # thermalises all 3N degrees of freedom, the centre-of-mass mode included,
+    # and 3N is the right divisor. A single atom keeps 3 either way.
+    n_atoms = len(atoms)
+    dof = 3 * n_atoms if (ensemble == "NVT" or n_atoms == 1) else 3 * n_atoms - 3
+
+    ctx.effective_params.update({
         "temperature": temp_K,
         "timeStep": dt_fs,
         "friction": friction,
         "mdSteps": md_steps,
         "mdEnsemble": ensemble,
         "seed": seed,
+        "temperatureDegreesOfFreedom": dof,
     })
+    if ensemble == "NPT":
+        ctx.effective_params.update({
+            "pressure": run_params["pressure"],
+            "nptThermostatTimeFs": NPT_THERMOSTAT_TIME_FS,
+            "nptBarostatTimeFs": NPT_BAROSTAT_TIME_FS,
+            "nptBulkModulusGPa": NPT_BULK_MODULUS_GPA,
+        })
 
     # Dedicated RNG stream so the run does not depend on (or disturb) numpy's
     # global random state. Feeds both stochastic sources in an MD run: the
     # initial Maxwell-Boltzmann velocities and the Langevin random forces.
     rng = np.random.default_rng(seed)
 
-    traj_potential = []
-    traj_kinetic = []
-    traj_total = []
-    traj_temperature = []
-    traj_positions = []
-    traj_steps = []
+    stride = contract.trajectory_stride(n_atoms, md_steps, ctx.profile_name)
+    frames = _FrameRecorder(
+        stride, ("potentialEnergies", "kineticEnergies", "totalEnergies", "temperatures"))
 
-    def write_frame():
+    def frame_values():
         # Potential energy alone is not conserved in NVE — only PE + KE is. The
         # trajectory used to record PE and everything downstream called it
         # "total energy", which made the NVE conservation check impossible.
         potential = float(atoms.get_potential_energy())
         kinetic = float(atoms.get_kinetic_energy())
-        traj_potential.append(potential)
-        traj_kinetic.append(kinetic)
-        traj_total.append(potential + kinetic)
-        traj_temperature.append(float(atoms.get_temperature()))
-        traj_positions.append(atoms.get_positions().tolist())
-        traj_steps.append(dyn.get_number_of_steps())
+        return {
+            "potentialEnergies": potential,
+            "kineticEnergies": kinetic,
+            "totalEnergies": potential + kinetic,
+            "temperatures": kinetic_temperature(kinetic, dof),
+        }
+
+    def write_frame():
+        step = int(dyn.get_number_of_steps())
+        values = frame_values()
+        frames.offer(step, atoms.get_positions(), **values)
+        ctx.hooks.tick("molecular-dynamics", step, md_steps,
+                       temperature=values["temperatures"], energy=values["totalEnergies"])
 
     # Initialize velocities at target temperature to avoid equilibration transient
     MaxwellBoltzmannDistribution(atoms, temperature_K=temp_K, rng=rng)
@@ -955,14 +1272,6 @@ def _run_md(atoms, params, filename, calc_start, ref_data, effective_params, see
     # drawn with, which is also the kinetic energy a zero-total-momentum system
     # should have at this temperature (3N-3 halves of kB*T).
     #
-    # Consequence to be aware of when reading `trajectory.temperatures`:
-    # `atoms.get_temperature()` divides by 3N degrees of freedom regardless
-    # (ase/atoms.py get_number_of_degrees_of_freedom), so with the momentum
-    # pinned at zero it reads low by a factor (3N-3)/3N — 11% for a 9-atom
-    # molecule, 1% for a 100-atom one. Left as-is: it is ASE's own convention,
-    # it applies uniformly, and under Langevin the thermostat re-excites the
-    # centre-of-mass mode anyway, so 3N is the correct divisor there.
-    #
     # Applied for every ensemble. Zero total momentum is right for a periodic
     # cell too; ASE's NPT already does this for itself and logs it.
     Stationary(atoms, preserve_temperature=False)
@@ -974,24 +1283,49 @@ def _run_md(atoms, params, filename, calc_start, ref_data, effective_params, see
     # subtracting a rigid rotation from the contents is not a symmetry
     # operation — and this backend cannot tell the two cases apart from the
     # ensemble alone.
-    effective_params["comMomentumRemoved"] = True
+    ctx.effective_params["comMomentumRemoved"] = True
 
     if ensemble == "NVT":
         from ase.md.langevin import Langevin
+        # fixcm=False, deliberately (D18). ASE's default fixcm=True removes the
+        # centre-of-mass part of the random kick as P/(m_i·N) per atom and then
+        # rescales by sqrt(N/(N-1)) — exact only when every atom has the same
+        # mass. For a mixed-mass molecule it overheats the light atoms: ethanol
+        # with MACE-OFF at a 300 K target equilibrated at 417 K (3N-3 kinetic
+        # temperature, 2 ps, ase 3.27.0), against 298.5 K over 3N with
+        # fixcm=False. The cost is that the molecule's centre of mass now
+        # diffuses as Brownian motion in the implicit bath, which is physical.
         dyn = Langevin(atoms, dt_fs * units.fs, temperature_K=temp_K,
-                       friction=friction / units.fs, rng=rng)
+                       friction=friction / units.fs, rng=rng, fixcm=False)
     elif ensemble == "NPT":
-        from ase.md.npt import NPT
-        pressure_eVA3 = float(params.get("pressure", 0)) * units.GPa
-        dyn = NPT(atoms, dt_fs * units.fs, temperature_K=temp_K,
-                   externalstress=pressure_eVA3,
-                   ttime=25 * units.fs, pfactor=75 * units.fs ** 2)
-    else:
+        # ase.md.npt.NPT is a deprecated alias of MelchionnaNPT (ASE 3.27).
+        from ase.md.melchionna import MelchionnaNPT
+        pressure_eVA3 = run_params["pressure"] * units.GPa
+        dyn = MelchionnaNPT(
+            atoms, dt_fs * units.fs, temperature_K=temp_K,
+            externalstress=pressure_eVA3,
+            ttime=NPT_THERMOSTAT_TIME_FS * units.fs,
+            pfactor=(NPT_BAROSTAT_TIME_FS * units.fs) ** 2 * NPT_BULK_MODULUS_GPA * units.GPa,
+        )
+    elif ensemble == "NVE":
         from ase.md.verlet import VelocityVerlet
         dyn = VelocityVerlet(atoms, dt_fs * units.fs)
+    else:  # unreachable — _resolve_run_params() allow-lists the ensemble
+        raise ValueError(f"No integrator for mdEnsemble '{ensemble}'")
 
     dyn.attach(write_frame, interval=1)
-    dyn.run(md_steps)
+    stopped_at = None
+    try:
+        dyn.run(md_steps)
+    except _StopEarly as stop:
+        stopped_at = stop.step
+
+    done = int(dyn.get_number_of_steps())
+    frames.finish(done, atoms.get_positions(), **frame_values())
+    if stride > 1:
+        ctx.effective_params["trajectoryStride"] = stride
+    if stopped_at is not None:
+        ctx.stopped_early("MD", done, md_steps)
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
@@ -1000,15 +1334,17 @@ def _run_md(atoms, params, filename, calc_start, ref_data, effective_params, see
     # Link), so a shared trajectory always carries what is needed to re-run it.
     # The energy budget is stated there for the same reason: NVE conservation
     # is a claim a reader should be able to check without the raw arrays.
-    msg = (f"MD ({ensemble}) completed for {filename} "
-           f"({md_steps} steps, seed={seed})")
-    if traj_total:
-        drift = traj_total[-1] - traj_total[0]
-        mean_temp = sum(traj_temperature) / len(traj_temperature)
+    ran = f"{done} of {md_steps} steps" if stopped_at is not None else f"{md_steps} steps"
+    msg = f"MD ({ensemble}) completed for {ctx.filename} ({ran}, seed={seed})"
+    totals = frames.series["totalEnergies"]
+    temps = frames.series["temperatures"]
+    if totals:
+        drift = totals[-1] - totals[0]
+        mean_temp = sum(temps) / len(temps)
         msg += (
-            f". Total energy (potential + kinetic) {traj_total[0]:.4f} → "
-            f"{traj_total[-1]:.4f} eV, drift {drift:+.4f} eV; mean temperature "
-            f"{mean_temp:.1f} K"
+            f". Total energy (potential + kinetic) {totals[0]:.4f} → "
+            f"{totals[-1]:.4f} eV, drift {drift:+.4f} eV; mean temperature "
+            f"{mean_temp:.1f} K ({dof} degrees of freedom)"
         )
 
     trajectory = {
@@ -1016,14 +1352,15 @@ def _run_md(atoms, params, filename, calc_start, ref_data, effective_params, see
         # frame — so nothing that already reads it changes under its feet.
         # Read the explicit keys instead: an NVE conservation check needs
         # `totalEnergies`, which was never recorded before.
-        "energies": traj_potential,
-        "potentialEnergies": traj_potential,
-        "kineticEnergies": traj_kinetic,
-        "totalEnergies": traj_total,
-        "temperatures": traj_temperature,
-        "positions": traj_positions,
-        "step": traj_steps,
+        "energies": frames.series["potentialEnergies"],
+        "potentialEnergies": frames.series["potentialEnergies"],
+        "kineticEnergies": frames.series["kineticEnergies"],
+        "totalEnergies": totals,
+        "temperatures": temps,
+        "positions": frames.positions,
+        "step": frames.step,
     }
-    return _build_result(atoms, energy, forces, msg, calc_start, ref_data,
-                         effective_params, trajectory=trajectory, warnings=warnings,
-                         manifest=manifest)
+    result = ctx.build(energy, forces, msg, trajectory=trajectory)
+    if stopped_at is not None:
+        result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
+    return result

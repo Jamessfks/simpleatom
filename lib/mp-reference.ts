@@ -35,6 +35,7 @@
  * and re-checked offline.
  */
 
+import { findModel, isMaceOffModel } from "@/lib/contract";
 import type { BenchmarkResult, ModelSize, ModelType } from "@/types/mace";
 import {
   MP_COMPOUNDS,
@@ -270,8 +271,10 @@ function exclusionReason(structureId: string, category: string): string {
 // ---------------------------------------------------------------------------
 
 function scorability(type: ModelType): { scorable: boolean; reason?: string } {
-  if (type === "MACE-MP-0") return { scorable: true };
-  if (type === "MACE-OFF") {
+  // Every model trained on Materials Project PBE data (the MACE-MP family:
+  // MPA-0 and MP-0) targets the convention MP publishes.
+  if (findModel(type)?.energyConvention === "mp") return { scorable: true };
+  if (isMaceOffModel(type)) {
     return {
       scorable: false,
       reason:

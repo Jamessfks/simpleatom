@@ -26,6 +26,7 @@
  *   conventions (CLAUDE.md, "Energy Reference Conventions").
  */
 
+import { CONTRACT, findModel, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
 import { useState, useMemo } from "react";
 import {
   BarChart3,
@@ -40,8 +41,7 @@ import {
   Table2,
 } from "lucide-react";
 import { computeRmsForce } from "@/lib/utils";
-import { MoleculeViewer3D } from "./molecule-viewer-3d";
-import { TrajectoryViewer } from "./trajectory/trajectory-viewer";
+import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
@@ -59,6 +59,28 @@ import type {
   CalculationValidation,
 } from "@/types/mace";
 
+// The 3D viewer and the trajectory player are loaded when the Structure tab
+// first renders them, not with the dashboard: together they were the largest
+// part of every results page's initial JavaScript (A4). The placeholder keeps
+// the viewer's footprint so nothing shifts when it arrives.
+function ViewerPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="flex aspect-square max-h-[560px] w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
+const MoleculeViewer3D = dynamic(
+  () => import("./molecule-viewer-3d").then((m) => m.MoleculeViewer3D),
+  { ssr: false, loading: () => <ViewerPlaceholder label="Loading 3D viewer…" /> },
+);
+
+const TrajectoryViewer = dynamic(
+  () => import("./trajectory/trajectory-viewer").then((m) => m.TrajectoryViewer),
+  { ssr: false, loading: () => <ViewerPlaceholder label="Loading trajectory player…" /> },
+);
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -66,6 +88,8 @@ import type {
 interface MetricsDashboardProps {
   result: CalculationResult;
   filename?: string;
+  /** Extra actions shown beside the exports (the calculator's Share button). */
+  actions?: React.ReactNode;
 }
 
 type TabId = "summary" | "forces" | "energy" | "structure" | "data";
@@ -100,10 +124,22 @@ const MEV_DECIMALS = 1; // meV, meV/Å, meV/atom — accuracy metrics
  * (CLAUDE.md, "Energy Reference Conventions"). Ranges are typical orders of
  * magnitude, not hard bounds — flag, don't block.
  */
-const ENERGY_CONVENTIONS: Record<string, { method: string; range: [number, number] }> = {
-  "MACE-MP-0": { method: "PBE(+U) DFT reference", range: [-15, -1] },
-  "MACE-OFF": { method: "ωB97M-D3BJ reference", range: [-600, -100] },
+const CONVENTION_METHODS: Record<string, string> = {
+  mp: "PBE(+U) DFT reference",
+  off: "ωB97M-D3BJ reference",
 };
+
+/** The reference convention a model's energies are on, from the registry. */
+function energyConventionFor(
+  modelType: string | undefined,
+): { method: string; range: [number, number] } | undefined {
+  const model = findModel(modelType);
+  if (!model) return undefined;
+  const typical = CONTRACT.energyConventions[model.energyConvention].typical;
+  const method = CONVENTION_METHODS[model.energyConvention];
+  if (!typical || !method) return undefined;
+  return { method, range: [typical.minEvPerAtom, typical.maxEvPerAtom] };
+}
 
 // ---------------------------------------------------------------------------
 // Accuracy metric computation
@@ -184,7 +220,7 @@ function computeAccuracyMetrics(result: CalculationResult): AccuracyMetrics {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
+export function MetricsDashboard({ result, filename, actions }: MetricsDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>("summary");
 
   const isMD = result.params?.calculationType === "molecular-dynamics";
@@ -222,7 +258,7 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
     { id: "forces", label: "Forces", icon: <ArrowRightLeft className="h-4 w-4" strokeWidth={1.75} /> },
     { id: "energy", label: "Energy", icon: <Zap className="h-4 w-4" strokeWidth={1.75} /> },
     { id: "structure", label: "Structure", icon: <Eye className="h-4 w-4" strokeWidth={1.75} /> },
-    { id: "data", label: "Raw Data", icon: <Table2 className="h-4 w-4" strokeWidth={1.75} /> },
+    { id: "data", label: "Raw data", icon: <Table2 className="h-4 w-4" strokeWidth={1.75} /> },
   ];
 
   // ── Export helpers ──
@@ -258,11 +294,11 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
   return (
     <div className="space-y-5">
       {/* ═══ Status Banner ═══ */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-success)]/20 bg-[var(--color-success)]/5 px-5 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 px-5 py-3.5">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-[var(--color-success)] motion-safe:animate-pulse" />
-          <span className="font-sans text-sm font-bold text-[var(--color-success)]">
-            Calculation Complete
+          <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
+          <span className="font-sans text-sm font-semibold text-success">
+            Calculation complete
           </span>
           {/* Name the structure the numbers came from — this banner is also
               the header of a shared result, where the file is not otherwise
@@ -310,13 +346,14 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
           {hasRef && (
             <Badge
               variant="outline"
-              className="border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 font-mono text-[10px] text-[var(--color-accent-strong)]"
+              className="border-accent-primary/30 bg-accent-primary/10 text-xs text-accent-strong"
             >
               Reference data detected
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2">
+          {actions}
           <PDFReportButton result={result} />
           <Separator orientation="vertical" className="hidden h-6 sm:block" />
           <Button
@@ -324,7 +361,6 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
             disabled={!result.forces}
             variant="outline"
             size="sm"
-            className="font-mono text-xs"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> CSV
           </Button>
@@ -332,7 +368,6 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
             onClick={downloadJSON}
             variant="outline"
             size="sm"
-            className="font-mono text-xs"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> JSON
           </Button>
@@ -346,13 +381,13 @@ export function MetricsDashboard({ result, filename }: MetricsDashboardProps) {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
         <TabsList
           variant="line"
-          className="h-auto w-full justify-start gap-6 rounded-none border-b border-border bg-transparent p-0"
+          className="h-auto w-full flex-wrap justify-start gap-x-6 gap-y-0 rounded-none border-b border-border bg-transparent p-0 max-sm:gap-x-5"
         >
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.id}
               value={tab.id}
-              className="gap-2 rounded-none border-transparent px-1 py-2.5 font-sans text-sm text-muted-foreground shadow-none after:bg-[var(--color-accent-strong)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--color-accent-strong)] data-[state=active]:shadow-none"
+              className="flex-none gap-2 rounded-none border-transparent px-1 py-2.5 group-data-[orientation=horizontal]/tabs:after:bottom-0 font-sans text-sm text-muted-foreground shadow-none after:bg-accent-strong data-[state=active]:bg-transparent data-[state=active]:text-accent-strong data-[state=active]:shadow-none"
             >
               {tab.icon}
               {tab.label}
@@ -426,7 +461,7 @@ function SummaryTab({
 }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const convention = modelType ? ENERGY_CONVENTIONS[modelType] : undefined;
+  const convention = energyConventionFor(modelType);
   const ePerAtomNum = result.energy != null && atomCount > 0 ? result.energy / atomCount : null;
   const energyInRange =
     convention && ePerAtomNum != null
@@ -438,11 +473,11 @@ function SummaryTab({
   // Configuration above; this table is strictly what MACE actually produced.
   const propertyRows: { label: string; value: React.ReactNode }[] = [];
   if (rmsForce != null) {
-    propertyRows.push({ label: "RMS Force", value: `${rmsForce.toFixed(FORCE_DECIMALS)} eV/Å` });
+    propertyRows.push({ label: "RMS force", value: `${rmsForce.toFixed(FORCE_DECIMALS)} eV/Å` });
   }
   if (result.forces && result.forces.length > 0) {
     propertyRows.push({
-      label: "Max Force",
+      label: "Max force",
       value: (
         <>
           {maxForce.toFixed(FORCE_DECIMALS)} eV/Å{" "}
@@ -455,7 +490,7 @@ function SummaryTab({
   }
   if (result.properties?.volume != null) {
     propertyRows.push({
-      label: "Cell Volume",
+      label: "Cell volume",
       value: `${result.properties.volume.toFixed(VOLUME_DECIMALS)} Å³`,
     });
   }
@@ -509,42 +544,23 @@ function SummaryTab({
           two sections are available (a contents list of one entry isn't one). */}
       <ResultsToc
         sections={[
-          { id: "run-configuration", label: "Run Configuration", available: !!result.params },
           { id: "properties", label: "Properties", available: propertyRows.length > 0 },
+          { id: "run-configuration", label: "Run configuration", available: !!result.params },
           { id: "validation", label: "Validation", available: !!result.validation },
           { id: "provenance", label: "Provenance", available: !!result.provenance },
         ]}
       />
 
-      {/* Run config */}
-      {result.params && (
-        <Card className="gap-2 border-l-4 border-l-[var(--color-data-gray)] bg-muted py-4">
-          <CardHeader className="px-4">
-            <h3
-              id="run-configuration"
-              className="scroll-mt-20 font-serif text-sm font-semibold leading-none text-foreground"
-            >
-              Run Configuration
-            </h3>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="font-mono text-xs text-muted-foreground">
-              {formatParams(result.params)}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Energy (headline, model-aware) + Properties (dense key/value table) */}
       <div className="grid gap-4 lg:grid-cols-2">
         <MetricCard
-          label="Total Energy"
+          label="Total energy"
           value={result.energy != null ? `${result.energy.toFixed(EV_DECIMALS)} eV` : "N/A"}
           sub={
             <>
               <div>{ePerAtom} eV/atom</div>
               {modelType && (
-                <div className={energyInRange === false ? "text-[var(--color-warning)]" : undefined}>
+                <div className={energyInRange === false ? "text-warning" : undefined}>
                   {modelType === "custom" ? "Custom model" : modelType}
                   {modelSize ? ` (${modelSize})` : ""} &middot;{" "}
                   {convention?.method ?? "reference convention unknown"}
@@ -560,7 +576,7 @@ function SummaryTab({
         />
 
         {propertyRows.length > 0 && (
-          <Card className="gap-2 border-l-4 border-l-[var(--color-data-gray)] py-4">
+          <Card className="gap-2 py-4">
             <CardHeader className="px-4">
               <h3
                 id="properties"
@@ -579,12 +595,32 @@ function SummaryTab({
       {/* Energy context note — model-aware */}
       <EnergyReferenceNote result={result} />
 
+      {/* Run config */}
+      {result.params && (
+        <Card className="gap-2 bg-muted py-4">
+          <CardHeader className="px-4">
+            <h3
+              id="run-configuration"
+              className="scroll-mt-20 font-serif text-sm font-semibold leading-none text-foreground"
+            >
+              Run configuration
+            </h3>
+          </CardHeader>
+          <CardContent className="px-4">
+            <p className="text-sm text-muted-foreground">
+              {formatParams(result.params)}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+
       {/* Accuracy metrics (when reference data is present) */}
       {hasRef && accuracyRows.length > 0 && (
-        <Card className="gap-2 border-l-4 border-l-[var(--color-accent-primary)] py-4">
+        <Card className="gap-2 py-4">
           <CardHeader className="px-4">
-            <CardTitle className="font-serif text-sm font-semibold text-[var(--color-accent-strong)]">
-              Model Accuracy
+            <CardTitle className="font-serif text-sm font-semibold text-accent-strong">
+              Model accuracy
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
@@ -595,10 +631,10 @@ function SummaryTab({
 
       {/* Trajectory summary — MD energy budget, or optimization progress */}
       {trajRows.length > 0 && (
-        <Card className="gap-2 border-l-4 border-l-[var(--color-data-yellow)] py-4">
+        <Card className="gap-2 py-4">
           <CardHeader className="px-4">
             <CardTitle className="font-serif text-sm font-semibold text-foreground">
-              {isMD ? "MD Trajectory" : "Optimization Trajectory"}
+              {isMD ? "MD trajectory" : "Optimization trajectory"}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
@@ -622,26 +658,26 @@ function SummaryTab({
       {/* Limitations & uncertainty */}
       <div className="rounded-lg border border-border bg-muted px-4 py-3">
         <h4 className="mb-1.5 font-serif text-sm font-semibold text-foreground">
-          Limitations &amp; Uncertainty
+          Limitations and uncertainty
         </h4>
         <ul className="space-y-1 text-xs leading-relaxed text-muted-foreground">
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">ML potential, not QM:</span>{" "}
+            <span className="font-medium text-text-secondary">ML potential, not QM:</span>{" "}
             MACE is a machine-learned surrogate for DFT, not a first-principles calculation.
             Accuracy depends on the training data distribution.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">Out-of-distribution risk:</span>{" "}
+            <span className="font-medium text-text-secondary">Out-of-distribution risk:</span>{" "}
             Structures or chemistries far from the training set (exotic bonding, extreme pressures,
             charged species) may produce unreliable results with no built-in warning.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">No uncertainty estimates:</span>{" "}
+            <span className="font-medium text-text-secondary">No uncertainty estimates:</span>{" "}
             These models do not provide prediction confidence intervals. Consider running
             multiple model sizes (small/medium/large) and comparing results to gauge robustness.
           </li>
           <li>
-            <span className="font-medium text-[var(--color-text-secondary)]">MACE-OFF scope:</span>{" "}
+            <span className="font-medium text-text-secondary">MACE-OFF scope:</span>{" "}
             Trained on neutral, closed-shell organic molecules only (H, C, N, O, F, P, S, Cl, Br, I).
             Not suitable for metals, radicals, ions, or extended solid-state systems.
           </li>
@@ -679,15 +715,15 @@ function ResultsToc({
   return (
     <nav
       aria-label="Sections on this tab"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
+      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:gap-x-4 max-sm:py-0 pointer-coarse:py-0"
     >
       <span>On this tab:</span>
       {links.map((s, i) => (
         <span key={s.id} className="flex items-center gap-1.5">
-          {i > 0 && <span aria-hidden="true">·</span>}
+          {i > 0 && <span aria-hidden="true" className="max-sm:hidden">·</span>}
           <a
             href={`#${s.id}`}
-            className="rounded text-[var(--color-accent-strong)] underline-offset-2 hover:underline"
+            className="inline-flex items-center rounded text-accent-strong underline-offset-2 hover:underline max-sm:min-h-11 pointer-coarse:min-h-11"
           >
             {s.label}
           </a>
@@ -1003,7 +1039,7 @@ function RawDataTab({
           disabled={!result.forces}
           variant="outline"
           size="sm"
-          className="font-mono text-xs"
+          className="text-sm"
         >
           <Download className="h-4 w-4" strokeWidth={1.75} /> Export CSV
         </Button>
@@ -1011,7 +1047,7 @@ function RawDataTab({
           onClick={downloadJSON}
           variant="outline"
           size="sm"
-          className="font-mono text-xs"
+          className="text-sm"
         >
           <Download className="h-4 w-4" strokeWidth={1.75} /> Export JSON
         </Button>
@@ -1021,7 +1057,7 @@ function RawDataTab({
 
       {/* Forces table */}
       {result.forces && result.symbols && (
-        <Card className="gap-3 border-l-4 border-l-[var(--color-data-green)] py-5">
+        <Card className="gap-3 py-5">
           <CardHeader className="px-5">
             <CardTitle className="font-serif text-base font-semibold text-foreground">
               Atomic Forces (eV/Å)
@@ -1044,13 +1080,13 @@ function RawDataTab({
 // Shared sub-components
 // ═══════════════════════════════════════════════════════════════════════════
 
-const ACCENT_MAP: Record<string, { border: string; icon: string }> = {
-  "data-blue": { border: "border-l-[var(--color-data-blue)]", icon: "text-[var(--color-data-blue)]" },
-  "data-red": { border: "border-l-[var(--color-data-red)]", icon: "text-[var(--color-data-red)]" },
-  "data-cyan": { border: "border-l-[var(--color-data-cyan)]", icon: "text-[var(--color-data-cyan)]" },
-  "data-green": { border: "border-l-[var(--color-data-green)]", icon: "text-[var(--color-data-green)]" },
-  "data-purple": { border: "border-l-[var(--color-data-purple)]", icon: "text-[var(--color-data-purple)]" },
-  "data-yellow": { border: "border-l-[var(--color-data-yellow)]", icon: "text-[var(--color-data-yellow)]" },
+const ACCENT_MAP: Record<string, { icon: string }> = {
+  "data-blue": { icon: "text-data-blue" },
+  "data-red": { icon: "text-data-red" },
+  "data-cyan": { icon: "text-data-cyan" },
+  "data-green": { icon: "text-data-green" },
+  "data-purple": { icon: "text-data-purple" },
+  "data-yellow": { icon: "text-data-yellow" },
 };
 
 /**
@@ -1080,14 +1116,14 @@ function ResultWarnings({ warnings }: { warnings?: string[] }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-4 py-3"
+      className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3"
     >
       <div className="flex items-center gap-2">
         <AlertTriangle
-          className="h-4 w-4 shrink-0 text-[var(--color-warning)]"
+          className="h-4 w-4 shrink-0 text-warning"
           strokeWidth={1.75}
         />
-        <h3 className="font-sans text-sm font-bold text-[var(--color-warning)]">
+        <h3 className="font-sans text-sm font-bold text-warning">
           {warnings.length === 1
             ? "1 warning from the calculation"
             : `${warnings.length} warnings from the calculation`}
@@ -1097,7 +1133,7 @@ function ResultWarnings({ warnings }: { warnings?: string[] }) {
         {warnings.map((warning, i) => (
           <li
             key={i}
-            className="list-disc text-xs leading-relaxed text-[var(--color-warning)]"
+            className="list-disc text-xs leading-relaxed text-warning"
           >
             {warning}
           </li>
@@ -1141,7 +1177,7 @@ function ValidationFindings({
   // context, for one). Say that, rather than implying silence means a pass.
   if (validation.status !== "ran") {
     return (
-      <Card className="gap-2 border-l-4 border-l-[var(--color-data-gray)] py-4">
+      <Card className="gap-2 py-4">
         <CardHeader className="px-4">
           <h3
             id="validation"
@@ -1151,7 +1187,7 @@ function ValidationFindings({
           </h3>
         </CardHeader>
         <CardContent className="px-4">
-          <p className="font-mono text-xs leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             The validator did not run
             {validation.unavailableReason ? ` — ${validation.unavailableReason}` : "."}{" "}
             The calculation is unaffected; it simply has no second opinion attached.
@@ -1202,7 +1238,7 @@ function ValidationFindings({
   const accent = FINDING_STYLES[severity];
 
   return (
-    <Card className={`gap-2 border-l-4 py-4 ${accent.border}`}>
+    <Card className={`gap-2 py-4 ${severity === "ok" ? "" : `border-l-4 ${accent.border}`}`}>
       <CardHeader className="px-4">
         <h3
           id="validation"
@@ -1210,7 +1246,7 @@ function ValidationFindings({
         >
           Validation
         </h3>
-        <p className="font-mono text-xs text-muted-foreground">{summary}</p>
+        <p className="text-sm text-muted-foreground">{summary}</p>
       </CardHeader>
       <CardContent className="space-y-2 px-4">
         {issues.length > 0 && (
@@ -1222,7 +1258,7 @@ function ValidationFindings({
         {info.length > 0 && (
           <FindingList items={info} severity="info" heading="Checks performed" />
         )}
-        <p className="border-t border-border pt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+        <p className="border-t border-border pt-2 font-mono text-xs leading-relaxed text-muted-foreground">
           {validation.source ?? "validator"}
           {validation.policy ? ` · ${validation.policy}` : ""}
         </p>
@@ -1237,20 +1273,20 @@ function ValidationFindings({
  */
 const FINDING_STYLES = {
   issue: {
-    text: "text-[var(--color-error)]",
-    border: "border-l-[var(--color-error)]",
+    text: "text-error",
+    border: "border-l-error",
   },
   warning: {
-    text: "text-[var(--color-warning)]",
-    border: "border-l-[var(--color-warning)]",
+    text: "text-warning",
+    border: "border-l-warning",
   },
   ok: {
-    text: "text-[var(--color-success)]",
-    border: "border-l-[var(--color-success)]",
+    text: "text-success",
+    border: "border-l-success",
   },
   info: {
     text: "text-muted-foreground",
-    border: "border-l-[var(--color-data-gray)]",
+    border: "border-l-data-gray",
   },
 } as const;
 
@@ -1265,14 +1301,14 @@ function FindingList({
 }) {
   return (
     <div>
-      <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+      <h4 className="text-xs font-semibold text-muted-foreground">
         {heading}
       </h4>
       <ul className="mt-1 space-y-1 pl-4">
         {items.map((item, i) => (
           <li
             key={i}
-            className={`list-disc font-mono text-xs leading-relaxed ${FINDING_STYLES[severity].text}`}
+            className={`list-disc text-sm leading-relaxed tabular-nums ${FINDING_STYLES[severity].text}`}
           >
             {item}
           </li>
@@ -1316,6 +1352,7 @@ const REPO_URL = "https://github.com/Jamessfks/simpleatom";
  * regardless of which label was requested, so both point at the same repo.
  */
 const UPSTREAM_WEIGHTS_REPO: Record<string, string> = {
+  "MACE-MPA-0": "https://github.com/ACEsuit/mace-foundations",
   "MACE-MP-0": "https://github.com/ACEsuit/mace-foundations/releases",
   "MACE-OFF": "https://github.com/ACEsuit/mace-off",
   "MACE-OFF23": "https://github.com/ACEsuit/mace-off",
@@ -1354,7 +1391,7 @@ function HashValue({
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="break-all" title={value}>
+      <span className="whitespace-nowrap" title={value}>
         {shown}
       </span>
       <button
@@ -1362,10 +1399,10 @@ function HashValue({
         onClick={copy}
         title={`Copy full ${label}: ${value}`}
         aria-label={`Copy full ${label}`}
-        className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--color-accent-strong)]"
+        className="touch-target shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-accent-strong"
       >
         {copied ? (
-          <Check className="h-3 w-3 text-[var(--color-success)]" strokeWidth={2} />
+          <Check className="h-3 w-3 text-success" strokeWidth={2} />
         ) : (
           <Copy className="h-3 w-3" strokeWidth={1.75} />
         )}
@@ -1431,7 +1468,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     value: checkpoint?.sha256 ? (
       <HashValue value={checkpoint.sha256} label="checkpoint SHA-256" />
     ) : (
-      <span className="text-[var(--color-warning)]">
+      <span className="text-warning">
         not identified
         {checkpoint?.resolvedBy ? ` (${checkpoint.resolvedBy})` : ""}
       </span>
@@ -1460,13 +1497,13 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
       label: "Upstream weights",
       value: (
         <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-          <span className="text-[var(--color-warning)]">no download URL recorded</span>
+          <span className="text-warning">no download URL recorded</span>
           <a
             href={UPSTREAM_WEIGHTS_REPO[modelFamily]}
             target="_blank"
             rel="noopener noreferrer"
             title={`Not reported by this result. This is where ${modelFamily} weights are published upstream in general (docs/v2/bars/acesuit-mace.md) — not a verified link to this exact checkpoint file.`}
-            className="inline-flex items-center gap-0.5 text-[var(--color-accent-strong)] underline underline-offset-2 hover:no-underline"
+            className="touch-target inline-flex items-center gap-0.5 text-accent-strong underline underline-offset-2 hover:no-underline"
           >
             expected location (unverified)
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
@@ -1558,19 +1595,19 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     rows.push({
       label: "Source commit",
       value: (
-        <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+        <span className="inline-flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <HashValue value={code.gitCommit} label="git commit" prefixChars={7} />
           <a
             href={`${REPO_URL}/commit/${code.gitCommit}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 text-[var(--color-accent-strong)] underline underline-offset-2 hover:no-underline"
+            className="touch-target inline-flex items-center gap-0.5 text-accent-strong underline underline-offset-2 hover:no-underline"
           >
             view
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
           </a>
           {code.gitDirty === true ? (
-            <span className="text-[var(--color-warning)]">uncommitted changes</span>
+            <span className="text-warning">uncommitted changes</span>
           ) : code.gitDirty === false ? (
             <span className="text-muted-foreground">clean</span>
           ) : (
@@ -1588,7 +1625,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
   }
 
   return (
-    <Card className="gap-2 border-l-4 border-l-[var(--color-data-purple)] py-4">
+    <Card className="gap-2 py-4">
       <CardHeader className="px-4">
         <h3
           id="provenance"
@@ -1605,14 +1642,14 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
         <PropertyRows rows={rows} />
         {notes.length > 0 && (
           <div className="mt-3 border-t border-border pt-2">
-            <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <h4 className="text-xs font-semibold text-muted-foreground">
               Manifest notes
             </h4>
             <ul className="mt-1 space-y-1 pl-4">
               {notes.map((note, i) => (
                 <li
                   key={i}
-                  className="list-disc font-mono text-[11px] leading-relaxed text-muted-foreground"
+                  className="list-disc text-sm leading-relaxed text-muted-foreground"
                 >
                   {note}
                 </li>
@@ -1639,18 +1676,30 @@ function MetricCard({
   icon: React.ReactNode;
 }) {
   const a = ACCENT_MAP[color] ?? ACCENT_MAP["data-blue"];
+  // "-45.9780 eV" → number and unit, so the unit can be set smaller but stays
+  // on the same line as its number.
+  const unitSplit = value.match(/^(-?[\d.,]+(?:e[+-]?\d+)?)\s+(\S.*)$/i);
   return (
-    <Card className={`result-card gap-2 border-l-4 py-4 ${a.border}`}>
+    <Card className="result-card gap-2 py-4">
       <CardContent className="px-4">
         <div className="mb-2 flex items-center gap-2">
           <span className={a.icon}>{icon}</span>
-          <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-xs font-semibold text-muted-foreground">
             {label}
           </h3>
         </div>
-        <p className="font-mono text-xl font-bold text-foreground">{value}</p>
+        <p className="font-mono text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+          {unitSplit ? (
+            <>
+              {unitSplit[1]}{" "}
+              <span className="text-lg font-normal text-muted-foreground">{unitSplit[2]}</span>
+            </>
+          ) : (
+            value
+          )}
+        </p>
         {sub && (
-          <div className="mt-1 space-y-0.5 font-mono text-xs text-muted-foreground">{sub}</div>
+          <div className="mt-1 space-y-0.5 text-sm tabular-nums text-muted-foreground">{sub}</div>
         )}
       </CardContent>
     </Card>
@@ -1670,7 +1719,7 @@ function PropertyRows({ rows }: { rows: { label: string; value: React.ReactNode 
           className="flex items-baseline justify-between gap-4 border-t border-border py-2 first:border-t-0 first:pt-0 last:pb-0"
         >
           <span className="font-sans text-sm font-semibold text-foreground">{row.label}</span>
-          <span className="font-mono text-sm tabular-nums text-right text-[var(--color-accent-strong)]">
+          <span className="font-mono text-sm tabular-nums text-right text-foreground">
             {row.value}
           </span>
         </div>
@@ -1687,12 +1736,12 @@ function PropertyRows({ rows }: { rows: { label: string; value: React.ReactNode 
 function EnergyReferenceNote({ result }: { result: CalculationResult }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const conv = modelType ? ENERGY_CONVENTIONS[modelType] : undefined;
+  const conv = energyConventionFor(modelType);
 
   return (
     <div className="rounded-lg border border-border bg-muted px-4 py-3">
-      <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
-        <span className="font-bold text-[var(--color-text-secondary)]">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        <span className="font-bold text-text-secondary">
           Note{modelType ? ` (${modelType}${modelSize ? `, ${modelSize}` : ""})` : ""}:
         </span>{" "}
         Energy is the total electronic energy from the MACE model (including all-electron
@@ -1700,26 +1749,26 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         {conv ? (
           <>
             This model is referenced to{" "}
-            <span className="text-[var(--color-text-secondary)]">{conv.method}</span>; typical
+            <span className="text-text-secondary">{conv.method}</span>; typical
             values fall between {conv.range[0]} and {conv.range[1]} eV/atom for {modelType}.
           </>
         ) : modelType === "custom" ? (
           <>
             This is a custom checkpoint &mdash; its reference convention depends on how it was
-            trained and is not necessarily comparable to MACE-MP-0 or MACE-OFF energies.
+            trained and is not necessarily comparable to MACE-MP or MACE-OFF energies.
           </>
         ) : (
           <>Absolute values depend on the reference used to train the model that produced them.</>
         )}{" "}
         Totals from a different model or reference state are never directly comparable &mdash;
         only compare energies produced by the same model.{" "}
-        {modelType === "MACE-MP-0" && (
+        {isMaterialsModel(modelType) && (
           <>
             For solids, cohesive energy = E(bulk)/N &minus; E(isolated atom); subtract
             isolated-atom energies for your elements to get a physically comparable number.
           </>
         )}
-        {modelType === "MACE-OFF" && (
+        {isMaceOffModel(modelType) && (
           <>
             For molecules, relative energies between conformers of the same composition are
             physically meaningful; absolute totals are not.
@@ -1748,34 +1797,34 @@ function ForcesTable({
               <th className="px-3 py-2 text-left">#</th>
               <th className="px-3 py-2 text-left">Element</th>
               <th className="px-3 py-2 text-right">
-                Fx <span className="text-[10px] font-normal">(eV/Å)</span>
+                Fx <span className="text-xs font-normal">(eV/Å)</span>
               </th>
               <th className="px-3 py-2 text-right">
-                Fy <span className="text-[10px] font-normal">(eV/Å)</span>
+                Fy <span className="text-xs font-normal">(eV/Å)</span>
               </th>
               <th className="px-3 py-2 text-right">
-                Fz <span className="text-[10px] font-normal">(eV/Å)</span>
+                Fz <span className="text-xs font-normal">(eV/Å)</span>
               </th>
               <th className="px-3 py-2 text-right">
-                |F| <span className="text-[10px] font-normal">(eV/Å)</span>
+                |F| <span className="text-xs font-normal">(eV/Å)</span>
               </th>
             </tr>
           </thead>
-          <tbody className="text-[var(--color-text-secondary)]">
+          <tbody className="text-text-secondary">
             {forces.map((force, i) => {
               const mag = Math.sqrt(force[0] ** 2 + force[1] ** 2 + force[2] ** 2);
               const isMax = i === maxForceIdx;
               return (
                 <tr
                   key={i}
-                  className={`border-t border-border/60 transition-colors hover:bg-muted ${isMax ? "bg-[var(--color-data-cyan)]/10" : ""}`}
+                  className={`border-t border-border/60 transition-colors hover:bg-muted ${isMax ? "bg-data-cyan/10" : ""}`}
                 >
                   <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-1.5 font-bold">{symbols[i]}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[0].toFixed(FORCE_DECIMALS)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[1].toFixed(FORCE_DECIMALS)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{force[2].toFixed(FORCE_DECIMALS)}</td>
-                  <td className={`px-3 py-1.5 text-right tabular-nums font-bold ${isMax ? "text-[var(--color-data-red)]" : "text-[var(--color-accent-strong)]"}`}>
+                  <td className={`px-3 py-1.5 text-right tabular-nums font-bold ${isMax ? "text-data-red" : "text-accent-strong"}`}>
                     {mag.toFixed(FORCE_DECIMALS)}
                   </td>
                 </tr>
@@ -1784,7 +1833,7 @@ function ForcesTable({
           </tbody>
         </table>
       </div>
-      <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         {forces.length} atoms &middot; Max |F| highlighted
       </p>
     </>

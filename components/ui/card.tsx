@@ -7,7 +7,9 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        // Flat: a border separates cards; elevation is reserved for the one
+        // surface that is above the rest (the calculator's run ledger).
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-2xl border py-6",
         className
       )}
       {...props}
@@ -20,7 +22,9 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        // grid-cols-1 = minmax(0, 1fr): without an explicit column the track
+        // sized to its widest child and could overflow a phone (D12).
+        "@container/card-header grid grid-cols-1 auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
         className
       )}
       {...props}

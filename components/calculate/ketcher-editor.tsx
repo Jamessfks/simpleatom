@@ -118,12 +118,12 @@ export function KetcherEditorInner({ onStructureReady }: KetcherEditorProps) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-subtle bg-bg-secondary p-4">
         <div className="flex items-center gap-2">
           <button
             onClick={handleUseInCalculator}
             disabled={!isReady || isConverting}
-            className="flex items-center gap-2 rounded-md border-2 border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 px-5 py-2.5 font-sans text-sm font-bold text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--color-accent-primary)]/10 disabled:hover:text-[var(--color-accent-primary)]"
+            className="flex items-center gap-2 rounded-md border-2 border-accent-primary bg-accent-primary/10 px-5 py-2.5 font-sans text-sm font-bold text-accent-strong transition-all hover:bg-accent-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent-primary/10 disabled:hover:text-accent-strong"
           >
             {isConverting ? (
               <>
@@ -141,11 +141,11 @@ export function KetcherEditorInner({ onStructureReady }: KetcherEditorProps) {
           <button
             onClick={handleCopySmiles}
             disabled={!isReady}
-            className="flex items-center gap-1.5 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] px-3 py-2.5 font-mono text-xs text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent-primary)] hover:text-white disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-md border border-border-subtle bg-bg-secondary px-3 py-2.5 font-mono text-xs text-text-secondary transition-colors hover:border-accent-primary hover:text-white disabled:opacity-40"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
+                <Check className="h-3.5 w-3.5 text-success" />
                 Copied
               </>
             ) : (
@@ -164,16 +164,16 @@ export function KetcherEditorInner({ onStructureReady }: KetcherEditorProps) {
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-4 py-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-error)]" />
-          <p className="font-mono text-xs text-[var(--color-error)]/90">
+        <div className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+          <p className="font-mono text-xs text-error/90">
             {error}
           </p>
         </div>
       )}
 
       {/* Ketcher Editor */}
-      <div className="ketcher-editor-container overflow-hidden rounded-lg border border-[var(--color-border-subtle)]">
+      <div className="ketcher-editor-container overflow-hidden rounded-lg border border-border-subtle">
         <div style={{ height: 700 }}>
           <Editor
             staticResourcesUrl=""

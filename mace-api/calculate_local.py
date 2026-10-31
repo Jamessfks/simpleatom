@@ -3,10 +3,15 @@
 CLI wrapper for MACE calculations — runs locally, no FastAPI needed.
 
 Usage:
-  python calculate_local.py <structure_file> [params_json] [--model-path <path>]
+  python calculate_local.py <structure_file> [params_json]
+                            [--model-path <path>] [--display-name <name>] [--progress]
 
-Reads an atomic structure file, runs MACE, prints JSON result to stdout.
-Called by the Next.js API route when no MACE_API_URL is set.
+Reads an atomic structure file, runs MACE, prints ONE JSON document to stdout:
+the result, or {"status": "error", "message": ..., "error": {code, field,
+status}}. With --progress, step progress is written to stderr as lines of the
+form `@@progress {json}`. Called by the Next.js API route when no MACE_API_URL
+is set. Runs under the "local" profile of contract.json unless
+SIMPLEATOM_PROFILE says otherwise.
 """
 
 import json
@@ -28,16 +33,11 @@ os.environ["PYTHONWARNINGS"] = "ignore"
 _REAL_STDOUT = sys.stdout
 sys.stdout = sys.stderr
 
-# PyTorch 2.6+ defaults torch.load to weights_only=True, but MACE checkpoints
-# contain custom model classes (ScaleShiftMACE etc.) that require full unpickling.
-# Patch torch.load before any MACE import to restore the old default.
-import torch
-_original_torch_load = torch.load
-def _patched_torch_load(*args, **kwargs):
-    if "weights_only" not in kwargs:
-        kwargs["weights_only"] = False
-    return _original_torch_load(*args, **kwargs)
-torch.load = _patched_torch_load
+# There is deliberately no global torch.load patch here any more. MACE
+# checkpoints need full unpickling, which PyTorch 2.6+ refuses by default;
+# calculate.py now grants it only to pinned foundation checkpoints (and to an
+# uploaded checkpoint, when this deployment allows custom models), for the
+# duration of calculator construction — see safe_load.py and docs/adr/0020.
 
 # Route library logging to stderr at WARNING and above. This used to be
 # `logging.disable(logging.CRITICAL)`, which also hid MACECalculator's
@@ -52,7 +52,8 @@ logging.basicConfig(
     format="%(levelname)s: %(message)s",
 )
 
-from calculate import run_calculation
+import contract
+from calculate import RunHooks, run_calculation
 
 
 def emit(payload: dict) -> None:
@@ -60,21 +61,42 @@ def emit(payload: dict) -> None:
     print(json.dumps(payload), file=_REAL_STDOUT, flush=True)
 
 
-if __name__ == "__main__":
-    # Parse arguments: <file> <params_json> [--model-path <path>]
-    model_path = None
-    args = sys.argv[1:]
+def emit_error(message: str, code: str = "calculation_failed", field=None,
+               status: int = 500) -> None:
+    emit({"status": "error", "message": message,
+          "error": {"code": code, "message": message, "field": field, "status": status}})
 
-    if "--model-path" in args:
-        idx = args.index("--model-path")
-        if idx + 1 >= len(args):
-            emit({"status": "error", "message": "--model-path requires a file path argument"})
-            sys.exit(1)
-        model_path = args[idx + 1]
-        args = args[:idx] + args[idx + 2:]
+
+def _take_option(args: list[str], flag: str, takes_value: bool = True):
+    """Remove `flag` (and its value) from args. Returns (args, value|True|None)."""
+    if flag not in args:
+        return args, None
+    idx = args.index(flag)
+    if not takes_value:
+        return args[:idx] + args[idx + 1:], True
+    if idx + 1 >= len(args):
+        emit_error(f"{flag} requires an argument", code="usage", status=400)
+        sys.exit(1)
+    return args[:idx] + args[idx + 2:], args[idx + 1]
+
+
+def _progress_line(event: dict) -> None:
+    print("@@progress " + json.dumps(event), file=sys.stderr, flush=True)
+
+
+if __name__ == "__main__":
+    # Options are consumed before the positional arguments are read, so a
+    # params JSON that happens to contain "--model-path" is never mistaken
+    # for the flag.
+    args = sys.argv[1:]
+    args, model_path = _take_option(args, "--model-path")
+    args, display_name = _take_option(args, "--display-name")
+    args, want_progress = _take_option(args, "--progress", takes_value=False)
 
     if not args:
-        emit({"status": "error", "message": "Usage: python calculate_local.py <file> [params_json] [--model-path <path>]"})
+        emit_error("Usage: python calculate_local.py <file> [params_json] "
+                   "[--model-path <path>] [--display-name <name>] [--progress]",
+                   code="usage", status=400)
         sys.exit(1)
 
     filepath = args[0]
@@ -82,18 +104,31 @@ if __name__ == "__main__":
 
     try:
         params = json.loads(params_json)
+        if not isinstance(params, dict):
+            raise json.JSONDecodeError("not an object", params_json, 0)
     except json.JSONDecodeError:
-        emit({"status": "error", "message": "Invalid params JSON"})
+        emit_error("Invalid params JSON: expected an object.", code="invalid_params", status=400)
         sys.exit(1)
 
+    hooks = RunHooks(on_progress=_progress_line if want_progress else None)
     try:
-        result = run_calculation(filepath, params, model_path=model_path)
+        result = run_calculation(
+            filepath, params, model_path=model_path,
+            profile=contract.profile_name("local"),
+            display_name=display_name, hooks=hooks,
+        )
         emit(result)
+    except ValueError as e:
+        # ContractError and UntrustedCheckpointError are ValueErrors with a code:
+        # the request was refused and nothing was computed.
+        emit_error(str(e), code=getattr(e, "code", "invalid_request"),
+                   field=getattr(e, "field", None), status=getattr(e, "status", 400))
+        sys.exit(1)
     except Exception as e:
-        err_msg = str(e)
+        err_msg = str(e) or type(e).__name__
         if "CUDA" in err_msg or "cuda" in err_msg:
             err_msg += " (Hint: CUDA/GPU not available on this machine. Switch Device to CPU.)"
         elif "No module named" in err_msg:
             err_msg += " (Hint: required Python package not installed.)"
-        emit({"status": "error", "message": err_msg})
+        emit_error(err_msg)
         sys.exit(1)

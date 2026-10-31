@@ -13,13 +13,13 @@ export default function FaqPage() {
   return (
     <>
       <header className="mb-8">
-        <p className="text-sm font-medium text-[var(--color-accent-strong)]">
+        <p className="text-sm font-medium text-accent-strong">
           Help
         </p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight text-text-primary">
           FAQ &amp; troubleshooting
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-lg leading-relaxed text-text-secondary">
           Answers to the questions that come up most often, from
           &ldquo;why is this slow&rdquo; to &ldquo;which model should I
           use.&rdquo;
@@ -54,7 +54,7 @@ export default function FaqPage() {
           MACE-OFF only supports ten organic elements: H, C, N, O, F, P, S,
           Cl, Br, and I. If your structure contains a metal or any other
           inorganic element, switch to{" "}
-          <Link href="/docs/models">MACE-MP-0</Link>, which covers 89
+          <Link href="/docs/models">MACE-MPA-0</Link>, which covers 89
           elements.
         </p>
 
@@ -62,10 +62,11 @@ export default function FaqPage() {
           A shared link shows &ldquo;not found&rdquo;
         </h3>
         <p>
-          The result ID in the link may be invalid or mistyped. Shared
-          results are permanent once created and are never deleted, so a
-          valid link should always resolve — double-check the URL was
-          copied in full.
+          The result ID in the link may be invalid or mistyped — double-check
+          the URL was copied in full. Shared results are permanent once
+          created. If the page says sharing is <em>unavailable</em> rather than
+          not found, the sharing database could not be reached and the link
+          itself is probably fine; try again later.
         </p>
 
         <h2 id="choosing">Choosing a model</h2>
@@ -75,12 +76,12 @@ export default function FaqPage() {
             <strong>Is your system purely organic</strong> (only H, C, N, O,
             F, P, S, Cl, Br, I)? If yes, use{" "}
             <Link href="/docs/models">MACE-OFF</Link>. If it contains a
-            metal, a mineral, or any other element, use MACE-MP-0.
+            metal, a mineral, or any other element, use MACE-MPA-0.
           </li>
           <li>
             <strong>Do you need van der Waals / dispersion corrections</strong>{" "}
             (layered materials, molecular crystals, adsorption)? With
-            MACE-MP-0, enable D3 dispersion. With MACE-OFF, do nothing —
+            MACE-MPA-0 or MP-0, enable D3 dispersion. With MACE-OFF, do nothing —
             dispersion is already included in training.
           </li>
         </ol>
@@ -105,12 +106,14 @@ export default function FaqPage() {
 
         <h3 id="how-accurate">How accurate are the results?</h3>
         <p>
-          MACE foundation models approach DFT-level accuracy for the
-          chemistries they were trained on. MACE-MP-0 is trained at the
-          PBE+U level and typically overbinds by roughly 0.1&ndash;0.5
-          eV/atom relative to experiment. MACE-OFF is trained on
-          &omega;B97M-D3BJ data, close to coupled-cluster quality for
-          organic chemistry. Both are general-purpose foundation models,
+          MACE foundation models are trained to reproduce DFT, and are only
+          as good as that DFT for the chemistries they were trained on.
+          MACE-MPA-0 (the default) and MACE-MP-0 are trained at the PBE/PBE+U
+          level, which typically overbinds by roughly 0.1&ndash;0.5 eV/atom
+          relative to experiment; on the Matbench Discovery benchmark MPA-0
+          scores F1 0.852 against MP-0&rsquo;s 0.669. MACE-OFF23 is trained on
+          &omega;B97M-D3(BJ) DFT data for organic molecules. All are
+          general-purpose foundation models,
           not a replacement for system-specific validation when your
           application demands the highest confidence — see{" "}
           <Link href="/docs/validation">Validation &amp; reproducibility</Link>.

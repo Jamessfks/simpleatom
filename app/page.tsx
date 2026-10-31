@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <div className="warm-bg min-h-screen">
       <SiteHeader />
-      <main>
+      <main id="main">
         <IntroSection />
       </main>
       <SiteFooter />

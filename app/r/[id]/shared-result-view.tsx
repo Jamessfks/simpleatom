@@ -110,7 +110,7 @@ function CopyButton({
   return (
     <Button variant="outline" size="sm" onClick={() => onCopy(text, copyKey)}>
       {done ? (
-        <Check className="h-3.5 w-3.5 text-[var(--color-success)]" />
+        <Check className="h-3.5 w-3.5 text-success" />
       ) : (
         <Copy className="h-3.5 w-3.5" />
       )}
@@ -188,19 +188,19 @@ export function SharedResultView({ shared }: Props) {
     <div className="min-h-screen bg-background">
       <SiteHeader />
 
-      <main className="mx-auto max-w-screen-2xl space-y-6 px-6 py-6">
+      <main id="main" className="mx-auto max-w-screen-2xl space-y-6 px-6 py-6">
         {/* ── Title: the calculation itself, not the word "result" ── */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
               {summary.headline}
             </h1>
             {identity.length > 0 && (
-              <p className="mt-1 font-mono text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-1 font-mono text-xs text-text-secondary">
                 {identity.join(" · ")}
               </p>
             )}
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 text-xs text-text-muted">
               {timing.length > 0 ? `${timing.join(" · ")}. ` : ""}
               Read-only snapshot — the calculation is not re-run when this page
               is opened.
@@ -231,7 +231,7 @@ export function SharedResultView({ shared }: Props) {
             </Badge>
           )}
           {summary.model && (
-            <Badge className="bg-[var(--color-accent-soft)] font-mono text-[var(--color-accent-strong)]">
+            <Badge className="bg-accent-soft font-mono text-accent-strong">
               {summary.model}
             </Badge>
           )}
@@ -249,7 +249,7 @@ export function SharedResultView({ shared }: Props) {
 
         {/* Geometry-opt convergence, stated where it cannot be missed. */}
         {summary.convergence && (
-          <p className="font-mono text-xs text-[var(--color-text-secondary)]">
+          <p className="font-mono text-xs text-text-secondary">
             {summary.convergence}
           </p>
         )}
@@ -260,10 +260,10 @@ export function SharedResultView({ shared }: Props) {
             the reader is told that it is absent rather than being left to
             wonder whether a section failed to load. Results stored before these
             fields existed hit the second branch. */}
-        <p className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-4 py-2.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="rounded-lg border border-border-subtle bg-bg-surface px-4 py-2.5 text-xs leading-relaxed text-text-secondary">
           {summary.hasProvenance ? (
             <>
-              <span className="font-medium text-[var(--color-text-primary)]">
+              <span className="font-medium text-text-primary">
                 Reproducibility manifest attached.
               </span>{" "}
               The checkpoint SHA-256, library versions, structure hash, source
@@ -271,7 +271,7 @@ export function SharedResultView({ shared }: Props) {
             </>
           ) : (
             <>
-              <span className="font-medium text-[var(--color-text-primary)]">
+              <span className="font-medium text-text-primary">
                 No reproducibility manifest.
               </span>{" "}
               This result was stored before SimpleAtom recorded checkpoint
@@ -287,33 +287,37 @@ export function SharedResultView({ shared }: Props) {
         {/* ── Results dashboard (reused verbatim) ── */}
         <MetricsDashboard result={result} filename={filename} />
 
-        {/* ── Share surfaces: embed + citation ── */}
-        <div className="grid gap-4 lg:grid-cols-2">
+        {/* ── Share surfaces: embed + citation ──
+            grid-cols-1 is load-bearing. Without it the phone layout gets an
+            implicit `auto` column, which grows to the longest unbreakable
+            <pre> line (the page measured 724 px wide at 375) instead of letting
+            the <pre> scroll inside its card. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Embed */}
-          <div className="space-y-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
+          <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-5">
             <div className="flex items-center gap-2">
               <Code2
-                className="h-4 w-4 text-[var(--color-accent-primary)]"
+                className="h-4 w-4 text-accent-strong"
                 strokeWidth={1.75}
               />
-              <h2 className="font-serif text-lg font-semibold text-[var(--color-text-primary)]">
+              <h2 className="font-serif text-lg font-semibold text-text-primary">
                 Embed this result
               </h2>
             </div>
-            <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="text-xs leading-relaxed text-text-secondary">
               The interactive viewer, with no site chrome, on a page of its own
               that any site may frame. Presentation is controlled by query
               parameters:{" "}
-              <code className="font-mono text-[var(--color-accent-strong)]">
+              <code className="font-mono text-accent-strong">
                 no-border=true
               </code>{" "}
               drops the frame,{" "}
-              <code className="font-mono text-[var(--color-accent-strong)]">
+              <code className="font-mono text-accent-strong">
                 caption=false
               </code>{" "}
               hides the caption strip.
             </p>
-            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <pre className="overflow-x-auto rounded-lg bg-bg-secondary p-4 font-mono text-xs leading-relaxed text-text-secondary">
               {embedSnippet}
             </pre>
             <div className="flex flex-wrap items-center gap-2">
@@ -334,15 +338,15 @@ export function SharedResultView({ shared }: Props) {
           </div>
 
           {/* Citation */}
-          <div className="space-y-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-5">
-            <h2 className="font-serif text-lg font-semibold text-[var(--color-text-primary)]">
+          <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-5">
+            <h2 className="font-serif text-lg font-semibold text-text-primary">
               Cite this result
             </h2>
-            <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="text-xs leading-relaxed text-text-secondary">
               Built only from what this result carries — a line is omitted
               rather than filled in with a default.
             </p>
-            <pre className="overflow-x-auto rounded-lg bg-[var(--color-bg-secondary)] p-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <pre className="overflow-x-auto rounded-lg bg-bg-secondary p-4 font-mono text-xs leading-relaxed text-text-secondary">
               {citation}
             </pre>
             <CopyButton

@@ -60,19 +60,19 @@ export function ModelComparison({
 
   if (!foundationResult) {
     return (
-      <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-5">
+      <div className="rounded-lg border border-border-subtle bg-bg-secondary p-5">
         <div className="flex items-center gap-3 mb-3">
-          <GitCompareArrows className="h-5 w-5 text-[var(--color-accent-primary)]" strokeWidth={1.75} />
-          <h3 className="font-sans text-sm font-bold text-[var(--color-text-primary)]">
+          <GitCompareArrows className="h-5 w-5 text-accent-strong" strokeWidth={1.75} />
+          <h3 className="font-sans text-sm font-bold text-text-primary">
             Model Comparison
           </h3>
         </div>
-        <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+        <p className="mb-4 text-xs text-text-muted">
           Compare your custom model ({customModelName}) against the MACE
           foundation model on the same structure.
         </p>
         {error && (
-          <p className="mb-3 text-xs text-[var(--color-error)]">{error}</p>
+          <p className="mb-3 text-xs text-error">{error}</p>
         )}
         <Button
           type="button"
@@ -99,7 +99,6 @@ export function ModelComparison({
 
   const customRms = computeRmsForce(customResult.forces);
   const foundationRms = computeRmsForce(foundationResult.forces);
-  const atomCount = customResult.symbols?.length ?? 0;
 
   const deltaE =
     customResult.energy != null && foundationResult.energy != null
@@ -113,34 +112,34 @@ export function ModelComparison({
     <div className="space-y-4">
       {/* Comparison header */}
       <div
-        className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-5"
+        className="rounded-lg border border-border-subtle bg-bg-secondary p-5"
         style={{
           borderLeftWidth: "4px",
           borderImage:
             "linear-gradient(to bottom, var(--color-data-blue), var(--color-data-purple)) 1",
         }}
       >
-        <h3 className="mb-4 font-sans text-sm font-bold text-[var(--color-text-primary)]">
+        <h3 className="mb-4 font-sans text-sm font-bold text-text-primary">
           Model Comparison: {customModelName} vs. Foundation Model
         </h3>
 
         {/* Side-by-side metrics */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Custom model */}
-          <div className="rounded border border-[var(--color-data-blue)]/30 bg-[var(--color-data-blue)]/5 p-4">
-            <h4 className="mb-2 font-mono text-xs font-bold text-[var(--color-data-blue)]">
+          <div className="rounded border border-data-blue/30 bg-data-blue/5 p-4">
+            <h4 className="mb-2 font-mono text-xs font-bold text-data-blue">
               {customModelName}
             </h4>
             <div className="space-y-1 font-mono text-xs">
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Energy</span>
-                <span className="text-[var(--color-text-primary)]">
+                <span className="text-text-muted">Energy</span>
+                <span className="text-text-primary">
                   {customResult.energy?.toFixed(6) ?? "N/A"} eV
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">RMS Force</span>
-                <span className="text-[var(--color-text-primary)]">
+                <span className="text-text-muted">RMS Force</span>
+                <span className="text-text-primary">
                   {customRms?.toFixed(4) ?? "N/A"} eV/A
                 </span>
               </div>
@@ -148,20 +147,20 @@ export function ModelComparison({
           </div>
 
           {/* Foundation model */}
-          <div className="rounded border border-[var(--color-data-purple)]/30 bg-[var(--color-data-purple)]/5 p-4">
-            <h4 className="mb-2 font-mono text-xs font-bold text-[var(--color-data-purple)]">
+          <div className="rounded border border-data-purple/30 bg-data-purple/5 p-4">
+            <h4 className="mb-2 font-mono text-xs font-bold text-data-purple">
               Foundation Model
             </h4>
             <div className="space-y-1 font-mono text-xs">
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Energy</span>
-                <span className="text-[var(--color-text-primary)]">
+                <span className="text-text-muted">Energy</span>
+                <span className="text-text-primary">
                   {foundationResult.energy?.toFixed(6) ?? "N/A"} eV
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">RMS Force</span>
-                <span className="text-[var(--color-text-primary)]">
+                <span className="text-text-muted">RMS Force</span>
+                <span className="text-text-primary">
                   {foundationRms?.toFixed(4) ?? "N/A"} eV/A
                 </span>
               </div>
@@ -172,11 +171,11 @@ export function ModelComparison({
         {/* Delta row */}
         {deltaE != null && (
           <div className="mt-3 flex items-center gap-2 font-mono text-xs">
-            <span className="text-[var(--color-text-muted)]">&Delta;E =</span>
-            <span className="font-bold text-[var(--color-text-primary)]">
+            <span className="text-text-muted">&Delta;E =</span>
+            <span className="font-bold text-text-primary">
               {(deltaE * 1000).toFixed(1)} meV
             </span>
-            <span className="text-[var(--color-text-muted)]">
+            <span className="text-text-muted">
               ({deltaE > 0 ? "custom higher" : deltaE < 0 ? "foundation higher" : "equal"})
             </span>
           </div>
@@ -185,7 +184,7 @@ export function ModelComparison({
 
       {/* Radar chart (if reference data) */}
       {hasRef && (
-        <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)] p-4">
+        <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
           <RadarComparison
             modelA={buildRadarMetrics(customModelName, customResult)}
             modelB={buildRadarMetrics("Foundation", foundationResult)}

@@ -1,21 +1,33 @@
-# MACE Python API - requirements
-# Deployed on Hugging Face Spaces (Docker). GPU support via default PyTorch index.
-torch>=2.0.0
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-python-multipart>=0.0.6
-ase>=3.22.0
-mace-torch>=0.3.0
-numpy>=1.24.0
-rdkit>=2023.09.1
-pydantic>=2.0.0
+# SimpleAtom backend — direct dependencies (same pins as requirements.in; the Docker image installs the hashed requirements.lock.txt).
+#
+# The science stack is pinned with ==, never >= or ~=: upstream MACE v1.0 is a
+# rewrite with no code or checkpoint compatibility (ACEsuit/mace #1699, #1715),
+# and an unpinned rebuild of the Space would pull it the day it reaches PyPI.
+# `~=0.3.16` would also admit a 0.3.17 that has not passed this repo's gates.
+#
+# Edit this file, then regenerate the hashed lock the Docker image installs:
+#   uv pip compile mace-api/requirements.in --python-version 3.11 \
+#     --python-platform x86_64-manylinux_2_28 \
+#     --extra-index-url https://download.pytorch.org/whl/cpu \
+#     --index-strategy unsafe-best-match --generate-hashes \
+#     -o mace-api/requirements.lock.txt
+# A mace-torch bump must pass test_scripts/test_translation_invariance.py and
+# the validator before it merges.
 
-# D3 dispersion backend for MACE-MP-0. NOT a dependency of mace-torch: without
-# it, mace_mp(dispersion=True) raises "Please install torch-dftd to use
-# dispersion corrections" (foundations_models.py:176-180), so the UI's
-# dispersion toggle could never work on a fresh install. Verified with 0.5.3.
-# Footprint: 19 new packages, ~18 MB of wheels / ~130 MB installed, dominated
-# by torch-dftd's own pymatgen requirement (pymatgen -> plotly, lxml, spglib).
-# torch-dftd itself is <1 MB; it imports pymatgen.core at module scope in
-# functions/edge_extraction.py, so --no-deps is not an option.
-torch-dftd>=0.5.1
+torch==2.10.0
+mace-torch==0.3.16
+e3nn==0.4.4
+ase==3.27.0
+numpy==2.4.2
+
+# D3 dispersion backend for the MACE-MP family. NOT a dependency of mace-torch:
+# without it, mace_mp(dispersion=True) raises "Please install torch-dftd to use
+# dispersion corrections" (foundations_models.py:176-180). It pulls in
+# pymatgen at module scope, so --no-deps is not an option.
+torch-dftd==0.5.3
+
+rdkit==2026.3.1
+fastapi==0.135.1
+uvicorn[standard]==0.42.0
+python-multipart==0.0.22
+pydantic==2.12.4
