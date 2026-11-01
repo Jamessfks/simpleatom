@@ -495,6 +495,17 @@ class TestDegenerateCells(_RefusalMixin, unittest.TestCase):
             '3\nProperties=species:S:1:pos:R:3 pbc="T T F"\nO 0 0 0.119\nH 0 0.763 -0.477\nH 0 -0.763 -0.477\n')
         self.assertIn("no lattice vector along a, b", message)
 
+    def test_the_refusal_states_the_contract_threshold_not_a_literal(self):
+        """D153: the threshold comes from contract.json, and so does the number the message prints."""
+        import calculate
+        from ase import Atoms
+        pair = Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.6]])
+        calculate.refuse_overlaps(pair, "h2.xyz")  # 0.6 Å clears the contract's 0.5 Å
+        with mock.patch.object(calculate, "MIN_INTERATOMIC_DISTANCE_A", 0.7):
+            message = self.assertRefusedWith("overlapping_atoms", calculate.refuse_overlaps, pair, "h2.xyz")
+        self.assertIn("0.600 Å apart, closer than the 0.7 Å this server accepts", message)
+        self.assertNotIn("0.5", message)
+
     def test_a_slab_without_a_third_vector_is_checked_with_real_distances(self):
         import calculate
         from ase.io import read

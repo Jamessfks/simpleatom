@@ -744,7 +744,8 @@ def attach_validation(result: dict) -> dict:
 
     First, the validator's checks are plausibility heuristics with soft
     thresholds (max force > 50 eV/Å, net force > 0.1 eV/Å, minimum interatomic
-    distance < 0.4 Å). Every one of them has a legitimate counterexample: a
+    distance below contract.json's minInteratomicDistanceA). Every one of them
+    has a legitimate counterexample: a
     single-point on a deliberately strained or clashing geometry is a normal
     thing to ask MACE for, and it is exactly the case where the user most needs
     the number. Throwing away a completed calculation because a heuristic
