@@ -648,6 +648,20 @@ class TestDeployWorkflow(unittest.TestCase):
             self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
 
 
+class TestWorkflowScripts(unittest.TestCase):
+    """D144: an expression interpolated into a run: script is a script-injection path."""
+
+    def test_no_run_script_interpolates_an_expression(self):
+        import yaml
+        for name in ("ci.yml", "deploy-hf-space.yml"):
+            flow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / name).read_text())
+            for job_id, job in flow["jobs"].items():
+                for step in job.get("steps", []):
+                    with self.subTest(workflow=name, job=job_id, step=step.get("name")):
+                        self.assertNotIn("${{", step.get("run", ""),
+                                         "pass it through env: or use the default GITHUB_* variable")
+
+
 class TestDeployStaging(unittest.TestCase):
     """D88 (F12): the staged Space is the commit that GIT_COMMIT names, nothing else."""
 
