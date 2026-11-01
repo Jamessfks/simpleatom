@@ -127,16 +127,23 @@ python test_scripts/validate_calculation.py result.json`}</code>
             approximately zero for an isolated molecule.
           </li>
           <li>
-            <strong>Interatomic distances:</strong> minimum distance &gt;
-            0.4 Å (overlap detection).
+            <strong>Interatomic distances:</strong> every pair of atoms is
+            checked, at the minimum image when the result has a cell, so a
+            contact across the cell boundary counts. A distance below 0.4 Å is
+            an issue (overlapping atoms).
           </li>
           <li>
             <strong>Lattice:</strong> positive volume and a valid 3&times;3
             matrix for periodic systems.
           </li>
           <li>
-            <strong>Trajectory:</strong> no NaN/Inf values, bounded energy
-            fluctuation across an MD run.
+            <strong>Trajectory:</strong> no NaN/Inf values in the potential,
+            total and temperature series. NVE is judged by the total
+            energy&rsquo;s largest excursion from its start per atom (an issue
+            above 0.05 eV/atom, a warning above 5 meV/atom), and the fitted
+            drift is reported in meV/atom/ps. NVT/NPT is judged by the
+            second-half mean temperature against the target (an issue above
+            2&times;, a warning above 1.5&times;).
           </li>
           <li>
             <strong>Consistency:</strong> the number of symbols, positions,
