@@ -64,8 +64,14 @@ function validateResult(result: unknown): Record<string, unknown> {
     }
   }
   if (!finite(r.energy)) throw new ApiError("result.energy must be a finite number.", 400, "invalid_result", "result.energy");
-  const traj = r.trajectory as { positions?: unknown[] } | undefined;
-  if (traj !== undefined && (typeof traj !== "object" || (Array.isArray(traj.positions) && traj.positions.length > MAX_FRAMES))) {
+  // Size first (413); anything that is not a trajectory the page can draw is
+  // refused by checkSharedResultShape below (400), including null and {}.
+  const traj = r.trajectory;
+  if (
+    typeof traj === "object" && traj !== null && !Array.isArray(traj) &&
+    Array.isArray((traj as { positions?: unknown[] }).positions) &&
+    (traj as { positions: unknown[] }).positions.length > MAX_FRAMES
+  ) {
     throw new ApiError(`Trajectories longer than ${MAX_FRAMES} frames cannot be shared.`, 413, "too_large", "result.trajectory");
   }
   if (r.params !== undefined && (typeof r.params !== "object" || r.params === null)) {

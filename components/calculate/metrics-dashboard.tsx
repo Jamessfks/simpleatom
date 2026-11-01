@@ -154,7 +154,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
 
   const isMD = result.params?.calculationType === "molecular-dynamics";
   const hasTraj =
-    !!result.trajectory &&
+    Array.isArray(result.trajectory?.positions) &&
     result.trajectory.positions.length > 1 &&
     !!result.symbols?.length;
   // The reference data in an uploaded file describes the input geometry. Parity
@@ -912,7 +912,7 @@ function EnergyTab({
       )}
 
       {/* Fallback if no trajectory data */}
-      {(!result.trajectory || result.trajectory.energies.length <= 1) &&
+      {(result.trajectory?.energies?.length ?? 0) <= 1 &&
         !hasRefEnergy && (
           <Card className="py-6">
             <CardContent className="px-6 text-center">

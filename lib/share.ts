@@ -107,6 +107,16 @@ function hasRenderableLeaf(value: unknown): boolean {
  *
  * Exported so it can be exercised directly against hand-built legacy payloads.
  */
+/** A trajectory the dashboard can draw: an object with its `energies` and `positions` lists. */
+function isTrajectory(value: unknown): value is Record<string, unknown> {
+  return (
+    isObject(value) &&
+    !Array.isArray(value) &&
+    Array.isArray((value as Record<string, unknown>).energies) &&
+    Array.isArray((value as Record<string, unknown>).positions)
+  );
+}
+
 export function normalizeSharedResult(shared: SharedResult): SharedResult {
   const result = shared.result;
   if (!result || typeof result !== "object") return shared;
@@ -125,9 +135,14 @@ export function normalizeSharedResult(shared: SharedResult): SharedResult {
   const dropValidation =
     "validation" in result && status !== "ran" && status !== "unavailable";
 
-  if (!dropProvenance && !dropValidation) return shared;
+  // A row stored before the server checked trajectories may hold `{}`; the page
+  // reads its arrays, so a trajectory that cannot be drawn is dropped (D64).
+  const dropTrajectory = "trajectory" in result && !isTrajectory((result as { trajectory?: unknown }).trajectory);
+
+  if (!dropProvenance && !dropValidation && !dropTrajectory) return shared;
 
   const next: CalculationResult = { ...result };
+  if (dropTrajectory) delete next.trajectory;
   if (dropProvenance) delete next.provenance;
   if (dropValidation) delete next.validation;
 
@@ -320,7 +335,13 @@ export function checkSharedResultShape(r: Record<string, unknown>, atomCount: nu
     }
   }
 
-  if (isObject(r.trajectory)) {
+  // The page reads `trajectory.positions.length` and `.energies.length`, so a
+  // trajectory with neither list is refused rather than stored (D64): null,
+  // {} and arrays used to be accepted and then crashed every render of the link.
+  if (r.trajectory !== undefined) {
+    if (!isTrajectory(r.trajectory)) {
+      return bad("result.trajectory", "must hold the energies, step and positions lists of the run.");
+    }
     const t = r.trajectory;
     for (const key of SERIES) {
       const series = t[key];
