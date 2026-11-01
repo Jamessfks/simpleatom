@@ -108,8 +108,11 @@ export default function DocsOverviewPage() {
           </li>
           <li>
             <strong>Choose a model &amp; calculation</strong> — a MACE
-            foundation model (or your own fine-tuned checkpoint), then a
-            single-point, geometry-optimization, or molecular-dynamics run.
+            foundation model (on a local install you can opt in to your own{" "}
+            <code>.model</code> checkpoint with{" "}
+            <code>ALLOW_CUSTOM_MODELS=1</code>; the public site never loads
+            one), then a single-point, geometry-optimization, or
+            molecular-dynamics run.
           </li>
           <li>
             <strong>Run</strong> — the structure is evaluated server-side with

@@ -314,7 +314,10 @@ export default function CalculationsPage() {
                 <code>mace_mp()</code> / <code>mace_off()</code> / custom
                 upload
               </td>
-              <td>Selects the foundation model or a user checkpoint.</td>
+              <td>
+                Selects the foundation model; on a local install with{" "}
+                <code>ALLOW_CUSTOM_MODELS=1</code>, a custom checkpoint.
+              </td>
             </tr>
             <tr>
               <td>Model Size</td>
@@ -359,7 +362,12 @@ export default function CalculationsPage() {
               <td>
                 <code>model_paths</code>
               </td>
-              <td>User-supplied <code>.model</code> checkpoint file.</td>
+              <td>
+                Local install only, and only with{" "}
+                <code>ALLOW_CUSTOM_MODELS=1</code>: a user-supplied{" "}
+                <code>.model</code> checkpoint file. Loading it runs code from
+                the file, so the public site never loads one.
+              </td>
             </tr>
           </tbody>
         </table>
