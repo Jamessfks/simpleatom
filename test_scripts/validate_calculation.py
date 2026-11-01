@@ -434,8 +434,17 @@ def run_verification_tests():
     return {"all_passed": all_passed, "tests": results}
 
 
-if __name__ == "__main__":
-    _quiet_cli_output()
+def cli(argv: list[str]) -> int:
+    """The command line; --test exits 1 unless every check passed (D79)."""
+    if argv and argv[0] == "--test":
+        output = run_verification_tests()
+        print(json.dumps(output, indent=2))
+        return 0 if output.get("all_passed") is True else 1
+    return _legacy_cli(argv)
+
+
+def _legacy_cli(argv: list[str]) -> int:
+    sys.argv = [sys.argv[0], *argv]
     if len(sys.argv) > 1:
         if sys.argv[1] == "--test":
             output = run_verification_tests()
@@ -467,3 +476,9 @@ if __name__ == "__main__":
         print("  python validate_calculation.py <result_json_or_file>")
         print("  python validate_calculation.py --test")
         print("  python validate_calculation.py --verify-models")
+    return 0
+
+
+if __name__ == "__main__":
+    _quiet_cli_output()
+    sys.exit(cli(sys.argv[1:]))

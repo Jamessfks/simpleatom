@@ -151,10 +151,15 @@ def gate_validator() -> Result:
     except subprocess.TimeoutExpired:
         return Result("validator", False, "validator timed out after 30 min")
     out = p.stdout + p.stderr
-    if '"all_passed": true' in out or "all_passed: true" in out or "ALL PASSED" in out.upper():
+    # D79: judge the JSON verdict, never the exit code or a substring. A run
+    # that printed all_passed: false and exited 0 used to pass this gate.
+    verdict = None
+    try:
+        verdict = json.loads(p.stdout[p.stdout.index("{"):]).get("all_passed")
+    except (ValueError, AttributeError):
+        pass
+    if verdict is True and p.returncode == 0:
         return Result("validator", True, "all_passed: true")
-    if p.returncode == 0:
-        return Result("validator", True, f"exit 0 (no all_passed marker found)")
     tail = [ln for ln in out.splitlines() if ln.strip()][-3:]
     return Result("validator", False, "validator FAILED: " + " / ".join(tail),
                   "A scientific gate is red. Nothing cosmetic matters today.")
