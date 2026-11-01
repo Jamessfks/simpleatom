@@ -473,6 +473,40 @@ class TestDegenerateCells(_RefusalMixin, unittest.TestCase):
                            'Cu 0 0 0\nCu 1.5 1.5 0\n', ".xyz")
         self.assertEqual(result["status"], "success")
 
+    def test_the_overlap_check_never_measures_an_invented_cell(self):
+        """
+        D154: ASE's neighbour list completes a missing periodic vector with a
+        1 Å one, so the overlap check on demo water with pbc and no Lattice
+        named a 0.479 Å pair that does not exist (the real O-H is 0.96 Å). The
+        check refuses the cell itself, whoever calls it first.
+        """
+        import calculate
+        from ase.io import read
+        atoms = read(WATER)
+        atoms.set_pbc(True)
+        message = self.assertRefusedWith("invalid_cell", calculate.refuse_overlaps, atoms, "water.xyz")
+        self.assertNotIn("apart", message)
+
+    def test_the_message_names_the_periodic_axis_that_has_no_vector(self):
+        message = self._refused_before_loading(
+            '2\nLattice="3 0 0 0 3 0 0 0 0" Properties=species:S:1:pos:R:3 pbc="T T T"\nCu 0 0 0\nCu 1.5 1.5 0\n')
+        self.assertIn("no lattice vector along c", message)
+        message = self._refused_before_loading(
+            '3\nProperties=species:S:1:pos:R:3 pbc="T T F"\nO 0 0 0.119\nH 0 0.763 -0.477\nH 0 -0.763 -0.477\n')
+        self.assertIn("no lattice vector along a, b", message)
+
+    def test_a_slab_without_a_third_vector_is_checked_with_real_distances(self):
+        import calculate
+        from ase.io import read
+        text = '2\nLattice="3 0 0 0 3 0 0 0 0" Properties=species:S:1:pos:R:3 pbc="T T F"\nH 0 0 0\nH 0 0 {z}\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "slab.xyz")
+            pathlib.Path(path).write_text(text.format(z=0.6))
+            calculate.refuse_overlaps(read(path), "slab.xyz")  # 0.6 Å along the open axis: accepted
+            pathlib.Path(path).write_text(text.format(z=0.3))
+            message = self.assertRefusedWith("overlapping_atoms", calculate.refuse_overlaps, read(path), "slab.xyz")
+        self.assertIn("atoms 0 (H) and 1 (H), 0.300 Å apart", message)
+
 
 class TestReferenceData(unittest.TestCase):
     """
