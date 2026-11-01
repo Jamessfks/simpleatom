@@ -135,9 +135,9 @@ python test_scripts/validate_calculation.py result.json`}</code>
             typical ranges are narrower (below).
           </li>
           <li>
-            <strong>Force magnitude:</strong> max force &lt; 50 eV/Å warns,
-            &lt; 200 eV/Å errors — forces above 50 eV/Å generally indicate
-            overlapping atoms.
+            <strong>Force magnitude:</strong> a max force above 50 eV/Å warns,
+            above 200 eV/Å is an issue — forces above 50 eV/Å generally
+            indicate overlapping atoms.
           </li>
           <li>
             <strong>Force conservation:</strong> net force should be

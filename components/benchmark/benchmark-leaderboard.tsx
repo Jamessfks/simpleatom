@@ -8,7 +8,10 @@
  * yellow/red for high ΔE_max (>5 / >10 meV/atom). Rows expand to show
  * per-atom force magnitudes.
  *
- * Aggregate footer shows average energy/atom and total time per model.
+ * Aggregate footer shows, per model, how many structures it succeeded on and
+ * the total time of those runs, and, under the spread column, the mean
+ * per-structure spread between models. There is no mean energy per atom: it
+ * would mix unrelated structures.
  */
 
 import { useState, useMemo, Fragment } from "react";

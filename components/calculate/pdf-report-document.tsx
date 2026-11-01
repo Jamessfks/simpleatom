@@ -79,7 +79,7 @@ function formatParams(params: Partial<CalculationParams> | undefined): string {
   if (params.temperature != null) parts.push(`Temperature: ${params.temperature} K`);
   if (params.pressure != null) parts.push(`Pressure: ${params.pressure} GPa`);
   if (params.timeStep != null) parts.push(`Time step: ${params.timeStep} fs`);
-  if (params.friction != null) parts.push(`Friction: ${params.friction}`);
+  if (params.friction != null) parts.push(`Friction: ${params.friction} 1/fs`);
   if (params.mdSteps != null) parts.push(`MD steps: ${params.mdSteps}`);
   if (params.mdEnsemble) parts.push(`Ensemble: ${params.mdEnsemble}`);
   if (params.forceThreshold != null) parts.push(`Force threshold: ${params.forceThreshold} eV/Å`);
