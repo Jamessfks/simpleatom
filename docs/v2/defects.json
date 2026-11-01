@@ -374,13 +374,16 @@
     {
       "id": "D31",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "v2.2.0 as tagged cannot be built or deployed: mace-api/requirements.lock.txt pins torch==2.10.0+cpu but names no PyTorch CPU index, so `pip install --require-hashes` finds no distribution. v2.2's only CI run is red and the Space deploy was skipped. Local gates on macOS pass only because a macOS env installs torch 2.10.0 from PyPI (this audit stripped +cpu to build one) — local green is not CI green.",
       "where": "mace-api/requirements.lock.txt:1-3 (no --index-url / --extra-index-url lines), :1946",
       "verify": true,
       "evidence": "gh run view 39652119742 --json conclusion,headSha,jobs → conclusion failure, headSha daed8bc…, python-unit failure, python-models failure, docker-smoke skipped, deploy-hf skipped; grep -n 'index-url' mace-api/requirements.lock.txt → no output",
       "howToVerify": "CI green on a PR carrying acf14fa (branch claude/quizzical-herschel-7d5e13, found and fixed by the containment session).",
-      "source": "containment session 2026-10-28, confirmed by audit 2026-10-28"
+      "source": "containment session 2026-10-28, confirmed by audit 2026-10-28",
+      "fixedIn": "acf14fa",
+      "fixedOn": "2026-10-31",
+      "fixNote": "Fixed by the containment session (PR #19); merged into this branch as df27d8b. CI on PR #20 passed python-unit, python-models and docker-smoke with it."
     },
     {
       "id": "D32",
@@ -480,13 +483,16 @@
     {
       "id": "D39",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Stale facts in the harness docs: Matbench Discovery ranks are given as MACE-MP-0 34 / MACE-MPA-0 21; on 2026-10-28 they are 36 and 22 of 43. SUCCESS-CRITERIA says calculate_local.py exits 0 on refusal; v2.2 exits 1 (the JSON check is still the right one).",
       "where": "docs/v2/SUCCESS-CRITERIA.md:54,93-97; docs/v2/CONTINUE.md",
       "verify": true,
       "evidence": "WebFetch https://matbench-discovery.materialsproject.org/ (2026-10-28) → MACE-MPA-0 row 22, MACE-MP-0 row 36, '43 of 53 eligible models'; guard runs → '[exit 1]' with status error",
       "howToVerify": "Re-fetch the leaderboard and cite the date next to the rank.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "8db084f",
+      "fixedOn": "2026-10-31",
+      "fixNote": "SUCCESS-CRITERIA and progress.json carry the 2026-10-28 ranks (22/36 of 43) tied to app/v2/bars.ts by a test; the refusal exit-code note is corrected."
     },
     {
       "id": "D40",
@@ -706,13 +712,16 @@
     {
       "id": "D56",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Docs nits: the Units page table gives stress in eV/Å³ while results and the same page's pressure callout give GPa; the silicon CIF comment says 2.3517 Å (a√3/4 = 2.3516); the optimiser message says 'at or below' fmax while ASE's test is strictly below.",
       "where": "app/docs/units/page.tsx:57-59 vs :154-157; public/demo/silicon.cif; mace-api/calculate.py (opt message)",
       "verify": true,
       "evidence": "sed -n 55,62p app/docs/units/page.tsx → 'Stress … eV/Å³' (lead read)",
       "howToVerify": "Correct the three strings.",
-      "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)"
+      "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)",
+      "fixedIn": "1b347a0",
+      "fixedOn": "2026-10-31",
+      "fixNote": "Units page says GPa; silicon.cif comment 2.3516 Å; optimiser message 'below' (with D46)."
     },
     {
       "id": "D57",
