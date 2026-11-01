@@ -86,6 +86,10 @@ jobs:
         run: |
           python test_scripts/run_suite.py "test_*.py" --start-dir mace-api --min 31
           python test_scripts/run_suite.py test_geometry_opt.py --min 10
+      - name: Validator verdicts (D81) and the parser reference ASE produces (D93)
+        run: |
+          python test_scripts/run_suite.py test_validator.py --min 8
+          python test_scripts/run_suite.py test_parser_reference.py --min 3
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: "0.11.6"
@@ -133,6 +137,10 @@ jobs:
         run: python test_scripts/run_suite.py test_science_regressions.py --min 12
       - name: The default model and D3 to golden energies (D82)
         run: python test_scripts/run_suite.py test_model_coverage.py --min 5
+      - name: Input handling (CIF, PDB, constraints, refusals) and MD stability
+        run: |
+          python test_scripts/run_suite.py test_input_handling.py --min 32
+          python test_scripts/run_suite.py test_md_stability.py --min 7
 
   docker-smoke:
     runs-on: ubuntu-latest
