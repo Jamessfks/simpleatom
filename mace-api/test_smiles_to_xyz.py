@@ -148,9 +148,58 @@ class TestEdgeCases(unittest.TestCase):
         result = smiles_to_xyz("C/C=C/C")
         self.assertGreater(result["num_atoms"], 0)
 
-    def test_charged_species(self):
-        result = smiles_to_xyz("[NH4+]")
-        self.assertEqual(result["num_atoms"], 5)  # N + 4H
+    def test_charged_species_are_refused(self):
+        # D116: MACE has no total-charge input and MACE-OFF23 is trained on
+        # neutral closed-shell molecules; NH4+ used to come back as a neutral
+        # 11-electron NH4 and was computed without a word.
+        with self.assertRaises(ValueError) as ctx:
+            smiles_to_xyz("[NH4+]")
+        self.assertIn("charge", str(ctx.exception).lower())
+
+    def test_radicals_are_refused(self):
+        for radical in ("[CH3]", "[O][O]"):
+            with self.subTest(radical=radical):
+                with self.assertRaises(ValueError) as ctx:
+                    smiles_to_xyz(radical)
+                self.assertIn("radical", str(ctx.exception).lower())
+
+    def test_a_net_neutral_zwitterion_is_accepted(self):
+        result = smiles_to_xyz("[NH3+]CC(=O)[O-]")  # glycine zwitterion
+        self.assertEqual(result["num_atoms"], 10)
+
+    def test_a_lone_atom_is_accepted(self):
+        # An isolated atom is the model's own reference state; RDKit's radical
+        # count for bare metal atoms is arbitrary ([Cu] 1, [Fe] 0).
+        self.assertEqual(smiles_to_xyz("[Cu]")["num_atoms"], 1)
+
+
+class TestForceFieldAndComment(unittest.TestCase):
+    """
+    D118: MMFFOptimizeMolecule returns -1 (it does not raise) when MMFF94 has
+    no parameters, so the UFF fallback never ran and boron compounds kept raw
+    ETKDG coordinates labelled "MMFF94". D122: the SMILES on the comment line
+    was unquoted, so extended-XYZ readers stripped its brackets.
+    """
+
+    def test_boron_falls_back_to_uff_and_says_so(self):
+        result = smiles_to_xyz("OB(O)O")
+        self.assertEqual(result["force_field"], "UFF")
+        self.assertIn("UFF", result["xyz"].splitlines()[1])
+        self.assertNotIn("MMFF94", result["xyz"].splitlines()[1])
+
+    def test_ordinary_organics_use_mmff94(self):
+        result = smiles_to_xyz("CCO")
+        self.assertEqual(result["force_field"], "MMFF94")
+        self.assertIn("MMFF94", result["xyz"].splitlines()[1])
+
+    def test_the_smiles_survives_an_extended_xyz_reader(self):
+        import io
+        from ase.io import read
+        for smiles in ("C[C@@H](C(=O)O)N", "C/C=C\\C", "[NH3+]CC(=O)[O-]"):
+            with self.subTest(smiles=smiles):
+                result = smiles_to_xyz(smiles)
+                atoms = read(io.StringIO(result["xyz"]), format="extxyz")
+                self.assertEqual(atoms.info["SMILES"], result["smiles_canonical"])
 
     def test_atom_limit_exceeded(self):
         with self.assertRaises(ValueError) as ctx:
