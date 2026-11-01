@@ -23,5 +23,8 @@ describe("capabilities before the deployment answers (D104)", () => {
     expect(caps.devices.available).toEqual(["cpu"]);
     expect(caps.devices.unavailableReason).toMatch(/could not reach/i);
     expect(caps.devices.unavailableReason).not.toMatch(/public server|vCPU/);
+    // D160: an unreachable deployment has not said which profile it runs, so the panel
+    // must not show the hosted-only "Run locally to use a GPU" link either.
+    expect(caps.pending).toBe(true);
   });
 });
