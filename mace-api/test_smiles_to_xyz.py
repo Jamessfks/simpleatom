@@ -250,6 +250,29 @@ class TestEmbeddingTimeLimit(unittest.TestCase):
         self.assertEqual((err.code, err.status, err.field), ("smiles_embedding_timeout", 422, "smiles"))
         self.assertIn("1 s", str(err))
 
+    def test_the_message_states_the_limit_that_stopped_it_not_the_whole_budget(self):
+        # D167: with two fragments RDKit's per-fragment limit is half the budget, so the
+        # stop came early while the message claimed the full budget had run out.
+        from unittest import mock
+        from rdkit.Chem import AllChem
+        import smiles_to_xyz as module
+        from contract import ContractError
+        real = AllChem.EmbedMolecule
+        timeouts = []
+
+        def spy(mol, params):
+            timeouts.append(params.timeout)
+            return real(mol, params)
+
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 2, create=True), \
+                mock.patch.object(AllChem, "EmbedMolecule", spy):
+            with self.assertRaises(ContractError) as ctx:
+                smiles_to_xyz(C60 + "." + C60)
+        self.assertEqual(timeouts[0], 1)
+        message = str(ctx.exception)
+        self.assertNotIn("did not finish within 2 s", message)
+        self.assertIn("1 s per fragment", message)
+
     def test_every_embedding_attempt_carries_a_time_limit(self):
         from unittest import mock
         from rdkit.Chem import AllChem
