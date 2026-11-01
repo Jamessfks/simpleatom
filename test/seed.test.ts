@@ -33,3 +33,18 @@ describe("MD seed input (D36)", () => {
     }
   });
 });
+
+// Design review: the seed's error sat below the hint paragraph, two lines away
+// from the field it describes. It belongs directly under the input.
+describe("the seed error sits directly under the input", () => {
+  it("renders before the hint in SeedField", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync("components/calculate/parameter-panel.tsx", "utf8");
+    const field = source.slice(source.indexOf("function SeedField"), source.indexOf("function NumberField"));
+    const error = field.indexOf("id={`${id}-error`}");
+    const hint = field.indexOf("id={`${id}-hint`}");
+    expect(error).toBeGreaterThan(0);
+    expect(hint).toBeGreaterThan(0);
+    expect(error).toBeLessThan(hint);
+  });
+});
