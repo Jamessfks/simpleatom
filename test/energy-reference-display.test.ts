@@ -44,6 +44,7 @@ const text = (result: CalculationResult) =>
     .replace(/&middot;/g, "·")
     .replace(/&minus;/g, "−")
     .replace(/&amp;/g, "&")
+    .replace(/&#x27;|&apos;/g, "'")
     .replace(/\s+/g, " ");
 
 describe("MACE-OFF energy is shown relative to the model's isolated atoms (D52)", () => {
@@ -54,7 +55,7 @@ describe("MACE-OFF energy is shown relative to the model's isolated atoms (D52)"
 
   it("states the typical band from the registry, for the relative energy", () => {
     const shown = text(withRelative(-3.3456));
-    expect(shown).toContain(`typical values fall between ${bandText}`);
+    expect(shown).toContain(`typical values fall between ${band.minEvPerAtom} and ${band.maxEvPerAtom} eV/atom`);
     expect(shown).toMatch(/relative to (the model's|its own) isolated atoms/i);
   });
 

@@ -26,7 +26,8 @@
  *   conventions (CLAUDE.md, "Energy Reference Conventions").
  */
 
-import { CONTRACT, findModel, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { energyReference } from "./energy-reference";
 import { useState, useMemo } from "react";
 import {
   BarChart3,
@@ -121,29 +122,6 @@ const EV_PER_ATOM_DECIMALS = 4; // eV/atom
 const FORCE_DECIMALS = 4; // eV/Å — per-atom, RMS, and max force
 const VOLUME_DECIMALS = 2; // Å³
 const MEV_DECIMALS = 1; // meV, meV/Å, meV/atom — accuracy metrics
-
-/**
- * MACE foundation models are fit to different DFT/DFT-like references, so a
- * raw total energy is meaningless without knowing which model produced it
- * (CLAUDE.md, "Energy Reference Conventions"). Ranges are typical orders of
- * magnitude, not hard bounds — flag, don't block.
- */
-const CONVENTION_METHODS: Record<string, string> = {
-  mp: "PBE(+U) DFT reference",
-  off: "ωB97M-D3BJ reference",
-};
-
-/** The reference convention a model's energies are on, from the registry. */
-function energyConventionFor(
-  modelType: string | undefined,
-): { method: string; range: [number, number] } | undefined {
-  const model = findModel(modelType);
-  if (!model) return undefined;
-  const typical = CONTRACT.energyConventions[model.energyConvention].typical;
-  const method = CONVENTION_METHODS[model.energyConvention];
-  if (!typical || !method) return undefined;
-  return { method, range: [typical.minEvPerAtom, typical.maxEvPerAtom] };
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -417,12 +395,8 @@ function SummaryTab({
 }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const convention = energyConventionFor(modelType);
-  const ePerAtomNum = result.energy != null && atomCount > 0 ? result.energy / atomCount : null;
-  const energyInRange =
-    convention && ePerAtomNum != null
-      ? ePerAtomNum >= convention.range[0] && ePerAtomNum <= convention.range[1]
-      : null;
+  const reference = energyReference(result);
+  const energyInRange = reference?.inRange ?? null;
 
   // Dense "Properties" table — computed (output) quantities only, MP-style
   // rows. Run-time inputs (model, thresholds, ensemble) stay in Run
@@ -513,14 +487,21 @@ function SummaryTab({
           sub={
             <>
               <div>{ePerAtom} eV/atom</div>
+              {reference?.basis === "vs-isolated-atoms" && reference.value !== null && (
+                <div>
+                  {reference.value.toFixed(EV_PER_ATOM_DECIMALS)} eV/atom relative to the model&apos;s
+                  isolated atoms
+                </div>
+              )}
               {modelType && (
                 <div className={energyInRange === false ? "text-warning" : undefined}>
                   {modelType === "custom" ? "Custom model" : modelType}
                   {modelSize ? ` (${modelSize})` : ""} &middot;{" "}
-                  {convention?.method ?? "reference convention unknown"}
+                  {reference?.method ?? "reference convention unknown"}
                   {energyInRange === false &&
-                    convention &&
-                    ` — outside typical ${convention.range[0]} to ${convention.range[1]} eV/atom`}
+                    reference &&
+                    ` — outside typical ${reference.band[0]} to ${reference.band[1]} eV/atom` +
+                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "")}
                 </div>
               )}
             </>
@@ -1688,7 +1669,7 @@ function PropertyRows({ rows }: { rows: { label: string; value: React.ReactNode 
 function EnergyReferenceNote({ result }: { result: CalculationResult }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const conv = energyConventionFor(modelType);
+  const conv = energyReference(result);
 
   return (
     <div className="rounded-lg border border-border bg-muted px-4 py-3">
@@ -1700,11 +1681,22 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         trained on
         {isMaceOffModel(modelType) ? " (all-electron totals, which include core electrons)" : ""}
         {" "}&mdash; not a directly measurable quantity.{" "}
-        {conv ? (
+        {conv?.basis === "vs-isolated-atoms" ? (
+          <>
+            This model is referenced to{" "}
+            <span className="text-text-secondary">{conv.method}</span>. Its raw energy per atom
+            depends on the elements present (water is about &minus;694 eV/atom,
+            CH<sub>2</sub>Br<sub>2</sub> about &minus;28233), so it has no range of its own;
+            relative to the model&apos;s own isolated atoms, typical values fall between{" "}
+            {conv.band[0]} and {conv.band[1]} eV/atom for {modelType}.{" "}
+            {conv.value === null &&
+              "This result does not carry the energy relative to the model's isolated atoms, so it is not compared with that range."}
+          </>
+        ) : conv ? (
           <>
             This model is referenced to{" "}
             <span className="text-text-secondary">{conv.method}</span>; typical
-            values fall between {conv.range[0]} and {conv.range[1]} eV/atom for {modelType}.
+            values fall between {conv.band[0]} and {conv.band[1]} eV/atom for {modelType}.
           </>
         ) : modelType === "custom" ? (
           <>
