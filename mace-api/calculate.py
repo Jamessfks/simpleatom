@@ -551,7 +551,8 @@ def extract_reference_data(atoms) -> dict:
 
 
 def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
-                  effective_params, trajectory=None, warnings=None, manifest=None):
+                  effective_params, trajectory=None, warnings=None, manifest=None,
+                  kinetic_stress=False):
     """
     Assemble the standard JSON result dict.
 
@@ -590,9 +591,13 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
     if atoms.pbc.all():
         try:
             from ase import units
-            stress_gpa = atoms.get_stress(voigt=True) / units.GPa
+            # After MD the atoms move, so the pressure is virial plus the
+            # ideal-gas (kinetic) term, -Σ p_i p_j / (m V) on the stress (D54):
+            # the virial alone read 0.30 GPa for an NPT run held at 0 GPa.
+            stress_gpa = atoms.get_stress(voigt=True, include_ideal_gas=kinetic_stress) / units.GPa
             properties["stress"] = [float(x) for x in stress_gpa]
             properties["pressure"] = float(-stress_gpa[:3].mean())
+            properties["stressIncludesKineticTerm"] = bool(kinetic_stress)
         except Exception as exc:  # noqa: BLE001 — a missing stress must not lose the result
             warnings.append(
                 f"Stress could not be computed ({type(exc).__name__}: {exc}); "
@@ -1564,11 +1569,11 @@ class _RunContext:
     hooks: RunHooks
     profile_name: str
 
-    def build(self, energy, forces, msg, trajectory=None) -> dict:
+    def build(self, energy, forces, msg, trajectory=None, kinetic_stress=False) -> dict:
         return _build_result(self.atoms, energy, forces, msg, self.calc_start,
                              self.ref_data, self.effective_params,
                              trajectory=trajectory, warnings=self.warnings,
-                             manifest=self.manifest)
+                             manifest=self.manifest, kinetic_stress=kinetic_stress)
 
     def stopped_early(self, kind: str, at_step: int, total: int) -> None:
         budget = contract.profile(self.profile_name)["timeBudgetSeconds"]
@@ -1810,6 +1815,56 @@ def kinetic_temperature(kinetic_energy_ev: float, dof: int) -> float:
     return 2.0 * kinetic_energy_ev / (dof * units.kB) if dof > 0 else 0.0
 
 
+MD_WARMUP_FRACTION = 0.2
+MD_TEMPERATURE_BLOCKS = 5
+
+
+def md_summary(steps, totals, temps, dt_fs: float, n_atoms: int, ensemble: str) -> dict:
+    """
+    The numbers an MD result states about itself (D53).
+
+    Mean temperature: the first MD_WARMUP_FRACTION of the recorded frames is
+    discarded as warm-up, and the standard error comes from MD_TEMPERATURE_BLOCKS
+    block means (consecutive frames are correlated, so a per-frame standard
+    error would be far too small). Fewer than 10 kept frames: no error is given.
+
+    NVE drift: the least-squares slope of total energy per atom against time,
+    in meV/atom/ps. Last-minus-first, as before, is one noisy difference (it
+    had the opposite sign to the fit on the NVE golden), and no drift is given
+    for NVT/NPT, where a bath exchanges energy by design.
+    """
+    import numpy as np
+
+    out: dict = {"warmupFraction": MD_WARMUP_FRACTION}
+    if not totals:
+        out["_text"] = ""
+        return out
+    temps_a = np.asarray(temps, dtype=float)
+    warm = int(len(temps_a) * MD_WARMUP_FRACTION)
+    kept = temps_a[warm:]
+    out.update({"warmupFrames": warm, "meanTemperature": float(kept.mean())})
+    if len(kept) >= 2 * MD_TEMPERATURE_BLOCKS:
+        blocks = np.array_split(kept, MD_TEMPERATURE_BLOCKS)
+        means = np.array([b.mean() for b in blocks])
+        out["temperatureStdError"] = float(means.std(ddof=1) / np.sqrt(len(means)))
+        out["temperatureBlocks"] = MD_TEMPERATURE_BLOCKS
+        t_text = (f"mean temperature {out['meanTemperature']:.1f} ± {out['temperatureStdError']:.1f} K "
+                  f"(first {warm} of {len(temps_a)} frames discarded as warm-up; "
+                  f"{MD_TEMPERATURE_BLOCKS}-block standard error)")
+    else:
+        t_text = (f"mean temperature {out['meanTemperature']:.1f} K (first {warm} of {len(temps_a)} "
+                  "frames discarded; too few frames for an error estimate)")
+    if ensemble == "NVE" and len(totals) >= 3:
+        t_ps = np.asarray(steps, dtype=float) * dt_fs / 1000.0
+        slope = float(np.polyfit(t_ps, np.asarray(totals, dtype=float) / n_atoms, 1)[0]) * 1000.0
+        out["nveDriftMeVPerAtomPerPs"] = slope
+        out["_text"] = (f"Total energy (potential + kinetic) {totals[0]:.4f} → {totals[-1]:.4f} eV, "
+                        f"fitted drift {slope:+.3f} meV/atom/ps; {t_text}")
+    else:
+        out["_text"] = t_text[0].upper() + t_text[1:]
+    return out
+
+
 def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     import numpy as np
     from ase import units
@@ -2020,14 +2075,10 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     msg = f"MD ({ensemble}) completed for {ctx.filename} ({ran}, seed={seed})"
     totals = frames.series["totalEnergies"]
     temps = frames.series["temperatures"]
-    if totals:
-        drift = totals[-1] - totals[0]
-        mean_temp = sum(temps) / len(temps)
-        msg += (
-            f". Total energy (potential + kinetic) {totals[0]:.4f} → "
-            f"{totals[-1]:.4f} eV, drift {drift:+.4f} eV; mean temperature "
-            f"{mean_temp:.1f} K ({dof} degrees of freedom)"
-        )
+    summary = md_summary(frames.step, totals, temps, dt_fs, n_atoms, ensemble)
+    text = summary.pop("_text")
+    if text:
+        msg += f". {text} ({dof} degrees of freedom)"
 
     trajectory = {
         # `energies` keeps its existing meaning — the POTENTIAL energy per
@@ -2042,7 +2093,8 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
         "positions": frames.positions,
         "step": frames.step,
     }
-    result = ctx.build(energy, forces, msg, trajectory=trajectory)
+    result = ctx.build(energy, forces, msg, trajectory=trajectory, kinetic_stress=True)
+    result["mdSummary"] = summary
     if stopped_at is not None:
         result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
     return result
