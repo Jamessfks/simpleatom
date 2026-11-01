@@ -112,3 +112,26 @@ describe("the validation page describes what the validator now checks (D81)", ()
     expect(validation).toMatch(/warning above 1\.5&times;|warning above 1\.5×/);
   });
 });
+
+// D165: the validation page had the force check backwards ("max force < 50 eV/Å
+// warns"). validate_calculation.py warns above FORCE_MAX_REASONABLE (50 eV/Å) and
+// reports an issue above FORCE_MAX_CRITICAL (200 eV/Å).
+describe("the validation page states the force limits the validator applies (D165)", () => {
+  const validation = read("app/docs/validation/page.tsx");
+  const script = readFileSync("test_scripts/validate_calculation.py", "utf8");
+  const limit = (name: string) => script.match(new RegExp(`^${name}\\s*=\\s*([0-9.]+)`, "m"))?.[1];
+
+  it("reads its numbers off the validator", () => {
+    expect(limit("FORCE_MAX_REASONABLE")).toBe("50.0");
+    expect(limit("FORCE_MAX_CRITICAL")).toBe("200.0");
+  });
+
+  it("says a max force above 50 eV/Å warns and above 200 eV/Å is an issue", () => {
+    expect(validation).toMatch(/Force magnitude:<\/strong> a max force above 50 eV\/Å warns, above 200 eV\/Å is an issue/);
+  });
+
+  it("does not say it the wrong way round", () => {
+    expect(validation).not.toMatch(/max force &lt; 50 eV\/Å warns/);
+    expect(validation).not.toMatch(/&lt; 200 eV\/Å errors/);
+  });
+});

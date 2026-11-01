@@ -72,6 +72,19 @@ describe("benchmark components state per-atom units and invent no numbers", () =
     expect(text("components/benchmark/benchmark-leaderboard.tsx")).not.toMatch(/Avg: \$\{/);
   });
 
+  // D165: the header comment promised an "average energy/atom" in the footer. The
+  // footer has not averaged since D97; it counts the structures each model
+  // finished, sums their run time and gives the mean spread between models.
+  it("the leaderboard's header comment describes the footer it has", () => {
+    const source = text("components/benchmark/benchmark-leaderboard.tsx");
+    const header = source.slice(0, source.indexOf("*/") + 2);
+    expect(header).not.toMatch(/average energy\/atom/i);
+    expect(header).toMatch(/footer/i);
+    expect(header).toMatch(/succeeded/i);
+    expect(header).toMatch(/total time/i);
+    expect(header).toMatch(/mean[^.]*spread|spread[^.]*mean/i);
+  });
+
   it("does not turn a missing comparison into 0", () => {
     for (const f of files) {
       expect(text(f), f).not.toMatch(/energies\.length >= 2[\s\S]{0,120}: 0\b/);

@@ -88,3 +88,21 @@ describe("the calculation report prints free text legibly (D163)", () => {
     expect(text).not.toContain("‚");
   });
 });
+
+// D165: the report printed "Friction: 0.005" with no unit, the only parameter
+// without one. The Langevin friction is a rate, 1/fs, as the parameter panel
+// and the contract say.
+describe("the calculation report gives every physical parameter its unit (D165)", () => {
+  it("prints the Langevin friction in 1/fs", async () => {
+    const result: CalculationResult = {
+      status: "success",
+      energy: -7.1,
+      symbols: ["Ti"],
+      params: { calculationType: "molecular-dynamics", mdEnsemble: "NVT", temperature: 300, timeStep: 1, friction: 0.005 },
+    };
+    const text = squash(await reportText(result));
+    expect(text).toContain("Friction:0.0051/fs");
+    expect(text).toContain("Temperature:300K");
+    expect(text).toContain("Timestep:1fs");
+  });
+});
