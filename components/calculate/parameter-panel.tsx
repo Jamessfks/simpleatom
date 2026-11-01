@@ -801,15 +801,15 @@ function SeedField({
           onChange(parseSeed(e.target.value, min, max).value);
         }}
       />
-      <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
-        Optional. Blank uses {defaultSeed}. The same seed reproduces a trajectory; change it for an independent replica.
-      </p>
       {error && (
         <p id={`${id}-error`} role="alert" className="flex items-start gap-1.5 text-xs leading-relaxed text-error">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{error}</span>
         </p>
       )}
+      <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
+        Optional. Blank uses {defaultSeed}. The same seed reproduces a trajectory; change it for an independent replica.
+      </p>
     </div>
   );
 }
