@@ -388,6 +388,24 @@ class TestSharedFixtures(unittest.TestCase):
                 os.environ["ALLOW_CUSTOM_MODELS"] = previous
 
 
+class TestCliOutputIsJson(unittest.TestCase):
+    """D129 follow-up: the CLI's stdout is parsed by Node's JSON.parse, which rejects NaN."""
+
+    def test_a_non_finite_number_is_never_printed(self):
+        import io
+        import calculate_local
+        out = io.StringIO()
+        with mock.patch.object(calculate_local, "_REAL_STDOUT", out):
+            calculate_local.emit({"status": "success", "energy": float("nan")})
+
+        def refuse(token):
+            raise ValueError(f"{token} is not JSON")
+
+        doc = json.loads(out.getvalue(), parse_constant=refuse)
+        self.assertEqual(doc["status"], "error")
+        self.assertEqual(doc["error"]["code"], "non_finite_result")
+
+
 class TestClientIdentity(unittest.TestCase):
     """
     D43: per-visitor limits key on who the request is from. The visitor IP the
