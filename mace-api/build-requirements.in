@@ -1,0 +1,14 @@
+# Build backend for the two locked sdists, bibtexparser and python-hostlist (D83).
+#
+# Every other locked distribution installs from a wheel (the Dockerfile passes
+# --only-binary=:all:). These two publish only sdists with a plain setup.py, so
+# pip must build them. Under build isolation pip would fetch setuptools from the
+# index unpinned and unhashed (hash-checking mode does not cover build
+# dependencies). The image installs this lock first and builds with
+# --no-build-isolation, so the builder is pinned by hash as well.
+#
+# Regenerate (CI recompiles both locks and fails on a diff):
+#   uv pip compile mace-api/build-requirements.in --python-version 3.11 \
+#     --python-platform x86_64-manylinux_2_28 --generate-hashes \
+#     -o mace-api/build-requirements.lock.txt
+setuptools==84.0.0

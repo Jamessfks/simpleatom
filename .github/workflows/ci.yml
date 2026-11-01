@@ -93,12 +93,13 @@ jobs:
       - name: The lock reproduces from requirements.in (D31 cannot return by hand)
         run: |
           uv pip compile mace-api/requirements.in --python-version 3.11 --python-platform x86_64-manylinux_2_28 --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match --generate-hashes --emit-index-url -o mace-api/requirements.lock.txt
-          git diff --exit-code mace-api/requirements.lock.txt
+          uv pip compile mace-api/build-requirements.in --python-version 3.11 --python-platform x86_64-manylinux_2_28 --generate-hashes -o mace-api/build-requirements.lock.txt
+          git diff --exit-code mace-api/requirements.lock.txt mace-api/build-requirements.lock.txt
       - name: Deploy staging ships every tracked backend file
         run: |
           scripts/stage-hf-space.sh "$RUNNER_TEMP/stage"
           for f in calculate.py contract.json contract.py jobs.py main.py provenance.py safe_load.py \
-                   smiles_to_xyz.py validate_calculation.py requirements.lock.txt Dockerfile GIT_COMMIT; do
+                   smiles_to_xyz.py validate_calculation.py requirements.lock.txt build-requirements.lock.txt Dockerfile GIT_COMMIT; do
             test -f "$RUNNER_TEMP/stage/$f" || { echo "::error::$f missing from the staged Space"; exit 1; }
           done
 
