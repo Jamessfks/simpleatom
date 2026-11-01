@@ -18,8 +18,58 @@ or imported directly by the FastAPI server (main.py).
 
 import json
 import sys
+import time
+
+from contract import ContractError
 
 MAX_ATOMS_DEFAULT = 500
+
+# D151: wall-clock budget, in whole seconds, for the 3D embedding (both the
+# ETKDG attempt and the random-coordinates retry). Buckminsterfullerene fails
+# all 600 ETKDG attempts in 13 s on an M-series Mac, longer on the hosted
+# Space's shared vCPUs, and the conversion runs as a job with a 60 s budget on
+# a single worker (main.py). 20 s leaves room for the force-field relaxation.
+EMBED_BUDGET_SECONDS = 20
+
+
+def _embed(mol, smiles: str) -> None:
+    """
+    Embed `mol` in 3D with ETKDGv3 (seed 42), retrying from random coordinates,
+    every attempt bounded by RDKit's own EmbedParameters.timeout.
+
+    RDKit applies the timeout per fragment, in whole seconds, so the remaining
+    budget is shared out between the fragments. A timeout is refused at once:
+    retrying would only spend more of the worker's time on the same molecule.
+    """
+    from rdkit import Chem
+    from rdkit.Chem import AllChem, rdDistGeom
+
+    budget = EMBED_BUDGET_SECONDS
+    fragments = max(1, len(Chem.GetMolFrags(mol)))
+    timed_out = int(rdDistGeom.EmbedFailureCauses.EXCEEDED_TIMEOUT)
+    started = time.monotonic()
+    for random_coords in (False, True):
+        remaining = budget - (time.monotonic() - started)
+        params = AllChem.ETKDGv3()
+        params.randomSeed = 42
+        params.useRandomCoords = random_coords
+        params.timeout = max(1, int(remaining // fragments))
+        params.trackFailures = True
+        if remaining > 0 and AllChem.EmbedMolecule(mol, params) != -1:
+            return
+        # Empty when RDKit made no attempt (a bounds-smoothing failure, say).
+        counts = params.GetFailureCounts() if remaining > 0 else ()
+        if remaining <= 0 or (len(counts) > timed_out and counts[timed_out]):
+            raise ContractError(
+                f"Generating 3D coordinates for '{smiles}' did not finish within {budget} s "
+                "(RDKit ETKDG embedding), so it was stopped. Nothing was converted. Cages and "
+                "large fused ring systems embed slowly or not at all; draw the structure in the "
+                "editor or upload a 3D structure file (XYZ, PDB, CIF, POSCAR) instead.",
+                code="smiles_embedding_timeout", field="smiles", status=422)
+    raise ValueError(
+        f"Failed to generate 3D coordinates for '{smiles}'. "
+        "The molecule may be too constrained or unusual for ETKDG embedding."
+    )
 
 
 def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
@@ -76,20 +126,7 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
             f"limit of {max_atoms}. Use a smaller molecule or increase --max-atoms."
         )
 
-    params = AllChem.ETKDGv3()
-    params.randomSeed = 42
-    status = AllChem.EmbedMolecule(mol, params)
-
-    if status == -1:
-        params_fallback = AllChem.ETKDGv3()
-        params_fallback.useRandomCoords = True
-        params_fallback.randomSeed = 42
-        status = AllChem.EmbedMolecule(mol, params_fallback)
-        if status == -1:
-            raise ValueError(
-                f"Failed to generate 3D coordinates for '{smiles}'. "
-                "The molecule may be too constrained or unusual for ETKDG embedding."
-            )
+    _embed(mol, smiles)
 
     # D118: MMFFOptimizeMolecule returns -1 when MMFF94 has no parameters for
     # the molecule (boron, many metals); it does not raise, so the UFF branch
@@ -123,20 +160,21 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
     }
 
 
-if __name__ == "__main__":
-    args = sys.argv[1:]
+def main(argv: list[str] | None = None) -> int:
+    """The command line: print one JSON object, return the exit status."""
+    args = list(sys.argv[1:] if argv is None else argv)
     max_atoms = MAX_ATOMS_DEFAULT
 
     if "--max-atoms" in args:
         idx = args.index("--max-atoms")
         if idx + 1 >= len(args):
             print(json.dumps({"status": "error", "message": "--max-atoms requires an integer argument"}))
-            sys.exit(1)
+            return 1
         try:
             max_atoms = int(args[idx + 1])
         except ValueError:
             print(json.dumps({"status": "error", "message": f"Invalid --max-atoms value: {args[idx + 1]}"}))
-            sys.exit(1)
+            return 1
         args = args[:idx] + args[idx + 2:]
 
     if not args:
@@ -144,13 +182,24 @@ if __name__ == "__main__":
             "status": "error",
             "message": "Usage: python3 smiles_to_xyz.py <smiles_string> [--max-atoms N]",
         }))
-        sys.exit(1)
+        return 1
 
     smiles_input = args[0]
 
     try:
         result = smiles_to_xyz(smiles_input, max_atoms=max_atoms)
         print(json.dumps(result))
+    except ContractError as e:
+        # The code and status travel to the Next.js route (lib/server/backend.ts
+        # apiErrorFrom reads `error`), so a timeout is not reported as a bad SMILES.
+        print(json.dumps({"status": "error", "message": str(e),
+                          "error": {**e.to_dict(), "status": e.status}}))
+        return 1
     except Exception as e:
         print(json.dumps({"status": "error", "message": str(e)}))
-        sys.exit(1)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
