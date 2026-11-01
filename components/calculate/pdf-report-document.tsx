@@ -2,6 +2,7 @@
 
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 import type { CalculationParams, CalculationResult } from "@/types/mace";
+import { pdfText } from "@/components/pdf-text";
 import { getSiteUrl } from "@/lib/site";
 import { reportNotes } from "./report-notes";
 
@@ -83,13 +84,13 @@ function formatParams(params: Partial<CalculationParams> | undefined): string {
   if (params.mdEnsemble) parts.push(`Ensemble: ${params.mdEnsemble}`);
   if (params.forceThreshold != null) parts.push(`Force threshold: ${params.forceThreshold} eV/Å`);
   if (params.modelSize) parts.push(`Model: ${params.modelType || "N/A"} (${params.modelSize})`);
-  return parts.length ? parts.join("; ") : "N/A";
+  return parts.length ? pdfText(parts.join("; ")) : "N/A";
 }
 
 function MACEReportPDF({ result }: { result: CalculationResult }) {
   const forceMag = (f: number[]) =>
     Math.sqrt(f[0] ** 2 + f[1] ** 2 + f[2] ** 2).toFixed(4);
-  const siteHost = new URL(getSiteUrl()).host;
+  const siteHost = pdfText(new URL(getSiteUrl()).host);
   const notes = reportNotes(result);
 
   return (
@@ -101,12 +102,12 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
           <Text style={styles.sectionTitle}>Summary</Text>
           <View style={styles.row}>
             <Text style={styles.label}>Outcome:</Text>
-            <Text style={styles.value}>{notes.outcome.headline}</Text>
+            <Text style={styles.value}>{pdfText(notes.outcome.headline)}</Text>
           </View>
           {notes.outcome.detail && (
             <View style={styles.row}>
               <Text style={styles.label}>Detail:</Text>
-              <Text style={styles.value}>{notes.outcome.detail}</Text>
+              <Text style={styles.value}>{pdfText(notes.outcome.detail)}</Text>
             </View>
           )}
           {result.timeTaken != null && (
@@ -141,7 +142,7 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
           {result.message && (
             <View style={styles.row}>
               <Text style={styles.label}>Note:</Text>
-              <Text style={styles.value}>{result.message}</Text>
+              <Text style={styles.value}>{pdfText(result.message)}</Text>
             </View>
           )}
         </View>
@@ -150,7 +151,7 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Warnings from the calculation</Text>
             {notes.warnings.map((warning, i) => (
-              <Text key={i} style={styles.value}>{`\u2022 ${warning}`}</Text>
+              <Text key={i} style={styles.value}>{pdfText(`\u2022 ${warning}`)}</Text>
             ))}
           </View>
         )}
@@ -158,7 +159,7 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
         {notes.licenseNotice && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Model licence</Text>
-            <Text style={styles.value}>{notes.licenseNotice}</Text>
+            <Text style={styles.value}>{pdfText(notes.licenseNotice)}</Text>
           </View>
         )}
 
@@ -185,7 +186,7 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
                 <View key={i} style={styles.tableRow}>
                   <Text style={styles.tableCol1}>{i + 1}</Text>
                   {/* symbols may be shorter than forces — guard with a fallback */}
-                  <Text style={styles.tableCol2}>{result.symbols![i] ?? "?"}</Text>
+                  <Text style={styles.tableCol2}>{pdfText(result.symbols![i] ?? "?")}</Text>
                   <Text style={styles.tableCol3}>{force[0].toFixed(4)}</Text>
                   <Text style={styles.tableCol4}>{force[1].toFixed(4)}</Text>
                   <Text style={styles.tableCol5}>{force[2].toFixed(4)}</Text>

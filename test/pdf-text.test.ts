@@ -49,7 +49,7 @@ describe("pdfText maps what Helvetica cannot draw (D163)", () => {
     expect(pdfText("Aspirin (C₉H₈O₄)")).toBe("Aspirin (C9H8O4)");
     expect(pdfText("(H₂O)₂")).toBe("(H2O)2");
     expect(pdfText("x⁴ y⁹ z⁰")).toBe("x4 y9 z0");
-    expect(pdfText("Å⁻¹")).toBe("Å-1");
+    expect(pdfText("cm⁻⁴")).toBe("cm-4");
     expect(pdfText("Fe₂₊")).toBe("Fe2+");
   });
 
@@ -100,7 +100,8 @@ describe("pdfText maps what Helvetica cannot draw (D163)", () => {
   });
 
   it("falls back to the base letter for accented letters Latin-1 lacks", () => {
-    expect(pdfText("Černý")).toBe("Cerny");
+    expect(pdfText("Černý")).toBe("Cerný"); // ý is Latin-1, Č and ě are not
+    expect(pdfText("Černě")).toBe("Cerne");
     expect(pdfText("Jurečka, Šponer")).toBe("Jurecka, Šponer"); // Š is in Windows-1252
     expect(pdfText("ά")).toBe("alpha");
     expect(pdfText("ﬁnal")).toBe("final");
@@ -164,7 +165,7 @@ describe("what the PDFs print from the registries comes out printable (D163)", (
 
   it("every model label, summary, level of theory and licence notice", () => {
     for (const m of MODELS) {
-      for (const text of [m.label, m.summary, m.levelOfTheory, m.license.notice ?? ""]) {
+      for (const text of [m.label, m.summary, m.levelOfTheory ?? "", m.license.notice ?? ""]) {
         expectPrintable(pdfText(text), m.id);
       }
     }

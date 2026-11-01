@@ -4,6 +4,7 @@
  */
 
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
+import { pdfText } from "@/components/pdf-text";
 import { getSiteUrl } from "@/lib/site";
 import type { BenchmarkResult } from "@/types/mace";
 import { energySpread } from "./benchmark-spread";
@@ -52,14 +53,14 @@ const pdfStyles = StyleSheet.create({
 function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
   const modelLabels =
     result.results.length > 0
-      ? result.results[0].models.map((m) => m.modelLabel)
+      ? result.results[0].models.map((m) => pdfText(m.modelLabel))
       : [];
 
   let maxDisagreement = { structure: "", delta: 0 };
   for (const r of result.results) {
     const d = energySpread(r);
     if (d !== null && d > maxDisagreement.delta) {
-      maxDisagreement = { structure: r.structureName, delta: d };
+      maxDisagreement = { structure: pdfText(r.structureName), delta: d };
     }
   }
 
@@ -113,7 +114,7 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
             const de = spread === null ? "N/A" : spread.toFixed(1);
             return (
               <View key={r.structureId} style={pdfStyles.tableRow}>
-                <Text style={pdfStyles.colLeft}>{r.structureName}</Text>
+                <Text style={pdfStyles.colLeft}>{pdfText(r.structureName)}</Text>
                 <Text style={pdfStyles.col}>
                   {r.reference?.cohesiveEnergy
                     ? r.reference.cohesiveEnergy.value.toFixed(2)
@@ -170,7 +171,7 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
         </View>
 
         <Text style={pdfStyles.footer}>
-          MACE Benchmark Suite — Generated from {getSiteUrl()}
+          MACE Benchmark Suite — Generated from {pdfText(getSiteUrl())}
         </Text>
       </Page>
     </Document>
