@@ -153,16 +153,29 @@ function violation(code: string, message: string, field: string | null, status =
 const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
 
 /** The trimmed string, as contract.resolve_choice() compares it; other values unchanged. */
-const trimmed = (raw: unknown) => (typeof raw === "string" ? raw.trim() : raw);
+const trimmed = (raw: unknown) => (typeof raw === "string" ? raw.replace(ASCII_EDGE_SPACE, "") : raw);
+
+// Both mirrors strip exactly this set (D124): JavaScript's trim() and Python's
+// str.strip() disagree on Unicode spaces (U+0085, U+FEFF, U+001C-001F).
+const ASCII_EDGE_SPACE = /^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$/g;
+
+/** Absent: missing, null, or a string that is empty after trimming (D123, as in contract.is_blank). */
+const isBlank = (raw: unknown) => raw === undefined || raw === null || trimmed(raw) === "";
+
+// Request keys the contract knows (D139), as in contract.py REQUEST_KEYS + params.
+const REQUEST_KEYS = new Set<string>([
+  "calculationType", "modelType", "modelSize", "precision", "device", "dispersion", "mdEnsemble", "customModelName",
+  ...Object.keys(CONTRACT.params),
+]);
 
 function checkNumber(params: Record<string, unknown>, field: NumericParam): ContractViolation | null {
   const raw = params[field];
-  if (raw === undefined || raw === null || raw === "") return null;
+  if (isBlank(raw)) return null;
   const spec = PARAMS[field];
   // Strings must be plain decimals, as in contract.py: Number() alone also
   // takes "0x10" and "0b11", which Python refuses.
   const value =
-    typeof raw === "number" ? raw : typeof raw === "string" && DECIMAL.test(raw.trim()) ? Number(raw) : NaN;
+    typeof raw === "number" ? raw : typeof raw === "string" && DECIMAL.test(trimmed(raw) as string) ? Number(trimmed(raw)) : NaN;
   if (typeof raw === "boolean" || !Number.isFinite(value)) {
     return violation("invalid_number", `Invalid ${field}: expected a finite number.`, field);
   }
@@ -192,13 +205,21 @@ export function checkCalculationParams(
   profileName: ProfileName,
   hasModelFile = false,
 ): ContractViolation | null {
+  const unknown = Object.keys(params).filter((key) => !REQUEST_KEYS.has(key)).sort();
+  if (unknown.length > 0) {
+    return violation(
+      "unknown_parameter",
+      `Unknown parameter${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}. Nothing was computed.`,
+      unknown[0],
+    );
+  }
   const calcType = params.calculationType;
-  if (calcType !== undefined && calcType !== null && calcType !== "") {
+  if (!isBlank(calcType)) {
     const supported = CONTRACT.calculationTypes as readonly string[];
-    if (typeof calcType !== "string" || !supported.includes(calcType.trim())) {
+    if (typeof calcType !== "string" || !supported.includes(trimmed(calcType) as string)) {
       const hint =
         typeof calcType === "string"
-          ? (CONTRACT.refusedCalculationTypes as Record<string, string>)[calcType.trim().toLowerCase()]
+          ? (CONTRACT.refusedCalculationTypes as Record<string, string>)[(trimmed(calcType) as string).toLowerCase()]
           : undefined;
       return violation(
         "unsupported_calculation",
@@ -223,12 +244,11 @@ export function checkCalculationParams(
   }
 
   const modelRaw = params.modelType;
-  const model =
-    modelRaw === undefined || modelRaw === null || modelRaw === ""
-      ? findModel(hasModelFile ? "custom" : DEFAULT_MODEL_TYPE)
-      : typeof modelRaw === "string"
-        ? findModel(modelRaw.trim())
-        : undefined;
+  const model = isBlank(modelRaw)
+    ? findModel(hasModelFile ? "custom" : DEFAULT_MODEL_TYPE)
+    : typeof modelRaw === "string"
+      ? findModel(trimmed(modelRaw) as string)
+      : undefined;
   if (!model) {
     return violation(
       "unsupported_model",
@@ -247,10 +267,8 @@ export function checkCalculationParams(
   if (
     !hasModelFile &&
     model.loader !== "checkpoint" &&
-    size !== undefined &&
-    size !== null &&
-    size !== "" &&
-    !(typeof size === "string" && Object.keys(model.sizes).includes(size.trim()))
+    !isBlank(size) &&
+    !(typeof size === "string" && Object.keys(model.sizes).includes(trimmed(size) as string))
   ) {
     return violation(
       "unsupported_model_size",
@@ -282,7 +300,7 @@ export function checkCalculationParams(
   // Same rule as contract.resolve_bool(): a real boolean, or the strings
   // "true"/"false"; anything else is refused.
   const dispersion = params.dispersion;
-  const dispersionText = typeof dispersion === "string" ? dispersion.trim().toLowerCase() : null;
+  const dispersionText = typeof dispersion === "string" ? (trimmed(dispersion) as string).toLowerCase() : null;
   if (
     dispersion !== undefined &&
     dispersion !== null &&
@@ -296,7 +314,7 @@ export function checkCalculationParams(
   // Only the fields this calculation type reads are checked — exactly what
   // calculate._resolve_run_params() resolves — so a stray mdSteps on a
   // single-point is ignored here just as it is by the backend.
-  const calc = typeof calcType === "string" && calcType.trim() ? calcType.trim() : "single-point";
+  const calc = typeof calcType === "string" && !isBlank(calcType) ? (trimmed(calcType) as string) : "single-point";
   const ensemble = trimmed(params.mdEnsemble);
   if (calc === "molecular-dynamics" && ensemble !== undefined && ensemble !== null && ensemble !== "" &&
       !(CONTRACT.mdEnsembles as readonly unknown[]).includes(ensemble)) {

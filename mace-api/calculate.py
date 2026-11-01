@@ -113,7 +113,7 @@ class RunHooks:
 
 def resolve_seed(raw) -> int:
     """Normalise and validate an RNG seed. Missing/empty -> DEFAULT_MD_SEED."""
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if contract.is_blank(raw):
         return DEFAULT_MD_SEED
     # The contract's own number rule (D48): int() truncated 3.7 to 3 and
     # raised OverflowError — a 500 — on infinity.
@@ -186,7 +186,7 @@ def resolve_precision(raw, model_type: str, calc_type: str) -> tuple[str, bool]:
     Returns (precision, was_explicitly_requested). A missing/empty value takes
     upstream's default for this model family and calculation type.
     """
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if contract.is_blank(raw):
         return upstream_default_precision(model_type, calc_type), False
 
     if not isinstance(raw, str):
@@ -196,7 +196,7 @@ def resolve_precision(raw, model_type: str, calc_type: str) -> tuple[str, bool]:
             code="unsupported_precision", field="precision",
         )
 
-    precision = raw.strip()
+    precision = contract.clean_text(raw)
     if precision not in SUPPORTED_PRECISIONS:
         raise ContractError(
             f"Unsupported precision '{precision}'. "
@@ -805,6 +805,7 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
     run_calculation() and by the job queue (jobs.py), which refuses a bad
     request with a 4xx before it ever waits in line.
     """
+    contract.check_known_keys(params)
     if has_model_path and not contract.custom_models_allowed(profile_name):
         # Opt-in on every profile (ADR-0020, D40): a local server is reachable
         # from the LAN and from any page the developer visits.

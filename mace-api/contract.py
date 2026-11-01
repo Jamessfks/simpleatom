@@ -39,6 +39,38 @@ class ContractError(ValueError):
         return {"code": self.code, "message": str(self), "field": self.field}
 
 
+# The whitespace both mirrors strip (D124): Python's str.strip() and JavaScript's
+# trim() disagree on Unicode spaces (U+0085, U+FEFF, U+001C-001F), so neither is
+# used on request values.
+ASCII_SPACE = " \t\n\r\f\v"
+
+
+def clean_text(raw):
+    """A request string with ASCII whitespace stripped; other values unchanged."""
+    return raw.strip(ASCII_SPACE) if isinstance(raw, str) else raw
+
+
+def is_blank(raw) -> bool:
+    """Absent: None, or a string that is empty after stripping ASCII whitespace (D123)."""
+    return raw is None or (isinstance(raw, str) and not clean_text(raw))
+
+
+# Request keys the contract knows (D139). A misspelled key ("temprature") used
+# to be ignored, so the default ran under the user's impression of their value.
+REQUEST_KEYS = frozenset({"calculationType", "modelType", "modelSize", "precision", "device",
+                          "dispersion", "mdEnsemble", "customModelName"})
+
+
+def check_known_keys(params: dict) -> None:
+    known = REQUEST_KEYS | set(load_contract()["params"])
+    unknown = sorted(k for k in params if k not in known)
+    if unknown:
+        raise ContractError(
+            f"Unknown parameter{'s' if len(unknown) > 1 else ''}: {', '.join(unknown)}. "
+            f"Known parameters: {', '.join(sorted(known))}. Nothing was computed.",
+            code="unknown_parameter", field=unknown[0])
+
+
 @lru_cache(maxsize=1)
 def load_contract() -> dict:
     return json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
@@ -122,7 +154,7 @@ def resolve_model(raw, has_model_path: bool) -> dict:
     foundation model and labelling it "custom" would attribute the numbers to
     a model that was never loaded.
     """
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if is_blank(raw):
         return find_model("custom" if has_model_path else default_model_type())
 
     supported = ", ".join(model_ids())
@@ -133,10 +165,10 @@ def resolve_model(raw, has_model_path: bool) -> dict:
             code="unsupported_model", field="modelType",
         )
 
-    model = find_model(raw.strip())
+    model = find_model(clean_text(raw))
     if model is None:
         raise ContractError(
-            f"Unsupported modelType '{raw.strip()}'. Supported models: {supported}.",
+            f"Unsupported modelType '{clean_text(raw)}'. Supported models: {supported}.",
             code="unsupported_model", field="modelType",
         )
     if model["loader"] == "checkpoint" and not has_model_path:
@@ -162,10 +194,10 @@ def resolve_model_size(model: dict, raw) -> str | None:
     if model["loader"] == "checkpoint":
         return None
     sizes = model["sizes"]
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if is_blank(raw):
         return model["defaultSize"]
-    if isinstance(raw, str) and raw.strip() in sizes:
-        return raw.strip()
+    if isinstance(raw, str) and clean_text(raw) in sizes:
+        return clean_text(raw)
     raise ContractError(
         f"Unsupported modelSize {raw!r} for {model['id']}. "
         f"Available sizes: {', '.join(sizes)}.",
@@ -199,7 +231,7 @@ def resolve_calculation_type(raw) -> str:
     """Missing → "single-point". Present but unimplemented → refused."""
     contract = load_contract()
     supported = contract["calculationTypes"]
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if is_blank(raw):
         return "single-point"
     if not isinstance(raw, str):
         raise ContractError(
@@ -207,7 +239,7 @@ def resolve_calculation_type(raw) -> str:
             f"Supported types: {', '.join(supported)}.",
             code="unsupported_calculation", field="calculationType",
         )
-    calc_type = raw.strip()
+    calc_type = clean_text(raw)
     if calc_type in supported:
         return calc_type
     msg = f"Unsupported calculationType '{calc_type}'. Supported types: {', '.join(supported)}."
@@ -218,10 +250,10 @@ def resolve_calculation_type(raw) -> str:
 
 
 def resolve_choice(raw, field: str, choices: list[str], default: str) -> str:
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if is_blank(raw):
         return default
-    if isinstance(raw, str) and raw.strip() in choices:
-        return raw.strip()
+    if isinstance(raw, str) and clean_text(raw) in choices:
+        return clean_text(raw)
     raise ContractError(
         f"Unsupported {field} {raw!r}. Supported values: {', '.join(choices)}.",
         code=f"unsupported_{field}", field=field,
@@ -238,15 +270,15 @@ def resolve_bool(raw, field: str, default: bool = False) -> bool:
         return default
     if isinstance(raw, bool):
         return raw
-    if isinstance(raw, str) and raw.strip().lower() in ("true", "false"):
-        return raw.strip().lower() == "true"
+    if isinstance(raw, str) and clean_text(raw).lower() in ("true", "false"):
+        return clean_text(raw).lower() == "true"
     raise ContractError(
         f"Invalid {field}: expected true or false, got {raw!r}.",
         code="invalid_boolean", field=field,
     )
 
 
-DECIMAL = re.compile(r"[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?")
+DECIMAL = re.compile(r"[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?", re.ASCII)
 
 
 def resolve_number(params: dict, field: str):
@@ -258,7 +290,7 @@ def resolve_number(params: dict, field: str):
     """
     spec = load_contract()["params"][field]
     raw = params.get(field)
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if is_blank(raw):
         return spec["default"]
     if isinstance(raw, bool):
         raise ContractError(f"Invalid {field}: expected a number, got a boolean.",
@@ -266,7 +298,7 @@ def resolve_number(params: dict, field: str):
     # Strings must be plain decimals, as in lib/contract.ts: float() alone
     # also takes "1_000", which JavaScript's Number() does not, and the two
     # mirrors must refuse the same requests.
-    if isinstance(raw, str) and not DECIMAL.fullmatch(raw.strip()):
+    if isinstance(raw, str) and not DECIMAL.fullmatch(clean_text(raw)):
         raise ContractError(f"Invalid {field}: expected a number, got {raw!r}.",
                             code="invalid_number", field=field)
     try:
