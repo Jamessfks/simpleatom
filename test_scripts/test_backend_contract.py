@@ -506,6 +506,24 @@ class TestResourceBounds(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "upload_too_large")
 
 
+class TestDeployWorkflow(unittest.TestCase):
+    """D50: the Space deploy runs only from main, and every action it uses is pinned by SHA."""
+
+    def setUp(self):
+        self.text = (REPO_ROOT / ".github" / "workflows" / "deploy-hf-space.yml").read_text()
+
+    def test_manual_dispatch_cannot_deploy_another_branch(self):
+        if "workflow_dispatch" in self.text:
+            self.assertIn("github.ref != 'refs/heads/main'", self.text)
+
+    def test_actions_are_pinned_to_a_commit(self):
+        import re
+        uses = re.findall(r"uses:\s*(\S+)", self.text)
+        self.assertTrue(uses)
+        for ref in uses:
+            self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
