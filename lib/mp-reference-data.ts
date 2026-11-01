@@ -37,9 +37,6 @@
  * PBE / PBE+U, matching MACE-MP-0's training level of theory. The r2SCAN keys
  * MP also exposes are deliberately not used. So the cells (r2SCAN) and the
  * energies compared with them (GGA/GGA+U) come from different functionals.
- *
- * NOTE: this header was edited by hand (D106, D121); test_scripts/fetch_mp_reference.py,
- * which writes this file, must emit the same text before it is run again.
  */
 
 /** One Materials Project entry: a structure plus MP's published value for it. */
