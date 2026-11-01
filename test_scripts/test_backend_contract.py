@@ -439,6 +439,73 @@ class TestMdEffectiveParams(unittest.TestCase):
         self.assertNotIn("friction", self._md("NPT"))
 
 
+class TestResourceBounds(unittest.TestCase):
+    """
+    D44: refused requests leave no per-visitor entry, windows older than an
+    hour are pruned, and the proxy key and the declared body size are checked
+    before the multipart body is parsed and spooled.
+    """
+
+    def test_refused_submissions_leave_no_trace(self):
+        import jobs
+        store = jobs.JobStore(max_queued=0)  # every submission is refused as busy
+        for i in range(300):
+            with self.assertRaises(ContractError):
+                store.submit(f"198.51.{i // 256}.{i % 256}", lambda job: {"status": "success"})
+        self.assertEqual(len(store._submissions), 0)
+
+    def test_expired_windows_are_pruned(self):
+        import jobs
+        from collections import deque
+        store = jobs.JobStore(per_client_hourly=1000, max_queued=1000)
+        store._submissions["203.0.113.9"] = deque([time.time() - 3601])
+        store.submit("203.0.113.10", lambda job: {"status": "success"})
+        self.assertNotIn("203.0.113.9", store._submissions)
+
+    @staticmethod
+    def _post(headers, env):
+        """POST a malformed multipart body straight into the ASGI app (no HTTP client
+        dependency): a pre-parse check answers 401/413, the old path answered 422."""
+        import asyncio
+        import importlib
+        body = b"not a multipart body"
+        headers = {"content-type": "multipart/form-data; boundary=x",
+                   "content-length": str(len(body)), **headers}
+        with mock.patch.dict(os.environ, env):
+            import main
+            app = importlib.reload(main).app
+        scope = {"type": "http", "method": "POST", "path": "/v1/jobs", "raw_path": b"/v1/jobs",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(k.encode(), v.encode()) for k, v in headers.items()],
+                 "client": ("198.51.100.7", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+
+        with mock.patch.dict(os.environ, env):
+            asyncio.run(app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        payload = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
+        return status, json.loads(payload or b"{}")
+
+    def test_proxy_key_is_checked_before_the_body_is_parsed(self):
+        status, payload = self._post({}, {"SIMPLEATOM_PROFILE": "hosted", "MACE_API_TOKEN": "proxy-secret"})
+        self.assertEqual(status, 401, payload)
+        self.assertEqual(payload["error"]["code"], "proxy_key_required")
+
+    def test_declared_oversize_body_is_refused_before_it_is_read(self):
+        status, payload = self._post({"content-length": str(40_000_000)}, {"SIMPLEATOM_PROFILE": "hosted"})
+        self.assertEqual(status, 413, payload)
+        self.assertEqual(payload["error"]["code"], "upload_too_large")
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
