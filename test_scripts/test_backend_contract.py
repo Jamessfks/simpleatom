@@ -951,6 +951,28 @@ class TestEverySuiteRuns(unittest.TestCase):
                          "test_scripts suites the daily gate never runs")
 
 
+class TestLintBaseline(unittest.TestCase):
+    """D88 (F14): one total let a new lint error hide behind a fixed warning."""
+
+    def setUp(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        self.gate = daily_gate
+
+    def test_ci_and_the_gate_read_separate_error_and_warning_baselines(self):
+        script = (REPO_ROOT / "scripts" / "lint-baseline.mjs").read_text()
+        for name in ("LINT_ERROR_BASELINE", "LINT_WARNING_BASELINE"):
+            self.assertIsInstance(getattr(self.gate, name, None), int, name)
+            self.assertIn(name, script)
+
+    def test_a_new_error_fails_even_when_a_warning_was_fixed(self):
+        errors, warnings = self.gate.LINT_ERROR_BASELINE + 1, max(self.gate.LINT_WARNING_BASELINE - 1, 0)
+        out = f"\u2716 {errors + warnings} problems ({errors} errors, {warnings} warnings)\n"
+        done = subprocess.CompletedProcess([], 1, stdout=out, stderr="")
+        with mock.patch.object(self.gate, "run", return_value=done):
+            self.assertFalse(self.gate.gate_lint().ok)
+
+
 class TestValidatorGateCanFail(unittest.TestCase):
     """
     D79: the validator printed all_passed: false, exited 0, and the daily gate
