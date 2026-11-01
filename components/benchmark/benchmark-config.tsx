@@ -27,6 +27,9 @@ import { MLPEG_CATALOG, type CatalogCategory, type CatalogEntry } from "@/lib/ml
 import {
   MP_REFERENCE_ENTRIES,
   MP_REFERENCE_PROVENANCE,
+  mpCellFunctional,
+  mpEntryLabel,
+  mpEntryNote,
   type MpReferenceEntry,
 } from "@/lib/mp-reference";
 import { MP_CATEGORY_ID } from "@/lib/benchmark-structures";
@@ -82,16 +85,19 @@ const MODEL_GROUPS = MODELS.filter((m) => m.loader !== "checkpoint").map((m) => 
 
 /** One-line description for an MP entry, with its published value inline. */
 function mpEntryDescription(e: MpReferenceEntry): string {
+  const note = mpEntryNote(e);
   if (e.role === "element-reference") {
     return (
       `MP's reference phase for ${e.element} (${e.mpId}). Formation energy is ` +
-      "0 eV/atom by definition; supplies e_ref for the compounds above."
+      "0 eV/atom by definition; supplies e_ref for the compounds above." +
+      (note ? ` ${note}` : "")
     );
   }
   return (
     `MP published formation energy ${e.mpFormationEnergyPerAtom >= 0 ? "+" : ""}` +
     `${e.mpFormationEnergyPerAtom.toFixed(4)} eV/atom (${MP_REFERENCE_PROVENANCE.datasetKey}), ` +
-    "hull ground state. MP's PBE-relaxed cell."
+    `hull ground state. Cell: ${mpCellFunctional(e)}-relaxed, as MP serves it; energy: GGA/GGA+U.` +
+    (note ? ` ${note}` : "")
   );
 }
 
@@ -105,12 +111,12 @@ const MP_CATEGORY: CatalogCategory = {
   id: MP_CATEGORY_ID,
   name: "Materials Project reference set",
   description:
-    "MP's own PBE-relaxed cells with published formation energies. Compounds plus the " +
-    "elemental reference phases they need — both halves are required.",
+    "The cells MP serves (r2SCAN-relaxed, except NiTi) with MP's published PBE/PBE+U formation " +
+    "energies. Compounds plus the elemental reference phases they need — both halves are required.",
   mlpegPath: MP_REFERENCE_PROVENANCE.endpoint,
   entries: MP_REFERENCE_ENTRIES.map((e) => ({
     id: e.id,
-    name: e.name,
+    name: mpEntryLabel(e),
     description: mpEntryDescription(e),
     formula: e.formula,
     atomCount: e.atomCount,

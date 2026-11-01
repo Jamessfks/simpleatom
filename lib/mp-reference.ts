@@ -50,6 +50,47 @@ export { MP_REFERENCE_PROVENANCE } from "./mp-reference-data";
 export type { MpReferenceEntry } from "./mp-reference-data";
 export { MP_REFERENCE_ENTRIES, MP_COMPOUNDS } from "./mp-reference-data";
 
+/**
+ * Which functional a served cell was relaxed with. MP's OPTIMADE endpoint serves
+ * the structure of its best-ranked calculation (r2SCAN, then GGA+U, then GGA);
+ * all 13 ids have a GGA/GGA+U thermo entry and 12 also have an r2SCAN one. The
+ * exception is mp-1048 (NiTi). docs/v2/validation/structure-references.json, H1.
+ * The energies paired with every cell are `gga_gga+u`.
+ */
+export type MpCellFunctional = "r2SCAN" | "GGA/GGA+U";
+
+export function mpCellFunctional(entry: Pick<MpReferenceEntry, "mpId">): MpCellFunctional {
+  return entry.mpId === "mp-1048" ? "GGA/GGA+U" : "r2SCAN";
+}
+
+/** Display name: MP's own, except where it names a different phase from the one this is. */
+export function mpEntryLabel(entry: Pick<MpReferenceEntry, "mpId" | "name">): string {
+  if (entry.mpId === "mp-72") return "ω-Ti (mp-72)";
+  if (entry.mpId === "mp-985806") return "Al2Cu, fluorite-type (mp-985806)";
+  return entry.name;
+}
+
+/**
+ * What an entry is, where its name alone would mislead. mp-72 is not the
+ * ambient phase of titanium (H2); mp-985806 is not the experimental Al2Cu (H3).
+ */
+export function mpEntryNote(entry: Pick<MpReferenceEntry, "mpId">): string | null {
+  if (entry.mpId === "mp-72") {
+    return (
+      "ω-Ti (P6/mmm, 3 atoms), MP's GGA/GGA+U hull ground state for titanium and so the reference for its " +
+      "formation energies. It is not the ambient phase: hcp α-Ti is mp-46 (P6₃/mmc), 0.0044 eV/atom above the " +
+      "hull in GGA."
+    );
+  }
+  if (entry.mpId === "mp-985806") {
+    return (
+      "A hypothetical fluorite-type Al2Cu (no ICSD entries) that MP's hull treats as the ground state. It is not " +
+      "the experimental θ-Al2Cu (khatyrkite, I4/mcm), which is mp-998, 0.0125 eV/atom above the hull in GGA."
+    );
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // The declared tolerance
 // ---------------------------------------------------------------------------
@@ -116,9 +157,20 @@ export const MP_CAVEATS: { title: string; body: string }[] = [
       "trained at the PBE level, so r2SCAN would be the wrong yardstick.",
   },
   {
-    title: "Single-point energies at MP's relaxed geometry",
+    title: "Cells are r2SCAN-relaxed; the energies compared are PBE(+U)",
     body:
-      "Structures are MP's PBE-relaxed cells, evaluated without further relaxation. The " +
+      "MP serves the structure from its best-ranked calculation (r2SCAN, then GGA+U, then GGA), " +
+      "so 12 of the 13 cells here are r2SCAN-relaxed; only mp-1048 (NiTi) has no r2SCAN entry and " +
+      "keeps its GGA/GGA+U cell. The formation energies they are compared with are gga_gga+u. " +
+      "For the four ids with archived GGA-era pages (Cu, Ni, AlNi, AlFe) the served conventional " +
+      "cell is 0.87–1.21 % smaller than MP's own GGA cell. A MACE energy at an r2SCAN cell is " +
+      "therefore not the energy at the geometry MP's published value belongs to, and the " +
+      "difference between those two is part of every deviation shown.",
+  },
+  {
+    title: "Single-point energies at MP's served geometry",
+    body:
+      "Structures are the cells MP serves, evaluated without further relaxation. The " +
       "comparison therefore probes the energy surface at MP's minimum rather than at MACE's.",
   },
   {
