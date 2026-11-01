@@ -38,6 +38,10 @@ developer visited could POST a pickle to a local server. Now:
 * with `ALLOW_CUSTOM_MODELS=1`, local mode accepts an upload only through a loopback
   host name (`custom_models_local_only`), which defeats DNS rebinding.
 
+2026-10-31 (D94): `npm start` binds 127.0.0.1 as well. The Host header that the loopback
+check reads can be forged by a LAN client, so loopback binding is the boundary; serving
+local mode on a network address with `ALLOW_CUSTOM_MODELS=1` is unsupported and documented.
+
 ## More information
 
 * mace-api/safe_load.py
