@@ -200,8 +200,9 @@ python test_scripts/validate_calculation.py result.json`}</code>
 
         <h2 id="limitations">Known limitations</h2>
         <Callout type="warning" title="Foundation models are general-purpose">
-          MACE-MP-0 is trained at the PBE level of DFT and typically
-          overbinds by roughly 0.1&ndash;0.5 eV/atom relative to experiment.
+          MACE-MP-0 is trained at the PBE level of DFT, so it inherits
+          PBE&rsquo;s differences from experiment, which depend on the
+          material and the property.
           Foundation models generalize well across chemistries, but they are
           not a substitute for system-specific validation against
           higher-level reference data when the application demands it.

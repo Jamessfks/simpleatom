@@ -170,7 +170,7 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
         <View style={pdfStyles.section}>
           <Text style={{ fontSize: 7, color: "#999", lineHeight: 1.4 }}>
             Reference values are experimental cohesive energies (Kittel 8th ed., CRC Handbook).
-            MACE is trained on PBE DFT, which differs from experiment by 0.1–0.5 eV/atom.
+            MACE is trained on PBE DFT and inherits PBE&rsquo;s differences from experiment, which depend on the material and the property.
             Direct comparison of model total energy to experimental cohesive energy is not valid
             without accounting for isolated atom references and DFT functional biases.
             See Miret et al. (arXiv:2502.03660) for discussion of MLIP evaluation beyond

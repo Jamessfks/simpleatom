@@ -62,8 +62,10 @@ export default function ModelsPage() {
             (PBE+U functional).
           </li>
           <li>
-            <strong>Accuracy:</strong> PBE-level, like MPA-0. Expect roughly
-            0.1–0.5 eV/atom overbinding relative to experiment.
+            <strong>Accuracy:</strong> PBE-level, like MPA-0, so it inherits
+            PBE&rsquo;s differences from experiment, which depend on the
+            material and the property. For silicon, MACE-MPA-0 relaxes to
+            a = 5.467 Å vs 5.4309 Å measured (COD 9011998, 298 K).
           </li>
           <li>
             <strong>D3 dispersion:</strong> supported for both MPA-0 and MP-0,

@@ -111,8 +111,10 @@ export default function FaqPage() {
           MACE foundation models are trained to reproduce DFT, and are only
           as good as that DFT for the chemistries they were trained on.
           MACE-MPA-0 (the default) and MACE-MP-0 are trained at the PBE/PBE+U
-          level, which typically overbinds by roughly 0.1&ndash;0.5 eV/atom
-          relative to experiment; on the Matbench Discovery benchmark MPA-0
+          level, so they inherit PBE&rsquo;s differences from experiment, which
+          depend on the material and the property. For silicon, MACE-MPA-0
+          relaxes to a = 5.467 Å vs 5.4309 Å measured (COD 9011998, 298 K).
+          On the Matbench Discovery benchmark MPA-0
           scores F1 0.852 against MP-0&rsquo;s 0.669. MACE-OFF23 is trained on
           &omega;B97M-D3(BJ) DFT data for organic molecules. All are
           general-purpose foundation models,

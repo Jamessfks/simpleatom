@@ -73,9 +73,10 @@ export interface CatalogEntry {
    * Known experimental/DFT reference values for validation context.
    *
    * IMPORTANT: These are EXPERIMENTAL cohesive energies — not DFT total
-   * energies. MACE-MP-0 is trained on PBE DFT, which systematically
-   * overbinds vs experiment (typical error 0.1–0.5 eV/atom). These
-   * values provide CONTEXT for researchers, not a scoring target.
+   * energies. MACE-MP-0 is trained on PBE DFT, so it inherits PBE's
+   * differences from experiment, which depend on the material and the
+   * property. These values provide CONTEXT for researchers, not a
+   * scoring target.
    * Direct comparison of MACE total energy/atom to experimental
    * cohesive energy is scientifically invalid without accounting for
    * the isolated atom reference and the DFT functional's known biases.
