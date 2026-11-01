@@ -133,7 +133,15 @@ export function StructureInfo({ file }: StructureInfoProps) {
   }
 
   if (!parsed) return null;
+  return <ParsedStructureInfo parsed={parsed} />;
+}
 
+/**
+ * The summary and warnings for a structure that has been parsed. Split from
+ * `StructureInfo` (which parses in an effect) so that it can be rendered, and
+ * tested, with a structure in hand.
+ */
+export function ParsedStructureInfo({ parsed }: { parsed: ParsedStructure }) {
   // ── Compute warnings ──
   const atomCount = parsed.atomCount;
   const isVeryLarge = atomCount > VLARGE_THRESHOLD;
