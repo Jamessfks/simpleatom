@@ -335,6 +335,10 @@
       "hostedEnabled": false
     }
   ],
+  "structureChecks": {
+    "minInteratomicDistanceA": 0.5,
+    "minInteratomicDistanceWhy": "Below 0.5 Å MACE returns NaN or absurd numbers (+3.9e15 eV for a water whose H sat on its own image) that look like results. The engine refuses (overlapping_atoms), the preview warns and the validator reports an issue, all at this one value (D89, D153)."
+  },
   "energyConventions": {
     "mp": {
       "description": "PBE/PBE+U DFT reference energies (Materials Project convention)",

@@ -853,7 +853,7 @@ def _resolve_run_params(calc_type: str, params: dict, profile_name: str) -> dict
 # 1 Å placeholder cell (0.48 Å to its own image, D89) is. MACE returns NaN at
 # 0 Å and absurd numbers (+3.9e15 eV for that water) just above it: numbers
 # that look like results and are not (ADR-0004).
-MIN_INTERATOMIC_DISTANCE_A = 0.5
+MIN_INTERATOMIC_DISTANCE_A = float(_CONTRACT["structureChecks"]["minInteratomicDistanceA"])  # D153: one value
 
 # Space groups that International Tables vol. A lists with two origin choices.
 # For these an H-M symbol alone does not say which operators apply; ASE always

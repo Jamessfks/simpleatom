@@ -44,7 +44,6 @@ ENERGY_PER_ATOM_MIN_MP = -20.0     # eV/atom for MACE-MP-0
 ENERGY_PER_ATOM_MAX_MP = 100.0     # eV/atom for MACE-MP-0
 FORCE_MAX_REASONABLE = 50.0   # eV/Å (above this = likely overlapping atoms)
 FORCE_MAX_CRITICAL = 200.0    # eV/Å (almost certainly unphysical)
-MIN_INTERATOMIC_DIST = 0.4    # Å (below this = overlapping atoms)
 NEIGHBOUR_CUTOFF = 3.0        # Å: the nearest contact is named when one is this close
 NVE_EXCURSION_ISSUE = 0.05    # eV/atom: NVE total energy this far from its start = not conserved
 NVE_EXCURSION_WARN = 0.005    # eV/atom
@@ -59,6 +58,21 @@ _CONTRACT_CANDIDATES = (
     Path(__file__).resolve().parent / "contract.json",
     Path(__file__).resolve().parent.parent / "mace-api" / "contract.json",
 )
+
+
+def _contract_value(path, default):
+    """A value from the shipped registry (flat Space layout or the repository), else `default`."""
+    for candidate in _CONTRACT_CANDIDATES:
+        if candidate.is_file():
+            node = json.loads(candidate.read_text(encoding="utf-8"))
+            for key in path:
+                node = node[key]
+            return node
+    return default
+
+
+# Å: below this atoms overlap. The engine refuses at the same value (D153).
+MIN_INTERATOMIC_DIST = float(_contract_value(("structureChecks", "minInteratomicDistanceA"), 0.5))
 
 
 def _energy_band(model_type: str):
