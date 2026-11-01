@@ -591,6 +591,45 @@ class TestResourceBounds(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "upload_too_large")
 
 
+class TestChunkedUploadCap(unittest.TestCase):
+    """D142: a body sent without Content-Length (chunked) was received in full before its 413."""
+
+    def test_an_undeclared_body_is_refused_once_it_passes_the_cap(self):
+        import asyncio
+        import importlib
+        with mock.patch.dict(os.environ, {"SIMPLEATOM_PROFILE": "hosted", "MACE_API_TOKEN": ""}):
+            import main
+            main = importlib.reload(main)
+        cap = main.LIMITS["maxUploadBytes"] + main.LIMITS["maxModelUploadBytes"] + (1 << 20)
+        chunk = 1 << 20
+        head = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"big.xyz\"\r\n"
+                b"Content-Type: text/plain\r\n\r\n")
+        scope = {"type": "http", "method": "POST", "path": "/calculate", "raw_path": b"/calculate",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", b"multipart/form-data; boundary=x"),
+                             (b"transfer-encoding", b"chunked")],
+                 "client": ("198.51.100.42", 4321), "server": ("testserver", 80)}
+        reads, messages = [0], []
+        limit = cap // chunk + 40   # never ends on its own: an unbounded upload
+
+        async def receive():
+            reads[0] += 1
+            if reads[0] > limit:
+                return {"type": "http.disconnect"}
+            return {"type": "http.request", "body": head if reads[0] == 1 else b"x" * chunk, "more_body": True}
+
+        async def send(message):
+            messages.append(message)
+
+        with mock.patch.dict(os.environ, {"SIMPLEATOM_PROFILE": "hosted", "MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        payload = json.loads(b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body"))
+        self.assertEqual(status, 413, payload)
+        self.assertEqual(payload["error"]["code"], "upload_too_large")
+        self.assertLessEqual(reads[0], cap // chunk + 3, "the body was read past the cap before refusing")
+
+
 class TestDeployWorkflow(unittest.TestCase):
     """D50: the Space deploy runs only from main, and every action it uses is pinned by SHA."""
 
