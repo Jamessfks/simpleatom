@@ -62,9 +62,12 @@ A Next.js 16 front end (Vercel) submits calculations as jobs to one Python
 engine (`mace-api/calculate.py`, ASE + mace-torch) — either spawned locally or
 running as FastAPI on a Hugging Face Space. `mace-api/contract.json` defines
 every accepted parameter, limit and model, enforced by the backend and mirrored
-by the UI. Only pinned checkpoints are ever unpickled. Shared results go
-through a validating server route into Supabase. CI gates every merge and is
-the only thing that deploys the backend. Read the
+by the UI. Only SHA-256-pinned foundation checkpoints are unpickled, unless a
+local operator opts in to their own with `ALLOW_CUSTOM_MODELS=1` (loopback
+only; the public site never loads one). Shared results go through a validating
+server route into Supabase. CI runs on every pull request and is the only thing
+that deploys the backend; making `main` require it is a branch-protection
+setting. Read the
 [architecture](docs/explanation/architecture.md) and the
 [decision records](docs/adr/README.md).
 

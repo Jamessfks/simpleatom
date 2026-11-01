@@ -24,7 +24,7 @@ python3 -m unittest discover -s test_scripts -p "test_provenance.py"
 python3 -m unittest discover -s test_scripts -p "test_science_regressions.py"
 ```
 
-CI runs all of these on every push and pull request.
+CI runs all of these on every pull request, and on pushes to `main`, `daily` and `v*`.
 
 ## Rules that are not negotiable
 

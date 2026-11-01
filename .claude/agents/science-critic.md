@@ -87,9 +87,9 @@ in the result and the UI, and flag any unit that changes without a conversion.
 Use only references fetched in this session, each with its URL and retrieval date: NIST
 CCCBDB or the WebBook, the Materials Project (via OPTIMADE, or the browser because curl
 gets 403), Matbench Discovery, PubChem PUG-REST, or the MACE papers (arXiv 2206.07697,
-2401.00096, 2312.15211). A difference from experiment is expected for a PBE-level model
-(the MACE-MP family overbinds by ~0.1–0.5 eV/atom). Judge whether the gap is stated
-honestly, not whether it is zero.
+2401.00096, 2312.15211). A difference from experiment is expected for a PBE-level model;
+its size and sign depend on the material and the property, and no single eV/atom band has a
+source (D85). Judge whether the gap is stated honestly, not whether it is zero.
 
 ## Blind picks
 

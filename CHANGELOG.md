@@ -3,6 +3,23 @@
 All notable changes to SimpleAtom. Versions follow [semantic versioning](https://semver.org/);
 `package.json` and `mace-api/contract.json` carry the same version (CI checks).
 
+## [Unreleased]
+
+The 2026-10-28 audit and its fixes, on branch `audit-next-feature` (PR #20); the full list,
+with each defect's failing test and fix, is `docs/v2/defects.json`.
+
+- Custom checkpoints are opt-in on every profile and, locally, accepted only through a
+  loopback host (`ALLOW_CUSTOM_MODELS=1`); `npm run dev` and `npm start` bind 127.0.0.1 (D40, D94).
+- The catalog's diamond cells and Si(111) are real crystal cells (D57).
+- Input handling follows ASE: CIF symbol case, origin choice and partial occupancy; the PDB
+  `CRYST1 1 1 1` placeholder; atoms closer than 0.5 Å are refused (D89, D113–D115, D153).
+- Non-finite results, diverging MD and degenerate cells are refused, never reported as
+  success (D129, D130, D137).
+- Devices are reported honestly (ADR-0031); MACE-OFF energies are judged relative to the
+  model's isolated atoms (D52).
+- The Space image installs hashed wheels from a digest-pinned base; CI recompiles the lock,
+  runs the default model offline in the image, and runs every test suite (D82, D83, D88).
+
 ## [2.2.0] — tagged 2026-10-20, not deployed
 
 The `v2.2.0` tag exists in the development repository only; production still ran 1.3.0 on
@@ -14,8 +31,8 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
 - **The hosted backend could be made to execute a file of the caller's choosing.** A process-wide
   `torch.load(weights_only=False)` patch, public custom-model uploads, and an unvalidated
   `modelSize` (which upstream treats as a URL or path to download and unpickle) are gone. Only
-  checkpoints whose SHA-256 is pinned in `mace-api/contract.json` are ever unpickled; custom
-  checkpoints are refused on the public instance, and locally they are opt-in
+  checkpoints whose SHA-256 is pinned in `mace-api/contract.json` are unpickled by default;
+  custom checkpoints are refused on the public instance, and locally they are opt-in
   (`ALLOW_CUSTOM_MODELS=1`, loopback only; see Unreleased)
   ([ADR-0020](docs/adr/0020-trusted-checkpoint-loading.md)).
 - Next.js 16.1.6 → 16.4.2 (critical request-smuggling advisory), Ketcher 3.18, nanoid 5.1.16:
@@ -87,7 +104,7 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
   validator and the git commit now reach the deployed container (D2, D3).
 
 ### Added
-- CI on every push and pull request (typecheck, lint baseline, unit tests, build, audit,
+- CI on every pull request and on pushes to `main`, `daily` and `v*` (typecheck, lint baseline, unit tests, build, audit,
   validator, provenance, science regressions, a Docker smoke test); the Space deploys only from
   CI ([ADR-0026](docs/adr/0026-ci-gates-every-merge.md)).
 - 31 architecture decision records ([docs/adr](docs/adr/README.md)), including ADR-0030 (stay on
