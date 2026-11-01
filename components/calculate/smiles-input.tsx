@@ -19,13 +19,23 @@ interface SmilesInputProps {
   onFilesChange: (files: File[]) => void;
 }
 
-interface ExampleMolecule {
+export interface ExampleMolecule {
   name: string;
   smiles: string;
   formula: string;
+  /** Which stereoisomer this is, where the molecule has stereocentres. */
+  detail?: string;
 }
 
-const EXAMPLES: ExampleMolecule[] = [
+/**
+ * Every stereocentre is written out, so the 3D structure is the isomer the name
+ * says. A SMILES that leaves one unspecified is filled in arbitrarily by the
+ * converter (D109: "Alanine" came out D, ibuprofen R). The isomeric SMILES for
+ * L-alanine (PubChem CID 5950) and beta-D-glucopyranose (CID 64689) are
+ * PubChem's, as docs/v2/validation/structure-references.json records them;
+ * ibuprofen is (S) on purpose. CIP labels were checked with RDKit's CIP labeller.
+ */
+export const SMILES_EXAMPLES: ExampleMolecule[] = [
   { name: "Ethanol", smiles: "CCO", formula: "C₂H₆O" },
   { name: "Water", smiles: "O", formula: "H₂O" },
   { name: "Methane", smiles: "C", formula: "CH₄" },
@@ -33,9 +43,25 @@ const EXAMPLES: ExampleMolecule[] = [
   { name: "Acetic acid", smiles: "CC(=O)O", formula: "C₂H₄O₂" },
   { name: "Aspirin", smiles: "CC(=O)Oc1ccccc1C(=O)O", formula: "C₉H₈O₄" },
   { name: "Caffeine", smiles: "Cn1c(=O)c2c(ncn2C)n(C)c1=O", formula: "C₈H₁₀N₄O₂" },
-  { name: "Alanine", smiles: "CC(N)C(=O)O", formula: "C₃H₇NO₂" },
-  { name: "Glucose", smiles: "OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O", formula: "C₆H₁₂O₆" },
-  { name: "Ibuprofen", smiles: "CC(C)Cc1ccc(cc1)C(C)C(=O)O", formula: "C₁₃H₁₈O₂" },
+  {
+    name: "L-Alanine",
+    smiles: "C[C@@H](C(=O)O)N",
+    formula: "C₃H₇NO₂",
+    detail: "(S)-alanine, PubChem CID 5950",
+  },
+  {
+    name: "β-D-Glucopyranose",
+    smiles: "C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)O)O)O)O",
+    formula: "C₆H₁₂O₆",
+    detail: "PubChem CID 64689: the anomeric carbon is R, as in the β anomer",
+  },
+  {
+    name: "(S)-Ibuprofen",
+    smiles: "CC(C)Cc1ccc(cc1)[C@H](C)C(=O)O",
+    formula: "C₁₃H₁₈O₂",
+    detail:
+      "the (S) enantiomer, the active enantiomer, chosen on purpose; the marketed drug is the racemate (PubChem CID 3672)",
+  },
 ];
 
 export function SmilesInput({ onFilesChange }: SmilesInputProps) {
@@ -136,20 +162,24 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
           Common molecules — click to use:
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {EXAMPLES.map((mol) => (
+          {SMILES_EXAMPLES.map((mol) => (
             <button
               key={mol.smiles}
               type="button"
               onClick={() => handleExampleClick(mol)}
               disabled={isConverting}
-              title={`SMILES: ${mol.smiles}`}
-              className="rounded-md border border-border-subtle bg-bg-surface px-2 py-1 font-mono text-xs text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-strong disabled:opacity-50"
+              title={`SMILES: ${mol.smiles}${mol.detail ? ` — ${mol.detail}` : ""}`}
+              className="min-h-11 rounded-md border border-border-subtle bg-bg-surface px-3 py-1 font-mono text-xs text-text-secondary transition-colors hover:border-accent-primary/50 hover:text-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary disabled:opacity-50"
             >
               <span>{mol.name}</span>
               <span className="ml-1 text-text-muted">{mol.formula}</span>
             </button>
           ))}
         </div>
+        <p className="mt-2 text-xs leading-relaxed text-text-muted">
+          L-alanine, β-D-glucopyranose and (S)-ibuprofen are written with every stereocentre fixed, so
+          the 3D structure is the isomer named. A SMILES you type keeps only the stereochemistry you write.
+        </p>
       </div>
     </div>
   );
