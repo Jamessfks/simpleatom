@@ -416,6 +416,29 @@ class TestGeometryOptStops(unittest.TestCase):
         self.assertIn("time budget", result["message"])
 
 
+class TestMdEffectiveParams(unittest.TestCase):
+    """D55: only parameters that acted are echoed as effective; NVE and NPT have no friction."""
+
+    @staticmethod
+    def _md(ensemble):
+        import calculate
+        from ase.build import bulk
+        from ase.calculators.emt import EMT
+        atoms = bulk("Cu", "fcc", a=3.6, cubic=True)
+        atoms.calc = EMT()
+        ctx = calculate._RunContext(atoms=atoms, filename="cu.xyz", calc_start=time.time(), ref_data={},
+                                    effective_params={}, warnings=[], manifest=None,
+                                    hooks=calculate.RunHooks(), profile_name="local")
+        run_params = {"temperature": 300.0, "timeStep": 1.0, "friction": 0.01, "mdSteps": 3,
+                      "mdEnsemble": ensemble, "pressure": 0.0}
+        return calculate._run_md(ctx, run_params, 42)["params"]
+
+    def test_friction_is_reported_only_where_a_thermostat_used_it(self):
+        self.assertEqual(self._md("NVT")["friction"], 0.01)
+        self.assertNotIn("friction", self._md("NVE"))
+        self.assertNotIn("friction", self._md("NPT"))
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
