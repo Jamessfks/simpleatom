@@ -117,6 +117,20 @@ function isTrajectory(value: unknown): value is Record<string, unknown> {
   );
 }
 
+/**
+ * A trajectory the dashboard can draw without throwing: both lists it indexes,
+ * and every series it sums, plots or formats, a list of numbers. Stricter than
+ * `isTrajectory` on purpose and used only to read rows already stored. It checks
+ * types, never sizes, so a long legitimate trajectory is kept whole.
+ */
+function isRenderableTrajectory(value: unknown): boolean {
+  if (!isTrajectory(value)) return false;
+  return SERIES.every((key) => {
+    const series = value[key];
+    return series === undefined || (Array.isArray(series) && series.every((x) => typeof x === "number"));
+  });
+}
+
 export function normalizeSharedResult(shared: SharedResult): SharedResult {
   const result = shared.result;
   if (!result || typeof result !== "object") return shared;
@@ -137,7 +151,8 @@ export function normalizeSharedResult(shared: SharedResult): SharedResult {
 
   // A row stored before the server checked trajectories may hold `{}`; the page
   // reads its arrays, so a trajectory that cannot be drawn is dropped (D64).
-  const dropTrajectory = "trajectory" in result && !isTrajectory((result as { trajectory?: unknown }).trajectory);
+  const dropTrajectory =
+    "trajectory" in result && !isRenderableTrajectory((result as { trajectory?: unknown }).trajectory);
 
   if (!dropProvenance && !dropValidation && !dropTrajectory) return shared;
 

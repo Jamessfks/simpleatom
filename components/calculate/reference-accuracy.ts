@@ -73,7 +73,10 @@ export function referenceAccuracy(result: CalculationResult): ReferenceAccuracy 
     // Frame 0 of a trajectory is the input geometry (the optimiser's first
     // observer call, MD's step 0). A trajectory that starts later is not.
     const traj = result.trajectory;
-    predictedEnergy = traj && traj.step?.[0] === 0 && traj.energies.length > 0 ? traj.energies[0] : null;
+    predictedEnergy =
+      traj && traj.step?.[0] === 0 && Array.isArray(traj.energies) && traj.energies.length > 0
+        ? traj.energies[0]
+        : null;
     if (hasReference) {
       out.note =
         predictedEnergy != null && result.referenceEnergy != null
