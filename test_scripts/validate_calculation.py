@@ -529,8 +529,11 @@ def run_verification_tests():
 
 
 def cli(argv: list[str]) -> int:
-    """The command line; --test exits 1 unless every check passed (D79)."""
-    if argv and argv[0] == "--test":
+    """
+    The command line; --test exits 1 unless every check passed (D79).
+    --verify-models runs the same checks and now shares the exit code (D150).
+    """
+    if argv and argv[0] in ("--test", "--verify-models"):
         output = run_verification_tests()
         print(json.dumps(output, indent=2))
         return 0 if output.get("all_passed") is True else 1
