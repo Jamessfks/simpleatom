@@ -982,7 +982,6 @@ def _read_cif(filepath: str, display: str, warnings: list[str]):
             atoms = _expand_cif_origin(block, tags, number, display, warnings)
         else:
             atoms = _expand_cif(block, tags, None if block._get_sitesym() else setting, display)
-    refuse_overlaps(atoms, display)
     return atoms
 
 
@@ -1028,7 +1027,26 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
     if len(atoms) == 0:
         raise ContractError(f"'{display}' contains no atoms.",
                             code="unreadable_structure", field="structure")
+    if fmt == "proteindatabank" and _is_cryst1_placeholder(atoms):
+        # D89: the PDB format prescribes exactly this record for every entry
+        # not solved by diffraction (NMR, cryo-EM, models), and many tools
+        # write it. ASE took it literally: water in a periodic 1 Å cube came
+        # out at +3.9e15 eV with a pressure. It means "no cell".
+        atoms.set_pbc(False)
+        atoms.set_cell(None)
+        warnings.append(
+            f"'{display}' has the placeholder CRYST1 record (1 × 1 × 1 Å, 90°, P 1) that the PDB "
+            "format prescribes for structures without a crystal cell, so it was computed as an "
+            "isolated, non-periodic structure.")
     return atoms, fmt
+
+
+def _is_cryst1_placeholder(atoms) -> bool:
+    import numpy as np
+    if not atoms.pbc.any():
+        return False
+    lengths_angles = atoms.cell.cellpar()
+    return bool(np.allclose(lengths_angles, [1, 1, 1, 90, 90, 90], atol=1e-3))
 
 
 def validate_request(params: dict, has_model_path: bool, profile_name: str) -> dict:
@@ -1158,6 +1176,7 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
     atoms, fmt = _read_structure(filepath, filename, warnings)
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
     contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
+    refuse_overlaps(atoms, filename)
     covered = model.get("elements") or []
     outside = sorted(set(atoms.get_chemical_symbols()) - set(covered)) if covered else []
     if outside:
