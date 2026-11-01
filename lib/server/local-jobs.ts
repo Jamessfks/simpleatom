@@ -13,7 +13,7 @@
 
 import type { ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { ApiError } from "@/lib/server/backend";
+import { ApiError, pythonExecutable } from "@/lib/server/backend";
 import type { ProfileName } from "@/lib/contract";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -76,7 +76,7 @@ async function start(job: LocalJob) {
 
   job.status = "running";
   job.startedAt = Date.now();
-  const child = spawn("python3", [join(process.cwd(), "mace-api", "calculate_local.py"), ...job.args, "--progress"], {
+  const child = spawn(pythonExecutable(), [join(process.cwd(), "mace-api", "calculate_local.py"), ...job.args, "--progress"], {
     env: {
       ...process.env,
       PYTHONUNBUFFERED: "1",

@@ -271,6 +271,16 @@ async function calculateRemote(
  * prints. A {status:"error"} document becomes an ApiError with the status the
  * script reported, so refusals keep their 4xx.
  */
+/**
+ * The Python that local mode runs: SIMPLEATOM_PYTHON when set (an environment
+ * built from mace-api/requirements.lock.txt), else `python3` on PATH. Bare
+ * `python3` used to be the only choice, and it is often not the pinned stack;
+ * calculate_local.py now warns in the result when it is not.
+ */
+export function pythonExecutable(): string {
+  return process.env.SIMPLEATOM_PYTHON?.trim() || "python3";
+}
+
 export async function runPythonJson(
   script: string,
   args: string[],
@@ -283,7 +293,7 @@ export async function runPythonJson(
   const { stdout, stderr, failed } = await new Promise<{ stdout: string; stderr: string; failed: boolean }>(
     (resolve) => {
       execFile(
-        "python3",
+        pythonExecutable(),
         [scriptPath, ...args],
         {
           timeout: options.timeoutMs,

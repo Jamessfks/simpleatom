@@ -16,6 +16,7 @@ SIMPLEATOM_PROFILE says otherwise.
 """
 
 import json
+from pathlib import Path
 import sys
 import os
 import warnings
@@ -66,6 +67,31 @@ def emit_error(message: str, code: str = "calculation_failed", field=None,
                status: int = 500) -> None:
     emit({"status": "error", "message": message,
           "error": {"code": code, "message": message, "field": field, "status": status}})
+
+
+def pinned_versions() -> dict[str, str]:
+    """The exact pins in requirements.in for the packages the manifest tracks."""
+    import re
+    import provenance
+    text = (Path(__file__).resolve().parent / "requirements.in").read_text()
+    pins = dict(re.findall(r"^([A-Za-z0-9_.-]+)==([^\s#]+)", text, flags=re.M))
+    return {name: pins[name] for name in provenance.TRACKED_DISTRIBUTIONS if name in pins}
+
+
+def stack_drift(installed: dict, pins: dict[str, str]) -> list[str]:
+    """
+    Where the running Python differs from the pins. Local mode spawns whatever
+    interpreter it is given (SIMPLEATOM_PYTHON, else `python3` on PATH), which
+    need not be the pinned stack; a local version label (`+cpu`) is not drift.
+    """
+    out = []
+    for name, pinned in pins.items():
+        have = installed.get(name)
+        if have is None:
+            out.append(f"{name} not installed (pinned {pinned})")
+        elif have.split("+", 1)[0] != pinned:
+            out.append(f"{name} {have} (pinned {pinned})")
+    return out
 
 
 def _take_option(args: list[str], flag: str, takes_value: bool = True):
@@ -126,6 +152,12 @@ if __name__ == "__main__":
             profile=contract.profile_name("local"),
             display_name=display_name, hooks=hooks,
         )
+        drift = stack_drift((result.get("provenance") or {}).get("packages") or {}, pinned_versions())
+        if drift:
+            result.setdefault("warnings", []).append(
+                "This local Python is not the stack this checkout pins: " + "; ".join(drift) +
+                ". Results can differ from the hosted backend's. Point SIMPLEATOM_PYTHON at an "
+                "environment built from mace-api/requirements.lock.txt (docs/how-to/install.md).")
         emit(result)
     except ValueError as e:
         # ContractError and UntrustedCheckpointError are ValueErrors with a code:
