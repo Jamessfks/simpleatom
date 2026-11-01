@@ -42,6 +42,11 @@ developer visited could POST a pickle to a local server. Now:
 check reads can be forged by a LAN client, so loopback binding is the boundary; serving
 local mode on a network address with `ALLOW_CUSTOM_MODELS=1` is unsupported and documented.
 
+2026-11-01 (D94, second pass): the loopback check no longer reads X-Forwarded-Host
+in place of Host, and refuses a non-loopback forwarded host or X-Forwarded-For. These
+are still headers a client chooses; they are defence in depth. Custom models must run
+only on a loopback-bound server.
+
 ## More information
 
 * mace-api/safe_load.py
