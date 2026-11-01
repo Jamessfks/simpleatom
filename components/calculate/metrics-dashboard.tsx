@@ -641,6 +641,11 @@ function SummaryTab({
           </CardHeader>
           <CardContent className="px-4">
             <PropertyRows rows={accuracyRows} />
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Reference values are taken from the uploaded file&rsquo;s energy and force
+              keys (energy, REF_energy, REF_forces and similar). They are comparable only if
+              they were computed with the same reference convention as this model.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -1748,8 +1753,10 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         <span className="font-bold text-text-secondary">
           Note{modelType ? ` (${modelType}${modelSize ? `, ${modelSize}` : ""})` : ""}:
         </span>{" "}
-        Energy is the total electronic energy from the MACE model (including all-electron
-        atomic contributions) &mdash; not a directly measurable quantity.{" "}
+        Energy is the total energy the MACE model predicts, on the reference of the data it was
+        trained on
+        {isMaceOffModel(modelType) ? " (all-electron totals, which include core electrons)" : ""}
+        {" "}&mdash; not a directly measurable quantity.{" "}
         {conv ? (
           <>
             This model is referenced to{" "}
