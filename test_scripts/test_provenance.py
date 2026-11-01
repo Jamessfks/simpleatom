@@ -402,6 +402,37 @@ def _mace_available() -> tuple[bool, str]:
         return False, f"{type(exc).__name__}: {exc}"
 
 
+class TestDeployedProvenanceNotes(unittest.TestCase):
+    """
+    D49: in a deployed container (no .git, no git binary) the commit comes from
+    the GIT_COMMIT file and the dirty state cannot be checked. The manifest
+    used to carry gitDirty: null with no note, unlike every other null.
+    """
+
+    def test_pinned_commit_explains_its_unknown_dirty_state(self):
+        from unittest import mock
+        import ase
+        saved = provenance._GIT_INFO
+        provenance._GIT_INFO = None
+        try:
+            with mock.patch.object(provenance.subprocess, "run", side_effect=FileNotFoundError("git")), \
+                 mock.patch.object(provenance, "_pinned_commit", return_value="a" * 40):
+                info = provenance.git_info()
+                manifest = provenance.build_manifest(
+                    model_type="MACE-OFF", model_size="small", checkpoint_path=None,
+                    checkpoint_resolved_by="none", input_filename="x.xyz", input_path=None,
+                    input_format="xyz", atoms=ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]]),
+                    device="cpu", precision="float64", seed=None)
+        finally:
+            provenance._GIT_INFO = saved
+        self.assertEqual(info["commit"], "a" * 40)
+        self.assertIsNone(info["dirty"])
+        self.assertEqual(manifest["code"]["gitCommit"], "a" * 40)
+        self.assertIsNone(manifest["code"]["gitDirty"])
+        self.assertTrue(any("gitDirty is null" in n and "GIT_COMMIT" in n for n in manifest["notes"]),
+                        manifest["notes"])
+
+
 class TestRealCalculation(unittest.TestCase):
     """
     One real MACE-OFF run and one real MACE-MP-0 run, through the production
