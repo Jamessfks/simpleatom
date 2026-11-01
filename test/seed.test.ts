@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseSeed } from "@/components/calculate/seed";
-import { PARAMS } from "@/lib/contract";
+import { checkCalculationParams, PARAMS } from "@/lib/contract";
 
 // D36: the docs tell users to change the MD seed for independent replicas, so
 // the calculator needs a seed field. Blank means "the backend's default", never
@@ -20,11 +20,16 @@ describe("MD seed input (D36)", () => {
     expect(parseSeed(String(max), min, max).value).toBe(max);
   });
 
-  it("refuses what the backend would refuse, with a reason", () => {
+  it("refuses what the backend would refuse, and blocks the run instead of using the default", () => {
     for (const raw of ["-1", String(max + 1), "1.5", "abc", "1e3", "0x10"]) {
       const out = parseSeed(raw, min, max);
-      expect(out.value).toBeUndefined();
       expect(out.error).toMatch(/whole number/);
+      expect(out.error).not.toMatch(/default seed is used/);
+      // The invalid entry reaches the request check, so the run stays blocked:
+      // running with seed 42 while the box shows something else would be a
+      // different calculation from the one on screen.
+      const violation = checkCalculationParams({ calculationType: "molecular-dynamics", seed: out.value }, "hosted", false);
+      expect(violation?.code).toBe("invalid_number");
     }
   });
 });
