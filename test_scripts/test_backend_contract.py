@@ -596,7 +596,9 @@ class TestHostileParamsJson(unittest.TestCase):
     params gave a plain-text 500, even in a field nothing reads."""
 
     HOSTILE = {"huge integer": '{"seed": ' + "9" * 5000 + "}",
-               "deep nesting": '{"x": ' + "[" * 100_000 + "]" * 100_000 + "}"}
+               # 20,000 levels is far past the decoder's recursion limit and, at 40 KB, inside
+               # Linux's 128 KB limit on one command-line argument (the CLI case).
+               "deep nesting": '{"x": ' + "[" * 20_000 + "]" * 20_000 + "}"}
 
     def _post(self, params):
         import asyncio
