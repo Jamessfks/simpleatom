@@ -318,121 +318,119 @@ def validate_params(params: dict) -> dict:
     return {"valid": len(issues) == 0, "issues": issues, "warnings": warnings_list}
 
 
-def run_verification_tests():
-    """Run basic model verification tests with real MACE calculations."""
-    results = []
+def _engine():
+    """SimpleAtom's own engine: mace-api/ in the repo, or beside this file in the Space image."""
+    here = Path(__file__).resolve().parent
+    for candidate in (here.parent / "mace-api", here):
+        if (candidate / "calculate.py").exists():
+            if str(candidate) not in sys.path:
+                sys.path.insert(0, str(candidate))
+            break
+    import calculate
+    return calculate
 
+
+def _check(name: str, result: dict | None, verdict, **details) -> dict:
+    """One self-test entry. A failed or missing run fails the check, never passes it."""
+    entry = {"test": name, **details}
+    if not result or result.get("status") != "success":
+        error = (result or {}).get("error") or {}
+        entry.update(passed=False, error=error.get("message") if isinstance(error, dict) else str(error))
+        return entry
+    entry["passed"] = bool(verdict(result))
+    return entry
+
+
+def run_verification_tests():
+    """
+    Run SimpleAtom's engine on known structures and judge every result (D38).
+
+    The self-test used to call upstream mace_mp/mace_off directly — so it never
+    exercised SimpleAtom's code — ran its geometry optimisation in float32, and
+    hard-coded two of its five verdicts. Every check below is computed from a
+    result calculate.run_calculation() returned.
+    """
+    import tempfile
+    results = []
     try:
         import numpy as np
-        from ase import Atoms
         from ase.build import bulk, molecule
-        from mace.calculators import mace_mp, mace_off
+        from ase.io import write
 
-        # Test 1: MACE-MP-0 on silicon bulk
-        print("Test 1: MACE-MP-0 single-point on Si bulk...", file=sys.stderr)
-        si = bulk("Si", "diamond", a=5.43)
-        calc_mp = mace_mp(model="small", default_dtype="float32", device="cpu")
-        si.calc = calc_mp
-        e_si = si.get_potential_energy()
-        f_si = si.get_forces()
-        results.append({
-            "test": "MACE-MP-0 Si bulk",
-            "passed": True,
-            "energy_per_atom": e_si / len(si),
-            "max_force": float(np.max(np.linalg.norm(f_si, axis=1))),
-            "note": "Si diamond (a=5.43 Å), 2 atoms"
-        })
+        calculate = _engine()
+        mp_typical = calculate.contract.energy_convention("MACE-MPA-0")["typical"]
 
-        # Test 2: MACE-OFF on water molecule
-        print("Test 2: MACE-OFF single-point on H2O...", file=sys.stderr)
+        def run(atoms, params):
+            with tempfile.TemporaryDirectory() as tmp:
+                path = str(Path(tmp) / "structure.xyz")
+                write(path, atoms, format="extxyz")
+                return calculate.run_calculation(path, params, profile="local")
+
+        def net_force(result):
+            return float(np.linalg.norm(np.sum(np.asarray(result["forces"]), axis=0)))
+
+        def max_force(result):
+            return float(np.max(np.linalg.norm(np.asarray(result["forces"]), axis=1)))
+
+        print("Test 1: MACE-MPA-0 single point on Si (engine)...", file=sys.stderr)
+        si = run(bulk("Si", "diamond", a=5.43, cubic=True), {"calculationType": "single-point"})
+        results.append(_check(
+            "MACE-MPA-0 Si bulk (engine)", si,
+            lambda r: max_force(r) < 1e-3 and
+            mp_typical["minEvPerAtom"] <= r["energy"] / len(r["symbols"]) <= mp_typical["maxEvPerAtom"],
+            note="Diamond Si, 8-atom cell: forces vanish by symmetry; energy per atom in the MP band",
+            energy_per_atom=si["energy"] / len(si["symbols"]) if si.get("status") == "success" else None,
+        ))
+
+        print("Test 2: MACE-OFF single point on H2O (engine)...", file=sys.stderr)
         water = molecule("H2O")
         water.center(vacuum=5.0)
-        calc_off = mace_off(model="small", default_dtype="float32", device="cpu")
-        water.calc = calc_off
-        e_water = water.get_potential_energy()
-        f_water = water.get_forces()
-        results.append({
-            "test": "MACE-OFF H2O molecule",
-            "passed": True,
-            "energy": float(e_water),
-            "max_force": float(np.max(np.linalg.norm(f_water, axis=1))),
-            "note": "Isolated water molecule"
-        })
+        water.pbc = False
+        h2o = run(water, {"calculationType": "single-point", "modelType": "MACE-OFF", "modelSize": "small"})
+        results.append(_check(
+            "MACE-OFF H2O molecule (engine)", h2o,
+            lambda r: r["params"].get("modelType") == "MACE-OFF" and math.isfinite(r["energy"]),
+            note="Isolated water through the full engine path",
+        ))
 
-        # Test 3: Geometry optimization of ethanol
-        print("Test 3: MACE-OFF geometry opt on ethanol...", file=sys.stderr)
-        from ase.optimize import BFGS
+        print("Test 3: MACE-OFF geometry optimisation of ethanol (engine)...", file=sys.stderr)
         ethanol = molecule("CH3CH2OH")
         ethanol.center(vacuum=5.0)
-        ethanol.calc = calc_off
-        e_before = ethanol.get_potential_energy()
-        opt = BFGS(ethanol, logfile=None)
-        opt.run(fmax=0.05, steps=100)
-        e_after = ethanol.get_potential_energy()
-        f_after = ethanol.get_forces()
-        results.append({
-            "test": "MACE-OFF ethanol geometry opt",
-            "passed": e_after <= e_before + 0.001,  # Energy should decrease
-            "energy_before": float(e_before),
-            "energy_after": float(e_after),
-            "max_force_after": float(np.max(np.linalg.norm(f_after, axis=1))),
-            "opt_steps": opt.nsteps,
-            "note": "Energy should decrease during optimization"
-        })
+        ethanol.pbc = False
+        opt = run(ethanol, {"calculationType": "geometry-opt", "modelType": "MACE-OFF", "modelSize": "small",
+                            "forceThreshold": 0.05, "maxOptSteps": 200})
+        results.append(_check(
+            "MACE-OFF ethanol geometry opt (engine, float64)", opt,
+            lambda r: r.get("converged") is True and r["params"].get("precision") == "float64"
+            and r["trajectory"]["energies"][-1] <= r["trajectory"]["energies"][0] + 1e-9
+            and max_force(r) < 0.05,
+            note="Converged, in float64 (CLAUDE.md), energy did not rise, final max|F| below fmax",
+        ))
 
-        # Test 4: Force sum check (should be ~zero for isolated molecule)
-        print("Test 4: Force conservation check...", file=sys.stderr)
-        net_force = np.sum(f_water, axis=0)
-        net_mag = float(np.linalg.norm(net_force))
-        results.append({
-            "test": "Force conservation (H2O)",
-            "passed": net_mag < 0.01,
-            "net_force_magnitude": net_mag,
-            "note": "Net force should be ~0 for isolated system"
-        })
+        print("Test 4: Force conservation...", file=sys.stderr)
+        results.append(_check(
+            "Force conservation (H2O)", h2o, lambda r: net_force(r) < 0.01,
+            note="Net force should be ~0 for an isolated molecule",
+            net_force_magnitude=net_force(h2o) if h2o.get("status") == "success" else None,
+        ))
 
-        # Test 5: Validate a sample result
-        sample_result = {
-            "status": "success",
-            "energy": float(e_si),
-            "forces": f_si.tolist(),
-            "positions": si.get_positions().tolist(),
-            "symbols": si.get_chemical_symbols(),
-            # `params` is what selects the model-aware energy bounds below.
-            # Omitting it made this self-test report "within reasonable range
-            # for unknown" — the tell that the MACE-OFF branch of the bounds
-            # was never exercised. calculate.py::_build_result() always emits
-            # params now; this fixture mirrors that.
-            "params": {
-                "modelType": "MACE-MP-0",
-                "modelSize": "small",
-                "calculationType": "single-point",
-                "precision": "float32",
-                "device": "cpu",
-                "dispersion": False,
-            },
-        }
-        validation = validate_result(sample_result)
-        results.append({
-            "test": "Result validation (Si)",
-            "passed": validation["valid"],
-            "validation": validation,
-        })
+        print("Test 5: Result validation...", file=sys.stderr)
+        results.append(_check(
+            "Result validation (Si and H2O engine results)", si,
+            lambda r: validate_result(r)["valid"] and h2o.get("status") == "success" and validate_result(h2o)["valid"],
+            note="validate_result() on real engine output",
+        ))
 
     except ImportError as e:
         results.append({
             "test": "Import check",
             "passed": False,
-            "error": f"Missing package: {e}. Install with: pip install mace-torch ase"
+            "error": f"Missing package: {e}. Install the locked backend (mace-api/requirements.lock.txt).",
         })
-    except Exception as e:
-        results.append({
-            "test": "Unexpected error",
-            "passed": False,
-            "error": str(e)
-        })
+    except Exception as e:  # noqa: BLE001 — the self-test reports, never crashes
+        results.append({"test": "Unexpected error", "passed": False, "error": f"{type(e).__name__}: {e}"})
 
-    all_passed = all(r.get("passed", False) for r in results)
+    all_passed = bool(results) and all(r.get("passed", False) for r in results)
     return {"all_passed": all_passed, "tests": results}
 
 
