@@ -118,6 +118,9 @@ const DEFECT: Record<string, string> = {
   "adversarial/cif_aniso_loop_after": "D93",
   "adversarial/cif_two_data_blocks": "D93",
   "adversarial/xyz_overlap_across_boundary": "D117",
+  "adversarial/cif_symmetry_equivalent_sites_twice": "D62",
+  "adversarial/cif_full_cell_with_symops": "D62",
+  "adversarial/cif_duplicate_sites_tolerance": "D62",
 };
 
 function det3(m: number[][]): number {
@@ -209,6 +212,51 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
       expect((parsed.notes ?? []).join(" ")).toMatch(/Hermann-Mauguin/i);
     });
   }
+});
+
+// D62: ASE's crystal() drops an image that lands within 0.001 of ANY atom it has
+// already placed, modulo the cell, whichever listed site made it. The preview
+// used to compare an image only with the other images of its own listed site.
+// (A different element on an occupied site is dropped too: ASE keeps the first,
+// so the preview follows ASE here rather than comparing elements.)
+describe("D62 CIF symmetry expansion drops an image that repeats any earlier atom", () => {
+  const entry = (name: string) => reference.structures.find((e) => e.name === `adversarial/${name}`)!;
+
+  it("symmetry-equivalent sites listed twice give 8 atoms, not 12", () => {
+    const e = entry("cif_symmetry_equivalent_sites_twice");
+    const parsed = parse(e);
+    expect(e.ase.symbols).toHaveLength(8);
+    expect(parsed.atomCount).toBe(8);
+    expect(parsed.symbols.filter((s) => s === "Na")).toHaveLength(4);
+    expect(parsed.symbols.filter((s) => s === "Cl")).toHaveLength(4);
+  });
+
+  it("a full cell listed together with its operations gives 8 atoms and no zero distance", () => {
+    const e = entry("cif_full_cell_with_symops");
+    const parsed = parse(e);
+    expect(e.ase.symbols).toHaveLength(8);
+    expect(parsed.atomCount).toBe(8);
+    expect(parsed.minNeighborDist).toBeCloseTo(5.64 / 2, 6);
+  });
+
+  it("merges sites within 0.001 of an earlier one across the cell boundary, and keeps sites 0.002 apart", () => {
+    const e = entry("cif_duplicate_sites_tolerance");
+    const parsed = parse(e);
+    expect(parsed.symbols).toEqual(["Na", "Na"]);
+    expect(parsed.positions[0]).toEqual([0, 0, 0]);
+    expect(parsed.positions[1][0]).toBeCloseTo(0.002 * 5, 6);
+  });
+
+  it("an H-M symbol with no operations stays a note: the preview draws the 2 listed sites and says so", () => {
+    const e = entry("cif_nacl_asym_hm_only");
+    const parsed = parse(e);
+    expect(e.ase.symbols).toHaveLength(8);
+    expect(parsed.atomCount).toBe(2);
+    const note = (parsed.notes ?? []).join(" ");
+    expect(note).toMatch(/preview cannot expand it/);
+    expect(note).toMatch(/shows only the 2 listed sites/);
+    expect(note).toMatch(/atom count may be larger/);
+  });
 });
 
 describe("D89 the wwPDB CRYST1 placeholder is no cell", () => {

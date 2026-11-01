@@ -4779,6 +4779,225 @@
     ],
     "nFrames": 1
    }
+  },
+  {
+   "name": "adversarial/cif_symmetry_equivalent_sites_twice",
+   "group": "adversarial",
+   "filename": "nacl_twice.cif",
+   "note": "NaCl Fm-3m listing Na at (0,0,0) and at (1/2,1/2,0), which the centring makes the same site, with 192 symmetry operations; true cell has 8 atoms (D62)",
+   "sha256": "efc62b41fd61bb08edaa99ca4b3e909804295ba7243bfa7916d3186df3287322",
+   "ase": {
+    "format": "cif",
+    "symbols": [
+     "Na",
+     "Na",
+     "Na",
+     "Na",
+     "Cl",
+     "Cl",
+     "Cl",
+     "Cl"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      2.82,
+      2.82
+     ],
+     [
+      2.82,
+      0.0,
+      2.82
+     ],
+     [
+      2.82,
+      2.82,
+      0.0
+     ],
+     [
+      2.82,
+      2.82,
+      2.82
+     ],
+     [
+      2.82,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      2.82,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      2.82
+     ]
+    ],
+    "cell": [
+     [
+      5.64,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      5.64,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      5.64
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
+  },
+  {
+   "name": "adversarial/cif_full_cell_with_symops",
+   "group": "adversarial",
+   "filename": "nacl_full.cif",
+   "note": "NaCl Fm-3m with all 8 atoms of the conventional cell listed AND the 192 symmetry operations; true cell has 8 atoms (D62)",
+   "sha256": "d27e93f9a7aa495bf4df5161fb88a70a3882a120b1bcfba73e23b9deff460e96",
+   "ase": {
+    "format": "cif",
+    "symbols": [
+     "Na",
+     "Na",
+     "Na",
+     "Na",
+     "Cl",
+     "Cl",
+     "Cl",
+     "Cl"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      2.82,
+      2.82
+     ],
+     [
+      2.82,
+      0.0,
+      2.82
+     ],
+     [
+      2.82,
+      2.82,
+      0.0
+     ],
+     [
+      2.82,
+      2.82,
+      2.82
+     ],
+     [
+      2.82,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      2.82,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      2.82
+     ]
+    ],
+    "cell": [
+     [
+      5.64,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      5.64,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      5.64
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
+  },
+  {
+   "name": "adversarial/cif_duplicate_sites_tolerance",
+   "group": "adversarial",
+   "filename": "dups.cif",
+   "note": "P1 sites 0.0005 apart, 0.9996 (= -0.0004) from 0 across the cell, a Cl on the Na site, and one 0.002 apart; ASE keeps the first and 0.002 (D62)",
+   "sha256": "b389ae4d7ed972722371bfae65076c87c6a2a13ec977e00d41d5bd73aeaf7b1d",
+   "ase": {
+    "format": "cif",
+    "symbols": [
+     "Na",
+     "Na"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.01,
+      0.0,
+      0.0
+     ]
+    ],
+    "cell": [
+     [
+      5.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      5.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      5.0
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
   }
  ]
 }
