@@ -249,5 +249,38 @@ class TestFallbackWarningWording(unittest.TestCase):
         self.assertNotIn("unaffected", warning)
 
 
+
+class TestCompositionAwareEnergy(unittest.TestCase):
+    """
+    D52: MACE-OFF total energies per atom are dominated by core electrons, so
+    no single eV/atom band fits: water is -693.7, CO2 -1710.5, HCl -6270.3,
+    CH2Br2 -28232.6 eV/atom, and the old bands flagged ordinary molecules. The
+    engine now reports (E - sum of the model's own isolated-atom energies) / N,
+    which spans -5.0 to -0.8 eV/atom over 22 molecules and 3 model sizes, and
+    contract.json carries the measured band for it.
+    """
+
+    def _run(self, smiles):
+        _require_mace()
+        import calculate
+        from smiles_to_xyz import smiles_to_xyz
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "m.xyz")
+            pathlib.Path(path).write_text(smiles_to_xyz(smiles)["xyz"])
+            return calculate.run_calculation(path, {**OFF_SMALL, "precision": "float64"}, profile="local")
+
+    def test_ordinary_molecules_sit_inside_the_composition_aware_band(self):
+        import contract
+        band = contract.load_contract()["energyConventions"]["off"]["relativeToIsolatedAtoms"]["typical"]
+        for smiles, expected in (("O", -3.346), ("O=C=O", -4.311), ("Cl", -2.178), ("BrCBr", -2.973)):
+            with self.subTest(smiles=smiles):
+                r = self._run(smiles)
+                value = r["properties"]["energyPerAtomVsIsolatedAtoms"]
+                self.assertAlmostEqual(value, expected, delta=0.01)
+                self.assertGreaterEqual(value, band["minEvPerAtom"])
+                self.assertLessEqual(value, band["maxEvPerAtom"])
+                n = len(r["symbols"])
+                self.assertAlmostEqual(r["properties"]["isolatedAtomsEnergy"], r["energy"] - value * n, delta=1e-6)
+
 if __name__ == "__main__":
     unittest.main()
