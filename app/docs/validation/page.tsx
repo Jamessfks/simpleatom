@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
+import { CONTRACT } from "@/lib/contract";
 import { mpTypicalBandText, offEnforcedBandText, offTypicalBandText } from "@/components/docs/energy-bands";
 
 export const metadata: Metadata = {
@@ -145,8 +146,9 @@ python test_scripts/validate_calculation.py result.json`}</code>
           <li>
             <strong>Interatomic distances:</strong> every pair of atoms is
             checked, at the minimum image when the result has a cell, so a
-            contact across the cell boundary counts. A distance below 0.4 Å is
-            an issue (overlapping atoms).
+            contact across the cell boundary counts. A distance below{" "}
+            {CONTRACT.structureChecks.minInteratomicDistanceA} Å is an issue
+            (overlapping atoms), and the calculation refuses it at the same value.
           </li>
           <li>
             <strong>Lattice:</strong> positive volume and a valid 3&times;3
