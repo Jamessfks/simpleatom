@@ -38,13 +38,10 @@ def _quiet_cli_output() -> None:
 
 # Physical reasonableness bounds
 # MACE-MP-0 uses PBE reference energies (small per-atom values, typically -1 to -15 eV/atom)
-# MACE-OFF uses wB97M-D3BJ total energies (large per-atom values, typically -200 to -600 eV/atom)
+# MACE-OFF uses wB97M-D3BJ total energies; their E/N depends on the elements present, so the
+# registry judges MACE-OFF relative to the model's isolated atoms instead (D52)
 ENERGY_PER_ATOM_MIN_MP = -20.0     # eV/atom for MACE-MP-0
 ENERGY_PER_ATOM_MAX_MP = 100.0     # eV/atom for MACE-MP-0
-ENERGY_PER_ATOM_MIN_OFF = -800.0   # eV/atom for MACE-OFF (includes core electrons)
-ENERGY_PER_ATOM_MAX_OFF = 100.0    # eV/atom for MACE-OFF
-ENERGY_PER_ATOM_MIN = -800.0  # eV/atom (conservative bound covering both models)
-ENERGY_PER_ATOM_MAX = 100.0   # eV/atom (very high energy)
 FORCE_MAX_REASONABLE = 50.0   # eV/Å (above this = likely overlapping atoms)
 FORCE_MAX_CRITICAL = 200.0    # eV/Å (almost certainly unphysical)
 MIN_INTERATOMIC_DIST = 0.4    # Å (below this = overlapping atoms)
@@ -64,22 +61,30 @@ _CONTRACT_CANDIDATES = (
 )
 
 
-def _energy_bounds(model_type: str):
-    """(min, max) eV/atom enforced for this model, or (None, None) to skip."""
+def _energy_band(model_type: str):
+    """
+    (basis, min, max) eV/atom enforced for this model, from the registry.
+
+    basis is "per-atom" (E/N; the MACE-MP family), "vs-isolated-atoms"
+    ((E - sum of the model's isolated-atom energies)/N; MACE-OFF, whose E/N
+    depends on which elements are present, D52), or None to skip (a custom
+    checkpoint, or no registry shipped alongside).
+    """
     for candidate in _CONTRACT_CANDIDATES:
         if candidate.is_file():
             data = json.loads(candidate.read_text(encoding="utf-8"))
             for model in data["models"]:
                 if model_type == model["id"] or model_type in model["aliases"]:
-                    enforced = data["energyConventions"][model["energyConvention"]]["enforced"]
-                    if enforced is None:
-                        return None, None
-                    return enforced["minEvPerAtom"], enforced["maxEvPerAtom"]
+                    conv = data["energyConventions"][model["energyConvention"]]
+                    if conv.get("enforced"):
+                        e = conv["enforced"]
+                        return "per-atom", e["minEvPerAtom"], e["maxEvPerAtom"]
+                    rel = (conv.get("relativeToIsolatedAtoms") or {}).get("enforced")
+                    if rel:
+                        return "vs-isolated-atoms", rel["minEvPerAtom"], rel["maxEvPerAtom"]
+                    return None, None, None
             break
-    # Registry not shipped alongside, or an unknown model: the historical rule.
-    if model_type in ("MACE-OFF", "MACE-OFF23"):
-        return ENERGY_PER_ATOM_MIN_OFF, ENERGY_PER_ATOM_MAX_OFF
-    return ENERGY_PER_ATOM_MIN_MP, ENERGY_PER_ATOM_MAX_MP
+    return None, None, None
 
 
 def _min_distance(positions, lattice):
@@ -182,18 +187,33 @@ def validate_result(result: dict) -> dict:
     # registry when it can be found (mace-api/contract.json). A custom
     # checkpoint has no known convention, so its range check is skipped rather
     # than judged against MACE-MP bounds it never promised to meet.
-    e_min, e_max = _energy_bounds(model_type)
+    basis, e_min, e_max = _energy_band(model_type)
+    relative = (result.get("properties") or {}).get("energyPerAtomVsIsolatedAtoms")
 
     # --- Energy validation ---
-    if energy is not None and symbols and e_min is None:
+    if energy is not None and (math.isnan(energy) or math.isinf(energy)):
+        issues.append(f"Energy is {energy} (NaN or Inf)")
+    elif energy is not None and symbols and basis is None:
         info.append(f"Energy range check skipped: no reference convention is known for {model_type}.")
+    elif energy is not None and symbols and basis == "vs-isolated-atoms":
+        # D52: MACE-OFF's E/N spans -694 (water) to -28233 eV/atom (CH2Br2); only the
+        # energy relative to the model's own isolated atoms has an element-free range.
+        if relative is None:
+            info.append(f"Energy range check skipped: the result does not carry the energy "
+                        f"relative to {model_type}'s isolated atoms.")
+        elif not (e_min <= relative <= e_max):
+            issues.append(
+                f"Energy/atom relative to the model's isolated atoms = {relative:.4f} eV/atom is "
+                f"outside {e_min} to {e_max} eV/atom for {model_type}. Structure likely has issues."
+            )
+        else:
+            info.append(f"Energy/atom relative to the model's isolated atoms = {relative:.4f} eV/atom — "
+                        f"within range for {model_type}")
     elif energy is not None and symbols:
         n_atoms = len(symbols)
         e_per_atom = energy / n_atoms if n_atoms > 0 else 0
 
-        if math.isnan(energy) or math.isinf(energy):
-            issues.append(f"Energy is {energy} (NaN or Inf)")
-        elif e_per_atom < e_min:
+        if e_per_atom < e_min:
             warnings_list.append(
                 f"Energy/atom = {e_per_atom:.4f} eV/atom is unusually low "
                 f"(< {e_min} eV/atom for {model_type}). Check structure."

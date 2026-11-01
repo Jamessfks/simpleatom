@@ -2,7 +2,8 @@
  * Which foundation model a structure belongs to.
  *
  * MACE-OFF and the MACE-MP family report energies on incompatible conventions
- * (roughly -1..-15 vs -100..-600 eV/atom), so this choice decides whether a
+ * (roughly -1..-15 eV/atom vs element-dependent totals of hundreds to tens of
+ * thousands of eV/atom), so this choice decides whether a
  * number printed next to another number means anything. Element coverage and
  * the materials default both come from the model registry
  * (mace-api/contract.json).

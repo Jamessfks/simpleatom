@@ -134,7 +134,9 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 
 ### Energy Reference Conventions
 - **MACE-MP family** (MPA-0, MP-0): typically -1 to -15 eV/atom; validator enforces -20 to +100
-- **MACE-OFF**: typically -100 to -600 eV/atom (more negative with Br/I); validator enforces -800 to +100
+- **MACE-OFF**: E/N depends on the elements present (water ≈ −694, CH2Br2 ≈ −28233 eV/atom), so no raw
+  band applies (D52). Results carry `properties.energyPerAtomVsIsolatedAtoms`, (E − Σ E0)/N against the
+  model's own isolated atoms: typically −6 to −0.5 eV/atom; validator enforces −10 to +1
 - Custom checkpoints: unknown convention — the range check is skipped
 - Bounds live in `contract.json` `energyConventions` (enforced vs typical)
 - Catalog reference energies are **EXPERIMENTAL**, not DFT — always note this in comparisons
@@ -213,7 +215,7 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 8. Results must be self-describing: `_build_result()` echoes the *effective* parameters
    (defaults resolved, CUDA→CPU fallback applied, MD seed recorded) into `result["params"]`.
    The validator picks its model-aware energy bounds from this — without it every result is
-   judged as `modelType: "unknown"` and MACE-OFF's −100 to −600 eV/atom convention never
+   judged as `modelType: "unknown"` and MACE-OFF's isolated-atom band never
    applies. Echo an explicit key allow-list, never the raw request dict
 
 ## Code Style

@@ -200,7 +200,7 @@ SUITES = [
     ("contract-tests", "test_backend_contract.py", 20),
     ("science-regressions", "test_science_regressions.py", 9),
     ("geometry-opt-tests", "test_geometry_opt.py", 10),
-    ("validator-tests", "test_validator.py", 8),
+    ("validator-tests", "test_validator.py", 12),
     ("parser-reference", "test_parser_reference.py", 3),
     ("model-coverage", "test_model_coverage.py", 5),
     ("input-handling", "test_input_handling.py", 32),

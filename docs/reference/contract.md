@@ -73,7 +73,7 @@ before it is unpickled ([ADR-0020](../adr/0020-trusted-checkpoint-loading.md)).
 | Convention | Description | Enforced by the validator (eV/atom) | Typical (eV/atom) |
 | --- | --- | --- | --- |
 | `mp` | PBE/PBE+U DFT reference energies (Materials Project convention) | -20 to 100 | -15 to -1 |
-| `off` | ωB97M-D3(BJ) total energies including core electrons — large and negative, and much larger for Br and I | -800 to 100 | -600 to -100 |
+| `off` | ωB97M-D3(BJ) total energies including core electrons. E/N has no element-independent range (water -693.7, CH2Br2 -28232.6 eV/atom), so no raw band is enforced; results are judged by relativeToIsolatedAtoms (D52) | skipped | — |
 | `unknown` | No convention known (custom checkpoint); the energy range check is skipped | skipped | — |
 
 The enforced band is what the advisory validator checks: below the minimum is a warning,

@@ -88,7 +88,7 @@ jobs:
           python test_scripts/run_suite.py test_geometry_opt.py --min 10
       - name: Validator verdicts (D81) and the parser reference ASE produces (D93)
         run: |
-          python test_scripts/run_suite.py test_validator.py --min 8
+          python test_scripts/run_suite.py test_validator.py --min 12
           python test_scripts/run_suite.py test_parser_reference.py --min 3
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:

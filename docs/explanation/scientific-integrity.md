@@ -42,7 +42,8 @@ DFT (SPICE) for organic molecules and is licensed for non-commercial use only.
 None of them is "quantum-accurate", and SimpleAtom does not claim they are.
 
 Energies from different models live on different reference conventions
-(−1 to −15 eV/atom for the MP family; −100 to −600 for MACE-OFF). Never compare
+(−1 to −15 eV/atom for the MP family; for MACE-OFF, E/N depends on the elements present, so
+it is judged relative to the model's own isolated atoms, typically −6 to −0.5 eV/atom). Never compare
 totals across models; the [contract reference](../reference/contract.md#energy-conventions)
 lists the bands the validator applies.
 
