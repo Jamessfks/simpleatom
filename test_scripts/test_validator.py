@@ -8,7 +8,7 @@ The distance check ignored the cell and stopped after 200 atoms, so two atoms
 whose zero is arbitrary, so a +500 eV NVE drift was "stable". Each case here
 failed before the fix.
 
-Run: python test_scripts/run_suite.py test_validator.py --min 8
+Run: python test_scripts/run_suite.py test_validator.py --min 12
 """
 import pathlib
 import sys
@@ -67,6 +67,43 @@ class TestDistances(unittest.TestCase):
                                     [[0, a / 2, a / 2], [a / 2, 0, a / 2], [a / 2, a / 2, 0]]))
         self.assertTrue(r["valid"], r)
         self.assertTrue(any("2.351" in i for i in r["info"]), r["info"])
+
+
+class TestMaceOffEnergyBand(unittest.TestCase):
+    """D52: MACE-OFF's E/N depends on which elements are present (water -693.7, CH2Br2
+    -28232.6 eV/atom), so it is judged relative to the model's own isolated atoms."""
+
+    def _off(self, symbols, energy, relative=None):
+        r = _result(symbols, [[1.2 * i, 0, 0] for i in range(len(symbols))],
+                    params={"modelType": "MACE-OFF"})
+        r["energy"] = energy
+        if relative is not None:
+            r["properties"] = {"energyPerAtomVsIsolatedAtoms": relative}
+        return r
+
+    def test_heavy_atoms_are_not_flagged_by_their_raw_energy(self):
+        r = validate_result(self._off(["C", "H", "H", "Br", "Br"], -28232.6 * 5, relative=-2.97))
+        self.assertTrue(r["valid"], r)
+        self.assertEqual([w for w in r["warnings"] if "Energy/atom" in w], [])
+        self.assertTrue(any("isolated atoms" in i and "-2.97" in i for i in r["info"]), r["info"])
+
+    def test_a_relative_energy_outside_the_enforced_band_is_an_issue(self):
+        r = validate_result(self._off(["O", "H", "H"], -693.7 * 3, relative=-15.0))
+        self.assertFalse(r["valid"], r)
+        self.assertTrue(any("isolated atoms" in i for i in r["issues"]), r["issues"])
+
+    def test_without_the_relative_energy_the_check_says_it_was_skipped(self):
+        r = validate_result(self._off(["O", "H", "H"], -693.7 * 3))
+        self.assertTrue(r["valid"], r)
+        self.assertTrue(any("skipped" in i for i in r["info"]), r["info"])
+
+    def test_the_contract_claims_no_raw_band_for_mace_off(self):
+        import json
+        conv = json.loads((pathlib.Path(__file__).resolve().parent.parent / "mace-api" / "contract.json")
+                          .read_text())["energyConventions"]["off"]
+        self.assertIsNone(conv["enforced"])
+        self.assertIsNone(conv["typical"])
+        self.assertIsNotNone(conv["relativeToIsolatedAtoms"]["enforced"])
 
 
 class TestMolecularDynamics(unittest.TestCase):
