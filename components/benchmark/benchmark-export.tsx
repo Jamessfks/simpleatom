@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BenchmarkResult } from "@/types/mace";
+import { energySpread } from "./benchmark-spread";
 
 interface BenchmarkExportProps {
   result: BenchmarkResult;
@@ -34,24 +35,19 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
       "Structure",
       "Category",
       "Atoms",
-      "Ref_Cohesive_Energy (eV/atom)",
+      "Ref_Cohesive_Energy_experimental (eV/atom)",
       "Ref_Source",
       ...modelLabels.flatMap((l) => [
         `${l} Energy (eV/atom)`,
         `${l} RMS Force (eV/A)`,
         `${l} Time (s)`,
       ]),
-      "DeltaE_max (meV)",
+      "DeltaE_max (meV/atom)",
     ];
 
     const rows = result.results.map((r) => {
-      const energies = r.models
-        .filter((m) => m.status === "success" && m.energyPerAtom != null)
-        .map((m) => m.energyPerAtom!);
-      const de =
-        energies.length >= 2
-          ? (Math.max(...energies) - Math.min(...energies)) * 1000
-          : 0;
+      // Empty, not 0, when fewer than two models succeeded: no comparison is not agreement.
+      const de = energySpread(r);
 
       return [
         csvEscape(r.structureName),
@@ -64,7 +60,7 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
           m.rmsForce?.toFixed(6) ?? "error",
           m.timeTaken?.toFixed(2) ?? "error",
         ]),
-        de.toFixed(2),
+        de === null ? "" : de.toFixed(2),
       ].join(",");
     });
 

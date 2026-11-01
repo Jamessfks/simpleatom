@@ -5,7 +5,7 @@
  *
  * Rows = structures, columns = models (energy/atom). Sortable by any
  * column. Cells are color-coded: green for lowest energy per row,
- * yellow/red for high ΔE_max (>5 / >10 meV). Rows expand to show
+ * yellow/red for high ΔE_max (>5 / >10 meV/atom). Rows expand to show
  * per-atom force magnitudes.
  *
  * Aggregate footer shows average energy/atom and total time per model.
@@ -23,6 +23,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { DATA_COLORS } from "@/components/calculate/charts/chart-config";
+import { energySpread, formatSpread, meanSpread } from "./benchmark-spread";
 import type { BenchmarkResult, BenchmarkStructureResult } from "@/types/mace";
 
 const MODEL_COLORS = [DATA_COLORS.blue, DATA_COLORS.red, DATA_COLORS.green];
@@ -57,13 +58,6 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
     return result.results[0].models.map((m) => m.modelLabel);
   }, [result]);
 
-  const deltaE = (row: BenchmarkStructureResult): number => {
-    const energies = row.models
-      .filter((m) => m.status === "success" && m.energyPerAtom != null)
-      .map((m) => m.energyPerAtom!);
-    if (energies.length < 2) return 0;
-    return (Math.max(...energies) - Math.min(...energies)) * 1000;
-  };
 
   const sorted = useMemo(() => {
     const rows = [...result.results];
@@ -80,7 +74,8 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
           cmp = a.atomCount - b.atomCount;
           break;
         case "deltaE":
-          cmp = deltaE(a) - deltaE(b);
+          // Rows that could not be compared sort after every row that could.
+          cmp = (energySpread(a) ?? Infinity) === (energySpread(b) ?? Infinity) ? 0 : (energySpread(a) ?? Infinity) < (energySpread(b) ?? Infinity) ? -1 : 1;
           break;
         default:
           if (sortKey.startsWith("model-")) {
@@ -122,10 +117,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
           totalTime += m.timeTaken ?? 0;
         }
       });
-      const avgE = energies.length > 0
-        ? energies.reduce((a, b) => a + b, 0) / energies.length
-        : null;
-      return { avgE, totalTime };
+      return { succeeded: energies.length, totalTime };
     });
   }, [result, modelLabels]);
 
@@ -170,7 +162,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                 onClick={() => handleSort(`model-${i}`)}
               >
                 <span style={{ color: MODEL_COLORS[i] }}>{label}</span>{" "}
-                <span className="text-text-muted">(E/atom)</span>{" "}
+                <span className="text-text-muted">(eV/atom)</span>{" "}
                 <SortIcon k={`model-${i}`} active={sortKey} dir={sortDir} />
               </TableHead>
             ))}
@@ -178,14 +170,14 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
               className="h-auto cursor-pointer px-3 py-2.5 text-right text-text-muted hover:text-text-secondary"
               onClick={() => handleSort("deltaE")}
             >
-              ΔE<sub>max</sub> <SortIcon k="deltaE" active={sortKey} dir={sortDir} />
+              ΔE<sub>max</sub> (meV/atom) <SortIcon k="deltaE" active={sortKey} dir={sortDir} />
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="text-text-secondary">
           {sorted.map((row) => {
-            const de = deltaE(row);
-            const highDisagreement = de > 10;
+            const de = energySpread(row); // meV/atom, null with fewer than two successes
+            const highDisagreement = de !== null && de > 10;
             const lowest = lowestEnergyPerRow(row);
             const isExpanded = expandedRow === row.structureId;
 
@@ -237,7 +229,7 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                         className={`text-right tabular-nums ${isLowest ? "bg-success/8 text-success" : ""}`}
                         title={m.energy?.toFixed(8) ?? ""}
                       >
-                        {m.energyPerAtom?.toFixed(4) ?? "N/A"} eV
+                        {m.energyPerAtom?.toFixed(4) ?? "N/A"}
                       </TableCell>
                     );
                   })}
@@ -245,12 +237,13 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
                     className={`text-right tabular-nums font-bold ${
                       highDisagreement
                         ? "text-error"
-                        : de > 5
+                        : de !== null && de > 5
                           ? "text-warning"
                           : "text-text-muted"
                     }`}
+                    title={de === null ? "Fewer than two models succeeded, so there is nothing to compare." : undefined}
                   >
-                    {de.toFixed(1)} meV
+                    {de === null ? "—" : `${de.toFixed(1)} meV/atom`}
                   </TableCell>
                 </TableRow>
                 {isExpanded && (
@@ -291,14 +284,19 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
             {aggregates.map((agg, i) => (
               <TableCell key={i} className="text-right">
                 <div className="font-mono text-xs tabular-nums text-text-secondary">
-                  {agg.avgE != null ? `Avg: ${agg.avgE.toFixed(4)} eV` : "N/A"}
+                  {agg.succeeded}/{result.results.length} succeeded
                 </div>
                 <div className="font-mono text-xs text-text-muted">
                   Time: {agg.totalTime.toFixed(1)}s
                 </div>
               </TableCell>
             ))}
-            <TableCell />
+            <TableCell
+              className="text-right font-mono text-xs tabular-nums text-text-secondary"
+              title="Mean of the per-structure spreads, over the structures where at least two models succeeded."
+            >
+              Mean {formatSpread(meanSpread(result.results))}
+            </TableCell>
           </TableRow>
         </TableFooter>
       </Table>
@@ -314,7 +312,8 @@ export function BenchmarkLeaderboard({ result }: LeaderboardProps) {
       <p className="border-t border-border-subtle px-4 py-3 font-mono text-xs leading-relaxed text-text-muted">
         <span style={{ color: DATA_COLORS.yellow }}>Exp. cohesive</span> is an{" "}
         <span className="font-semibold">experimental</span> cohesive energy from the literature
-        (Kittel 8th ed., CRC Handbook) — not a DFT total energy, and not comparable to the model
+        (each row names its source: Kittel 8th ed. as tabulated by KnowledgeDoor, NIST-JANAF for NaCl)
+        — not a DFT total energy, and not comparable to the model
         energy-per-atom columns beside it: the two use different reference states. It is context,
         not a score. For a comparison with a declared tolerance, see the{" "}
         <span className="font-semibold">vs Materials Project</span> tab, which compares formation
