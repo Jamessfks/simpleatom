@@ -29,7 +29,7 @@ import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { RunLedger } from "@/components/calculate/run-ledger";
 import { useCapabilities } from "@/lib/use-capabilities";
-import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
+import { ApiRequestError, isSmilesGenerated, runCalculationJob, type JobView } from "@/lib/api-client";
 import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
@@ -288,7 +288,7 @@ function CalculatePageInner() {
       setUploadedFiles(files);
       if (
         files.length > 0 &&
-        files[0].name.startsWith("smiles_") &&
+        isSmilesGenerated(files[0]) &&
         params.modelType !== "custom"
       ) {
         setParams((prev) => ({

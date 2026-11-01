@@ -11,6 +11,9 @@ import type { CalculationResult } from "@/types/mace";
 
 export const STAGES: { key: string; label: string }[] = [
   { key: "queued", label: "Queued" },
+  // The backend marks a job running as soon as Python is spawned, before it
+  // has imported anything or reported a phase: nothing is claimed beyond that.
+  { key: "starting", label: "Starting" },
   { key: "reading-structure", label: "Reading structure" },
   { key: "loading-model", label: "Loading model" },
   { key: "computing", label: "Computing" },
@@ -19,9 +22,10 @@ export const STAGES: { key: string; label: string }[] = [
 export function stageIndex(job: JobView | null): number {
   if (!job || job.status === "queued") return 0;
   const phase = job.progress.phase;
-  if (phase === "reading-structure") return 1;
-  if (phase === "loading-model") return 2;
-  return 3;
+  if (!phase) return 1;
+  if (phase === "reading-structure") return 2;
+  if (phase === "loading-model") return 3;
+  return 4;
 }
 
 export function stepSummary(job: JobView | null): string | null {

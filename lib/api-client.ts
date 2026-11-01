@@ -57,6 +57,14 @@ function sanitizeFilename(s: string): string {
   return s.replace(/[^a-zA-Z0-9_\-()[\]=#+.@]/g, "_").slice(0, 60);
 }
 
+/** Files made by smilesToFile(). Marked by identity, never guessed from a name. */
+const smilesFiles = new WeakSet<File>();
+
+/** True only for a file smilesToFile() produced, whatever a user names theirs. */
+export function isSmilesGenerated(file: File): boolean {
+  return smilesFiles.has(file);
+}
+
 /**
  * Convert a SMILES string to a 3D structure through /api/smiles-to-xyz.
  *
@@ -74,9 +82,11 @@ export async function smilesToFile(smiles: string, signal?: AbortSignal): Promis
   if (data.status === "error" || typeof data.xyz !== "string") {
     throw new ApiRequestError(data.message || "Conversion failed", 502, "conversion_failed");
   }
-  return new File([data.xyz], `smiles_${sanitizeFilename(data.smiles_canonical || trimmed)}.xyz`, {
+  const file = new File([data.xyz], `smiles_${sanitizeFilename(data.smiles_canonical || trimmed)}.xyz`, {
     type: "text/plain",
   });
+  smilesFiles.add(file);
+  return file;
 }
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";

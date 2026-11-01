@@ -18,6 +18,7 @@ import { useCallback } from "react";
 import { Upload, X, File as FileIcon } from "lucide-react";
 import { MlPegCatalog } from "./mlpeg-catalog";
 import { SmilesInput } from "./smiles-input";
+import { uploadFormats } from "./upload-formats";
 import { StructureInfo } from "./structure-info";
 import { StructurePreview } from "./structure-preview";
 import {
@@ -34,7 +35,7 @@ interface FileUploadSectionProps {
   onFilesChange: (files: File[]) => void;
 }
 
-const ACCEPTED_FORMATS = [".xyz", ".cif", ".poscar", ".contcar", ".pdb"];
+const { extensions: ACCEPTED_FORMATS, bareNames: BARE_NAMES, accept: ACCEPT } = uploadFormats();
 
 export function getTotalFilesSize(files: File[]): number {
   return files.reduce((sum, f) => sum + f.size, 0);
@@ -90,7 +91,7 @@ export function FileUploadSection({
               >
                 <input
                   type="file"
-                  accept={ACCEPTED_FORMATS.join(",")}
+                  accept={ACCEPT}
                   onChange={handleFileInput}
                   aria-label="Upload a structure file"
                   className="absolute inset-0 cursor-pointer opacity-0"
@@ -104,6 +105,11 @@ export function FileUploadSection({
                 </p>
                 <p className="mt-3 font-mono text-xs text-text-secondary">
                   {ACCEPTED_FORMATS.join("  ·  ")}
+                </p>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Files named {BARE_NAMES.join(" or ")} (no extension) are
+                  accepted too: drag them in, since the file picker cannot list
+                  extensionless files.
                 </p>
               </div>
             </TabsContent>

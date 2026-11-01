@@ -614,6 +614,14 @@ function parsePOSCAR(text: string): {
 
     let [x, y, z] = parts;
 
+    // The scale factor applies to Cartesian coordinates as it does to the cell
+    // (the lattice is already scaled, so direct coordinates need nothing more).
+    if (!isDirect) {
+      x *= scale;
+      y *= scale;
+      z *= scale;
+    }
+
     // Convert fractional to Cartesian
     if (isDirect) {
       const cx =
