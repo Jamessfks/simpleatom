@@ -17,7 +17,10 @@ export function parseSeed(raw: string, min: number, max: number): SeedInput {
   if (text === "") return { value: undefined, error: null };
   const n = /^\d+$/.test(text) ? Number(text) : NaN;
   if (!Number.isSafeInteger(n) || n < min || n > max) {
-    return { value: undefined, error: `Enter a whole number from ${min} to ${max}, or leave it blank. Until then the default seed is used.` };
+    // NaN, not undefined: the request check refuses it and the run stays
+    // blocked. Undefined would quietly run the default seed while the box
+    // shows something else.
+    return { value: NaN, error: `Enter a whole number from ${min} to ${max}, or leave it blank. The run is blocked until then.` };
   }
   return { value: n, error: null };
 }

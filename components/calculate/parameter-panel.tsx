@@ -795,10 +795,9 @@ function SeedField({
         aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
         onChange={(e) => {
           setText(e.target.value);
-          const parsed = parseSeed(e.target.value, min, max);
-          // An invalid entry keeps the last good value out of the request:
-          // nothing is sent rather than a number the user did not type.
-          onChange(parsed.error ? undefined : parsed.value);
+          // An invalid entry goes through as NaN so the request check blocks
+          // the run; it is never replaced by a number the user did not type.
+          onChange(parseSeed(e.target.value, min, max).value);
         }}
       />
       <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">

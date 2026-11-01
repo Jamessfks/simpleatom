@@ -30,7 +30,7 @@ import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { RunLedger } from "@/components/calculate/run-ledger";
 import { useCapabilities } from "@/lib/use-capabilities";
 import { ApiRequestError, isSmilesGenerated, runCalculationJob, type JobView } from "@/lib/api-client";
-import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
+import { checkCalculationParams, DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
 import { runOutcome, type RunOutcome } from "@/components/calculate/run-outcome";
@@ -378,7 +378,9 @@ function CalculatePageInner() {
         ? "Upload a MACE .model checkpoint to run a custom model — or switch to a foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF). A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
         : params.calculationType === "phonon"
           ? "Phonon spectrum is not implemented. Choose single-point, geometry optimization, or molecular dynamics."
-          : null;
+          : // The TypeScript mirror of the contract: anything the backend would
+            // refuse (an invalid seed, an out-of-range number) blocks the run here.
+            (checkCalculationParams(params as unknown as Record<string, unknown>, caps.profile, isCustomModel)?.message ?? null);
 
   const handleRunFoundation =
     useCallback(async (): Promise<CalculationResult | null> => {
