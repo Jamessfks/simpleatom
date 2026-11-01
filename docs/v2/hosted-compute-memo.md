@@ -8,7 +8,9 @@ revised 2026-10-30 after the owner confirmed the team is on **Vercel Pro**.
 * Hugging Face facts were fetched on 2026-10-28
   ([`evidence/2026-10-28/reviews/adr-external-facts.md`](evidence/2026-10-28/reviews/adr-external-facts.md)).
 * Anything not fetched or not measured is marked UNVERIFIED.
-* **No speed gain is claimed anywhere.** Nothing has been measured on Vercel.
+* **Vercel Sandbox was measured on 2026-11-01** (owner-approved, under $5), with the repo's own hashed lock.
+  See the section below. Nothing else on Vercel was measured, and the HF `cpu-basic` Space was not timed
+  either, because it still runs the old code.
 
 ## Recommendation
 
@@ -22,9 +24,11 @@ revised 2026-10-30 after the owner confirmed the team is on **Vercel Pro**.
    image on Vercel's **container runtime** as a Preview deployment, and measure cold start,
    wall time, peak memory and billed Active CPU on the golden cases. Move compute only on
    those numbers.
-4. **Sandbox is not for ordinary runs.** Its value is isolation, so it is a candidate only
-   for re-enabling custom `.model` uploads on hosted. That is a security decision for the
-   owner, with the preconditions below.
+4. **Sandbox is not for ordinary runs.** Measured, it brings isolation and concurrency, not
+   speed. A 4 vCPU sandbox ran 1,000 MD steps about 1.7× faster than 2 vCPU, at about $0.02
+   per run plus a 10–17 s cold Python import, and 8 vCPU was slower than 4. Its value is
+   isolation, so it is a candidate only for re-enabling custom `.model` uploads on hosted.
+   That is a security decision for the owner, with the preconditions below.
 5. **No GPU.** None of the Vercel Functions, container-runtime or Sandbox pages offer one,
    and the Hugging Face options in the 2026-10-28 memo are unchanged: paid T4 at $0.40/h,
    ZeroGPU only for Gradio, or a community grant.
@@ -43,7 +47,37 @@ revised 2026-10-30 after the owner confirmed the team is on **Vercel Pro**.
 | **Price** | free | Active CPU **$0.128/h** + memory **$0.0106/GB-h** + $0.60 per 1M invocations (iad1) ([usage and pricing](https://vercel.com/docs/functions/usage-and-pricing)); **Pro includes no allowance**, only the $20 monthly credit | as Functions | Active CPU **$0.128/h** + memory **$0.0212/GB-h**, billed in 1-minute minimum increments, + $0.60 per 1M creations, charged against the $20 credit |
 | **Isolation** | one container for every visitor | per-instance | per-instance | **Firecracker microVM**, egress `deny-all` possible, including DNS ([sandbox firewall](https://vercel.com/docs/sandbox/concepts/firewall)) |
 
-### Cost per run: arithmetic, not measurement
+### Measured on Vercel Sandbox, 2026-11-01
+
+Compute seconds, medians of 3 for the single points. The rows are copied from
+[`evidence/2026-11-01/sandbox/RESULTS.md`](evidence/2026-11-01/sandbox/RESULTS.md); the spend is
+in `ledger.md` next to it.
+
+**Setup.**
+* Python 3.11.18 with `mace-api/requirements.lock.txt` installed by hash: torch 2.10.0+cpu,
+  mace-torch 0.3.16, ase 3.27.0.
+* Checkpoint SHA-256s matched the `contract.json` pins.
+* Hosts were x86_64 KVM. This run landed on a 2.90 GHz Xeon; the 2026-10-31 run landed on a
+  2.50 GHz host and was 15–46% slower.
+* Each vCPU is a hyperthread.
+
+| Config | ethanol SP | Si8 SP | Si64 SP | NVT ×1000 | BFGS (64 steps) | Python import (cold), s | Billed per run (upper bound) |
+|---|---|---|---|---|---|---|---|
+| Sandbox 2 vCPU / 4 GB | 0.239 | 0.178 | 1.022 | 62.880 | 8.849 | 10.38 | $0.0114 |
+| Sandbox 4 vCPU / 8 GB | 0.204 | 0.117 | 0.515 | 37.077 | 7.553 | 9.67 | $0.0227 |
+| Sandbox 8 vCPU / 16 GB | 0.263 | 0.158 | 0.492 | 43.834 | 8.578 | 16.69 | $0.0454 |
+| Local M4 Pro (2 threads) | 0.114 | 0.087 | 0.384 | 25.667 | 2.414 | 1.71 | — |
+
+* **Scaling stops at 4 vCPU:** 8 vCPU ran MD more slowly than 4.
+* **The cold start is the Python import** (9.7–16.7 s), plus about 6 s to install the lock and
+  1 s for the checkpoints.
+* **Energies are identical on every platform:** ethanol −4221.3059 eV, Si −5.4124 eV/atom.
+* **Spend:** about $0.16 metered, $0.41 at the upper bound, all from the Pro credit; on-demand
+  spend was $0.00. Spend Management is on with a $200 budget, but it does not pause at the limit.
+* **Not measured:** HF `cpu-basic`. The live Space still runs the old code, so no figure is
+  estimated for it.
+
+### Cost per run: arithmetic, not measurement (superseded by the measurements above; kept for the method)
 
 **Inputs.** Wall times were measured with `/usr/bin/time` on `calculate_local.py` on an Apple
 M4 Pro with `OMP_NUM_THREADS=2`, including Python start-up and the cached checkpoint load
