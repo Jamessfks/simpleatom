@@ -3,29 +3,58 @@ import { describe, expect, it } from "vitest";
 
 const read = (p: string) => readFileSync(p, "utf8").replace(/\s+/g, " ");
 
-// D67: the docs may describe only what the code does. validate_calculation.py's
-// self-test records numbers for tests 1 and 2 without asserting anything,
-// checks only that the ethanol energy did not rise, and loads MACE-MP-0 small,
-// not the default MPA-0. And "DFT-level accuracy" needs its qualifier.
+// D67: the docs may describe only what the code does. At 3ee1d64 the page
+// described the pre-D38 self-test (upstream calls, MACE-MP-0 small, two verdicts
+// that asserted nothing). run_verification_tests() in
+// test_scripts/validate_calculation.py is now the source of truth: it drives
+// SimpleAtom's own engine, loads the default MACE-MPA-0 (medium) for silicon,
+// asserts all five checks, and requires the optimisation to converge in float64.
+// And "DFT-level accuracy" needs its qualifier.
 describe("docs say only what the validator and the benchmarks support (D67)", () => {
   const validation = read("app/docs/validation/page.tsx");
   const home = read("app/docs/page.tsx");
   const calculations = read("app/docs/calculations/page.tsx");
 
-  it("does not claim checks that tests 1 and 2 never make", () => {
-    expect(validation).not.toMatch(/correct range \(/i);
-    expect(validation).not.toMatch(/equilibrium forces near zero/i);
-    expect(validation).not.toMatch(/all of which must pass/i);
-    expect(validation).toMatch(/record[s]? (the )?(energy|numbers)[^.]*(does not|do not|without) (assert|check)/i);
+  it("says the self-test runs SimpleAtom's own engine", () => {
+    expect(validation).toMatch(/SimpleAtom(&rsquo;|’|')s own (calculation )?engine/i);
   });
 
-  it("describes the ethanol test as the energy not rising, not convergence", () => {
+  it("says which models the self-test loads: the default MACE-MPA-0 (medium) and MACE-OFF (small)", () => {
+    expect(validation).toMatch(/MACE-MPA-0 \(medium\)/);
+    expect(validation).toMatch(/MACE-OFF \(small\)/);
+    expect(validation).not.toMatch(/MACE-MP-0 \(small\)|MACE-MP-0 small/);
+    expect(validation).not.toMatch(/not the default MACE-MPA-0/i);
+  });
+
+  it("runs the silicon test on the 8-atom conventional cell", () => {
+    expect(validation).toMatch(/8-atom/);
+    expect(validation).not.toMatch(/2-atom/);
+  });
+
+  it("says all five checks assert something, and none only records numbers", () => {
+    expect(validation).toMatch(/all five (tests|checks) assert/i);
+    expect(validation).not.toMatch(/two only record/i);
+    expect(validation).not.toMatch(/three tests assert/i);
+    expect(validation).not.toMatch(/records? (the )?(energy|numbers)[^.]*(does not|do not|without) (assert|check)/i);
+    expect(validation).not.toMatch(/does and does not assert/i);
+  });
+
+  it("requires the ethanol optimisation to converge in float64 within 200 BFGS steps", () => {
+    expect(validation).toMatch(/up to 200 BFGS steps/);
+    expect(validation).not.toMatch(/up to 100 BFGS/);
+    expect(validation).toMatch(/must (have )?converge/i);
+    expect(validation).toMatch(/float64/);
+    expect(validation).not.toMatch(/does not check that the optimi[sz]ation converged/i);
     expect(validation).not.toMatch(/decreases monotonically and converges/i);
-    expect(validation).toMatch(/does not (rise|increase)/i);
   });
 
-  it("says which model the self-test loads", () => {
-    expect(validation).toMatch(/MACE-MP-0 \(small\)|MACE-MP-0 small/);
+  it("runs the result validator on both the silicon and the water results", () => {
+    expect(validation).toMatch(/both the silicon and (the )?water/i);
+    expect(validation).not.toMatch(/run on the silicon single-point result/i);
+  });
+
+  it("says the command fails unless every check passed", () => {
+    expect(validation).toMatch(/exits with status 1 unless every check passed/i);
   });
 
   it("does not promise a monotonic force decrease or steepest descent", () => {
