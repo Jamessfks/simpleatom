@@ -344,6 +344,18 @@ export const CONTRACT = {
       "typical": {
         "minEvPerAtom": -600,
         "maxEvPerAtom": -100
+      },
+      "relativeToIsolatedAtoms": {
+        "description": "(E - sum of the model's own isolated-atom energies E0) / N, reported as result.properties.energyPerAtomVsIsolatedAtoms. Unlike E/N it does not depend on which elements are present (water -693.7 eV/atom, CH2Br2 -28232.6, but -3.35 and -2.97 here).",
+        "measured": "-4.99 to -0.82 eV/atom over 22 molecules (the 10 SMILES examples, pyridine, HCl, CO2, O2, H2O2, CH3Cl, H2, CH2Br2, CH3I, SF6, H3PO4, glycine zwitterion), MMFF94 geometries, MACE-OFF23 small/medium/large, float64, 2026-11-01 (D52)",
+        "enforced": {
+          "minEvPerAtom": -10,
+          "maxEvPerAtom": 1
+        },
+        "typical": {
+          "minEvPerAtom": -6,
+          "maxEvPerAtom": -0.5
+        }
       }
     },
     "unknown": {

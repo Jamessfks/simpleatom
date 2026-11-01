@@ -550,6 +550,29 @@ def extract_reference_data(atoms) -> dict:
     return ref
 
 
+def isolated_atoms_energy(atoms) -> float | None:
+    """
+    Sum of the loaded MACE model's own isolated-atom energies E0 for these
+    atoms, read off the model (atomic_energies_fn), or None when the attached
+    calculator is not a MACE model (or a D3 SumCalculator around one, whose
+    D3 term is zero for isolated atoms).
+    """
+    calc = atoms.calc
+    candidates = [calc] + list(getattr(getattr(calc, "mixer", None), "calcs", None) or getattr(calc, "calcs", None) or [])
+    for candidate in candidates:
+        models = getattr(candidate, "models", None)
+        if not models:
+            continue
+        try:
+            model = models[0]
+            energies = model.atomic_energies_fn.atomic_energies.detach().cpu().double().numpy().ravel()
+            table = {int(z): float(e) for z, e in zip(model.atomic_numbers, energies)}
+            return float(sum(table[int(z)] for z in atoms.get_atomic_numbers()))
+        except Exception:  # noqa: BLE001 — an optional diagnostic must never lose a result
+            return None
+    return None
+
+
 def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
                   effective_params, trajectory=None, warnings=None, manifest=None,
                   kinetic_stress=False):
@@ -607,6 +630,15 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
             # Same rule as energy and forces (D129): never pass a NaN through.
             properties["stress"] = properties["pressure"] = None
             warnings.append("The model returned a non-finite stress; stress and pressure are not reported.")
+
+    # D52: the energy per atom relative to the model's own isolated atoms.
+    # MACE-OFF's E/N is dominated by core electrons (water -693.7 eV/atom,
+    # CH2Br2 -28232.6), so no band on it fits; this quantity does not depend
+    # on which elements are present (contract.json energyConventions).
+    reference = isolated_atoms_energy(atoms)
+    if reference is not None and len(atoms):
+        properties["isolatedAtomsEnergy"] = reference
+        properties["energyPerAtomVsIsolatedAtoms"] = (float(energy) - reference) / len(atoms)
 
     if warnings:
         msg = f"{msg} | Warnings: {' '.join(warnings)}"
