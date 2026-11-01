@@ -215,6 +215,21 @@ class TestCliGuards(unittest.TestCase):
         self.assertRefused({"calculationType": "molecular-dynamics", "mdSteps": 20000},
                            "limit_exceeded", env={"SIMPLEATOM_PROFILE": "hosted"})
 
+    def test_element_refusal_happens_before_any_model_is_built(self):
+        # D127: the CLI test above checks the code, but would still pass if the
+        # check moved after loading. Building a calculator here fails the test.
+        import calculate
+        with tempfile.NamedTemporaryFile("w", suffix=".xyz", delete=False) as handle:
+            handle.write("2\nNaCl\nNa 0 0 0\nCl 2.36 0 0\n")
+        self.addCleanup(os.unlink, handle.name)
+        boom = AssertionError("a model was built before the element check")
+        with mock.patch.object(calculate, "get_mace_calculator", side_effect=boom), \
+             mock.patch.object(calculate, "get_custom_calculator", side_effect=boom):
+            with self.assertRaises(ContractError) as ctx:
+                calculate.run_calculation(handle.name, {"modelType": "MACE-OFF", "modelSize": "small"},
+                                          profile="local")
+        self.assertEqual(ctx.exception.code, "unsupported_element")
+
     def test_mace_off_refuses_elements_outside_its_training_set(self):
         # D47: the registry lists MACE-OFF's ten elements, and nothing enforced
         # them: NaCl failed only after the model loaded, with
@@ -257,10 +272,11 @@ class TestSeed(unittest.TestCase):
     def test_non_finite_and_fractional_seeds_are_refused(self):
         import calculate
         for raw in (float("inf"), float("nan"), 3.7, "3.7", True):
-            with self.subTest(raw=raw), self.assertRaises(ContractError) as ctx:
-                calculate.resolve_seed(raw)
-            self.assertEqual(ctx.exception.code, "invalid_number")
-            self.assertEqual(ctx.exception.status, 400)
+            with self.subTest(raw=raw):
+                with self.assertRaises(ContractError) as ctx:
+                    calculate.resolve_seed(raw)
+                self.assertEqual(ctx.exception.code, "invalid_number")
+                self.assertEqual(ctx.exception.status, 400)
 
     def test_whole_seeds_pass_through(self):
         import calculate
