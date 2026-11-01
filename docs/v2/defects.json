@@ -1767,7 +1767,7 @@
       "status": "fixed",
       "fixedIn": "c560533",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 661084c. MD stops with md_diverged on a temperature blow-up or an NVE energy jump. Timestep caps unchanged. Reproduction committed in 645844c (docs/v2/evidence/2026-11-01/md-divergence): relaxed ethanol diverges at 2.0/2.5/3.0/4.0 fs at steps 587/75/7/3, relaxed water at 902/35/6/3; both stay bound at 1.5 fs; no trigger at 0.5 or 1.0 fs or on the strained demo at 1 fs."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 661084c. MD stops with md_diverged on a temperature blow-up or an NVE energy jump. Timestep caps unchanged (4 fs kept by decision). Reproduction committed in 645844c (docs/v2/evidence/2026-11-01/md-divergence): relaxed ethanol diverges at 2.0/2.5/3.0/4.0 fs at steps 587/75/7/3, relaxed water at 902/35/6/3; both stay bound at 1.5 fs; no trigger at 0.5 or 1.0 fs or on the strained demo at 1 fs."
     },
     {
       "id": "D131",
