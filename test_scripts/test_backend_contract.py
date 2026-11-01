@@ -1004,6 +1004,55 @@ class TestSmilesAdmission(unittest.TestCase):
         self.assertEqual(status, 429)
 
 
+class TestErrorShape(unittest.TestCase):
+    """D140: a body FastAPI itself rejects answers in the same shape as every other refusal."""
+
+    @staticmethod
+    def _call(path, body, content_type):
+        import asyncio
+        import main
+        scope = {"type": "http", "method": "POST", "path": path, "raw_path": path.encode(),
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", content_type.encode()),
+                             (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.41", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+
+        with mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        payload = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
+        return status, json.loads(payload)
+
+    def _assert_shape(self, status, payload, field):
+        self.assertEqual(status, 422, payload)
+        self.assertNotIn("detail", payload, "FastAPI's own validation shape leaked out")
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "invalid_request")
+        self.assertEqual(payload["error"]["field"], field)
+        self.assertIn(field, payload["error"]["message"])
+        self.assertEqual(payload["message"], payload["error"]["message"])
+
+    def test_a_wrongly_typed_smiles_is_refused_in_the_common_shape(self):
+        status, payload = self._call("/smiles-to-xyz", json.dumps({"smiles": 5}).encode(), "application/json")
+        self._assert_shape(status, payload, "smiles")
+
+    def test_a_missing_params_field_is_refused_in_the_common_shape(self):
+        body = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"w.xyz\"\r\n"
+                b"Content-Type: text/plain\r\n\r\n1\n\nH 0 0 0\n\r\n--x--\r\n")
+        status, payload = self._call("/calculate", body, "multipart/form-data; boundary=x")
+        self._assert_shape(status, payload, "params")
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
