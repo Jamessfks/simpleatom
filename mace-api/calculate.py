@@ -1245,6 +1245,11 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     forces = atoms.get_forces()
     final_fmax = _max_force(forces)
     frames.finish(int(opt.nsteps), atoms.get_positions(), energies=float(energy))
+    if stopped_at is not None and final_fmax < fmax:
+        # D46: the budget ran out on (or before) the step that reached fmax.
+        # Convergence is a property of the final forces — ASE's own strict
+        # test, max|F| < fmax — not of which limit ended the loop.
+        converged = True
 
     ctx.effective_params.update({
         "converged": converged,
@@ -1257,7 +1262,7 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     if converged:
         msg = (
             f"Geometry optimization CONVERGED for {ctx.filename}: max force "
-            f"{final_fmax:.4f} eV/Å is at or below the fmax target of {fmax} eV/Å, "
+            f"{final_fmax:.4f} eV/Å is below the fmax target of {fmax} eV/Å, "
             f"reached in {opt.nsteps} of at most {max_steps} BFGS steps."
         )
     else:
@@ -1286,7 +1291,7 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     result = ctx.build(energy, forces, msg, trajectory=trajectory)
     # Top-level too: convergence is an outcome, not a parameter.
     result["converged"] = converged
-    if stopped_at is not None:
+    if "stoppedEarly" in ctx.effective_params:
         result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
     return result
 
