@@ -26,7 +26,8 @@ sys.path.insert(0, str(API_DIR))
 import contract  # noqa: E402
 from contract import ContractError  # noqa: E402
 
-ETHANOL = REPO_ROOT / "public" / "demo" / "ethanol.xyz"
+ETHANOL = REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz"   # strained, pre-D119 demo
+ETHANOL_DEMO = REPO_ROOT / "public" / "demo" / "ethanol.xyz"
 
 
 class TestRegistry(unittest.TestCase):
@@ -1020,6 +1021,24 @@ class TestOneOverlapThreshold(unittest.TestCase):
         value = contract.load_contract()["structureChecks"]["minInteratomicDistanceA"]
         self.assertEqual(calculate.MIN_INTERATOMIC_DISTANCE_A, value)
         self.assertEqual(validate_calculation.MIN_INTERATOMIC_DIST, value)
+
+
+class TestDemoEthanol(unittest.TestCase):
+    """D119: the demo and hero ethanol is a relaxed trans geometry; the strained one is a fixture."""
+
+    def test_the_demo_is_the_relaxed_trans_conformer(self):
+        from ase.io import read
+        demo = read(str(ETHANOL_DEMO))
+        h = min(range(3, len(demo)), key=lambda i: demo.get_distance(2, i))
+        self.assertAlmostEqual(demo.get_distance(0, 1), 1.512, delta=0.01, msg="C-C vs CCCBDB")
+        self.assertAlmostEqual(abs(demo.get_dihedral(0, 1, 2, h) - 180.0), 0.0, delta=5.0, msg="C-C-O-H")
+        self.assertIn("docs/v2/evidence/2026-11-01/demo-ethanol", ETHANOL_DEMO.read_text().splitlines()[1])
+
+    def test_the_golden_input_is_never_edited(self):
+        import hashlib
+        self.assertEqual(hashlib.sha256(ETHANOL.read_bytes()).hexdigest(),
+                         "d670288bc0fa424c5585bd5e2d0d5106029a26b6124d8ff3ccad6437be1413fc",
+                         "the goldens were computed on this exact file; give a new input its own golden")
 
 
 class TestFixturePeriodicity(unittest.TestCase):
