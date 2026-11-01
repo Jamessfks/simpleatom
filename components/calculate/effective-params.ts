@@ -35,8 +35,8 @@ export const COMMON_PARAM_KEYS = [
  *
  * Kept deliberately in step with what `mace-api/calculate.py` puts into
  * `effective_params`: `_run_geometry_opt` adds forceThreshold/maxOptSteps and
- * the convergence outcome; `_run_md` adds temperature/timeStep/friction/
- * mdSteps/mdEnsemble/seed and comMomentumRemoved. `pressure` is the one MD
+ * the convergence outcome; `_run_md` adds temperature/timeStep/mdSteps/
+ * mdEnsemble/seed and comMomentumRemoved, and friction for NVT only. `pressure` is the one MD
  * input the backend does not echo (it is read straight into the NPT
  * integrator), so the client copy is the only record of it.
  */
@@ -91,6 +91,9 @@ export function effectiveRunParams(
   // it, so "0 GPa" would state a constraint that was never imposed.
   const ensemble = echoed?.mdEnsemble ?? requested.mdEnsemble;
   if (ensemble !== "NPT") allowed.delete("pressure");
+  // Friction is read by the Langevin thermostat alone, which only NVT builds
+  // (D55). The form's default 0.005 must not be merged back in for NVE or NPT.
+  if (ensemble !== "NVT") allowed.delete("friction");
 
   const filtered: Record<string, unknown> = {};
   for (const key of allowed) {
@@ -98,5 +101,9 @@ export function effectiveRunParams(
     if (value !== undefined) filtered[key] = value;
   }
 
-  return { ...(filtered as Partial<CalculationParams>), ...(echoed ?? {}) };
+  const merged: Partial<CalculationParams> = { ...(filtered as Partial<CalculationParams>), ...(echoed ?? {}) };
+  // An echo from a backend that predates D55 carries friction for every MD
+  // ensemble; for NVE and NPT it describes a thermostat that was never built.
+  if (ensemble !== "NVT") delete merged.friction;
+  return merged;
 }
