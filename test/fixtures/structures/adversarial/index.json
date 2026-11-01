@@ -1,0 +1,182 @@
+[
+ {
+  "name": "cif_nacl_asym_symops",
+  "filename": "nacl_asym.cif",
+  "path": "test/fixtures/structures/adversarial/cif_nacl_asym_symops__nacl_asym.cif",
+  "note": "NaCl Fm-3m asymmetric unit (2 sites) + 192 symmetry operations; true cell has 8 atoms"
+ },
+ {
+  "name": "cif_nacl_asym_hm_only",
+  "filename": "nacl_hm.cif",
+  "path": "test/fixtures/structures/adversarial/cif_nacl_asym_hm_only__nacl_hm.cif",
+  "note": "NaCl asymmetric unit with only the H-M symbol; true cell 8 atoms"
+ },
+ {
+  "name": "cif_diamond_origin2_hm_only",
+  "filename": "si_o2.cif",
+  "path": "test/fixtures/structures/adversarial/cif_diamond_origin2_hm_only__si_o2.cif",
+  "note": "Si diamond in ORIGIN CHOICE 2 coordinates (8a = 1/8,1/8,1/8), only the H-M symbol; true cell 8 atoms"
+ },
+ {
+  "name": "cif_diamond_origin2_colon2",
+  "filename": "si_o2c.cif",
+  "path": "test/fixtures/structures/adversarial/cif_diamond_origin2_colon2__si_o2c.cif",
+  "note": "same, H-M written 'F d -3 m :2'"
+ },
+ {
+  "name": "cif_diamond_origin1_hm_only",
+  "filename": "si_o1.cif",
+  "path": "test/fixtures/structures/adversarial/cif_diamond_origin1_hm_only__si_o1.cif",
+  "note": "Si diamond origin choice 1, 1 site + H-M symbol; true cell 8 atoms"
+ },
+ {
+  "name": "cif_aniso_loop_after",
+  "filename": "nacl_aniso.cif",
+  "path": "test/fixtures/structures/adversarial/cif_aniso_loop_after__nacl_aniso.cif",
+  "note": "NaCl P1 8 sites followed by an _atom_site_aniso_ loop"
+ },
+ {
+  "name": "cif_labels_only",
+  "filename": "labels.cif",
+  "path": "test/fixtures/structures/adversarial/cif_labels_only__labels.cif",
+  "note": "labels only: C1A, C1B, O2' (no type_symbol)"
+ },
+ {
+  "name": "cif_type_symbol_oxidation",
+  "filename": "feo.cif",
+  "path": "test/fixtures/structures/adversarial/cif_type_symbol_oxidation__feo.cif",
+  "note": "type_symbol carries oxidation states: Fe2+, O2-"
+ },
+ {
+  "name": "cif_label_before_type",
+  "filename": "labfirst.cif",
+  "path": "test/fixtures/structures/adversarial/cif_label_before_type__labfirst.cif",
+  "note": "label column precedes type_symbol; labels C1A, N1x"
+ },
+ {
+  "name": "cif_partial_occupancy_mixed",
+  "filename": "cuau_disorder.cif",
+  "path": "test/fixtures/structures/adversarial/cif_partial_occupancy_mixed__cuau_disorder.cif",
+  "note": "disordered Cu0.5Au0.5 on 4 fcc sites (8 rows, each occupancy 0.5)"
+ },
+ {
+  "name": "cif_partial_occupancy_vacancy",
+  "filename": "cu_vac.cif",
+  "path": "test/fixtures/structures/adversarial/cif_partial_occupancy_vacancy__cu_vac.cif",
+  "note": "one fcc site 25% occupied"
+ },
+ {
+  "name": "cif_two_data_blocks",
+  "filename": "two.cif",
+  "path": "test/fixtures/structures/adversarial/cif_two_data_blocks__two.cif",
+  "note": "two data blocks: Cu fcc a=3.615 then Al fcc a=4.05"
+ },
+ {
+  "name": "cif_uppercase_symbols",
+  "filename": "upper.cif",
+  "path": "test/fixtures/structures/adversarial/cif_uppercase_symbols__upper.cif",
+  "note": "type_symbol upper case: NA, CL"
+ },
+ {
+  "name": "poscar_scale2_cartesian",
+  "filename": "POSCAR",
+  "path": "test/fixtures/structures/adversarial/poscar_scale2_cartesian__POSCAR",
+  "note": "scale 2.0 with Cartesian coordinates (VASP scales Cartesian too); true a=5.43"
+ },
+ {
+  "name": "poscar_negative_scale",
+  "filename": "neg.vasp",
+  "path": "test/fixtures/structures/adversarial/poscar_negative_scale__neg.vasp",
+  "note": "negative scale = target cell volume 160.103 A^3 (a=5.43)"
+ },
+ {
+  "name": "poscar_three_scales",
+  "filename": "three.vasp",
+  "path": "test/fixtures/structures/adversarial/poscar_three_scales__three.vasp",
+  "note": "VASP 6 per-axis scale factors"
+ },
+ {
+  "name": "poscar_vasp4_no_species",
+  "filename": "v4.vasp",
+  "path": "test/fixtures/structures/adversarial/poscar_vasp4_no_species__v4.vasp",
+  "note": "VASP 4 format: no species line (species only in the comment)"
+ },
+ {
+  "name": "poscar_selective_dynamics",
+  "filename": "sd.vasp",
+  "path": "test/fixtures/structures/adversarial/poscar_selective_dynamics__sd.vasp",
+  "note": "Selective dynamics flags"
+ },
+ {
+  "name": "xyz_pbcF_with_lattice",
+  "filename": "w_pbcF.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_pbcF_with_lattice__w_pbcF.xyz",
+  "note": "Lattice present but pbc F F F"
+ },
+ {
+  "name": "xyz_lattice_no_pbc",
+  "filename": "w_lat.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_lattice_no_pbc__w_lat.xyz",
+  "note": "Lattice present, pbc key absent"
+ },
+ {
+  "name": "xyz_slab_pbcTTF",
+  "filename": "slab.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_slab_pbcTTF__slab.xyz",
+  "note": "slab with pbc T T F"
+ },
+ {
+  "name": "xyz_energy_forces_columns",
+  "filename": "ef.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_energy_forces_columns__ef.xyz",
+  "note": "energy= on the comment line and forces columns"
+ },
+ {
+  "name": "xyz_REF_energy_forces",
+  "filename": "ref.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_REF_energy_forces__ref.xyz",
+  "note": "REF_energy / REF_forces (MACE training convention)"
+ },
+ {
+  "name": "xyz_free_energy_first",
+  "filename": "fe.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_free_energy_first__fe.xyz",
+  "note": "free_energy precedes energy on the comment line"
+ },
+ {
+  "name": "xyz_species_not_first",
+  "filename": "posfirst.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_species_not_first__posfirst.xyz",
+  "note": "legal extxyz with pos before species"
+ },
+ {
+  "name": "xyz_element_case",
+  "filename": "case.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_element_case__case.xyz",
+  "note": "element symbols FE, CL, cl, fe"
+ },
+ {
+  "name": "xyz_two_frames",
+  "filename": "two.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_two_frames__two.xyz",
+  "note": "two frames; second differs"
+ },
+ {
+  "name": "pdb_cryst1_placeholder",
+  "filename": "w.pdb",
+  "path": "test/fixtures/structures/adversarial/pdb_cryst1_placeholder__w.pdb",
+  "note": "CRYST1 1.000 1.000 1.000 placeholder (written by many tools for non-crystals)"
+ },
+ {
+  "name": "pdb_two_models",
+  "filename": "m.pdb",
+  "path": "test/fixtures/structures/adversarial/pdb_two_models__m.pdb",
+  "note": "two MODEL records"
+ },
+ {
+  "name": "pdb_uppercase_elements",
+  "filename": "fecl.pdb",
+  "path": "test/fixtures/structures/adversarial/pdb_uppercase_elements__fecl.pdb",
+  "note": "standard PDB upper-case element columns FE, CL"
+ }
+]

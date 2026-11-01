@@ -1,0 +1,11 @@
+MODEL        1
+HETATM    1 O    HOH A   1       0.000   0.000   0.117  1.00  0.00           O
+HETATM    2 H1   HOH A   1       0.000   0.757  -0.469  1.00  0.00           H
+HETATM    3 H2   HOH A   1       0.000  -0.757  -0.469  1.00  0.00           H
+ENDMDL
+MODEL        2
+HETATM    1 O    HOH A   1       0.000   0.000   0.617  1.00  0.00           O
+HETATM    2 H1   HOH A   1       0.000   0.757   0.031  1.00  0.00           H
+HETATM    3 H2   HOH A   1       0.000  -0.757   0.031  1.00  0.00           H
+ENDMDL
+END

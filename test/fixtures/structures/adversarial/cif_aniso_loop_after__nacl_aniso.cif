@@ -1,0 +1,39 @@
+data_NaCl
+_symmetry_space_group_name_H-M 'P 1'
+_cell_length_a 5.64
+_cell_length_b 5.64
+_cell_length_c 5.64
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+Na1 Na 0 0 0 1.0
+Na2 Na 0 0.5 0.5 1.0
+Na3 Na 0.5 0 0.5 1.0
+Na4 Na 0.5 0.5 0 1.0
+Cl5 Cl 0.5 0 0 1.0
+Cl6 Cl 0 0.5 0 1.0
+Cl7 Cl 0 0 0.5 1.0
+Cl8 Cl 0.5 0.5 0.5 1.0
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_23
+_atom_site_aniso_U_13
+_atom_site_aniso_U_12
+Na1 0.01 0.02 0.03 0.000 0.000 0.000
+Na2 0.02 0.03 0.04 0.001 0.001 0.001
+Na3 0.03 0.04 0.05 0.002 0.002 0.002
+Na4 0.01 0.02 0.03 0.003 0.003 0.003
+Cl5 0.02 0.03 0.04 0.004 0.004 0.004
+Cl6 0.03 0.04 0.05 0.005 0.005 0.005
+Cl7 0.01 0.02 0.03 0.006 0.006 0.006
+Cl8 0.02 0.03 0.04 0.007 0.007 0.007
