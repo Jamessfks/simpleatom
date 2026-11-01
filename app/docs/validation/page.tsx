@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
+import { offEnforcedBandText, offTypicalBandText } from "@/components/docs/off-energy-band";
 
 export const metadata: Metadata = {
   title: "Validation & reproducibility",
@@ -111,11 +112,16 @@ python test_scripts/validate_calculation.py result.json`}</code>
         <ul>
           <li>
             <strong>Energy bounds (model-aware):</strong> the MACE-MP family
-            (MPA-0 and MP-0) between &minus;20 and +100 eV/atom; MACE-OFF
-            between &minus;800 and +100 eV/atom; skipped for a custom
-            checkpoint, whose reference convention is unknown. Below the
-            minimum is a warning, above the maximum an issue. These are the
-            enforced bounds; the typical ranges are narrower (below).
+            (MPA-0 and MP-0) between &minus;20 and +100 eV/atom, where below
+            the minimum is a warning and above the maximum an issue. MACE-OFF
+            has no such band, because its raw energy per atom depends on the
+            elements present, so it is judged by its energy per atom relative
+            to the model&apos;s own isolated atoms: between{" "}
+            {offEnforcedBandText()} eV/atom, and an issue outside it. The
+            check is skipped for a custom checkpoint, whose reference
+            convention is unknown, and for a MACE-OFF result that does not
+            carry the relative energy. These are the enforced bounds; the
+            typical ranges are narrower (below).
           </li>
           <li>
             <strong>Force magnitude:</strong> max force &lt; 50 eV/Å warns,
@@ -166,8 +172,10 @@ python test_scripts/validate_calculation.py result.json`}</code>
         <ol>
           <li>
             Energy in the typical range for the model: MACE-MPA-0 or MP-0
-            &rarr; &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; &minus;100
-            to &minus;600 eV/atom (more negative with Br or I).
+            &rarr; &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; its energy
+            per atom relative to the model&apos;s own isolated atoms,{" "}
+            {offTypicalBandText()} eV/atom (the raw value depends on which
+            elements are present).
           </li>
           <li>
             Forces &lt; 10 eV/Å for a reasonable structure — forces above 50

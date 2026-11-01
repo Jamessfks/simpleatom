@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
+import { offTypicalBandText } from "@/components/docs/off-energy-band";
 
 export const metadata: Metadata = {
   title: "Foundation models",
@@ -93,9 +94,12 @@ export default function ModelsPage() {
           </li>
           <li>
             <strong>Energy reference:</strong> total energies including core
-            electrons — a different convention from the MACE-MP family. Typical
-            range <code>−100 to −600 eV/atom</code>, and much more negative for
-            molecules containing Br or I.
+            electrons — a different convention from the MACE-MP family. The
+            raw energy per atom depends on the elements present (water is
+            about <code>−694 eV/atom</code>, CH<sub>2</sub>Br<sub>2</sub>{" "}
+            about <code>−28233 eV/atom</code>), so it has no range of its own.
+            SimpleAtom judges a result relative to the model&apos;s own
+            isolated atoms, typically <code>{offTypicalBandText()} eV/atom</code>.
           </li>
           <li>
             <strong>Licence:</strong> the{" "}
