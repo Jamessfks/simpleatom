@@ -37,6 +37,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import contract
+from contract import ContractError
 import provenance
 from calculate import RunHooks, device_report, run_calculation, validate_request
 from jobs import Job, JobStore
@@ -259,7 +260,8 @@ def _submit(request: Request, forwarded_ip: str | None, run, workdir) -> Job:
     try:
         return JOBS.submit(_client_key(request, forwarded_ip), run, workdir=workdir)
     except ValueError as e:
-        shutil.rmtree(workdir, ignore_errors=True)
+        if workdir:
+            shutil.rmtree(workdir, ignore_errors=True)
         headers = {"Retry-After": "30"} if getattr(e, "status", 400) == 429 else None
         raise _error(getattr(e, "status", 429), getattr(e, "code", "busy"), str(e), headers=headers)
 
@@ -372,9 +374,15 @@ class SmilesRequest(BaseModel):
 
 
 @app.post("/smiles-to-xyz")
-async def convert_smiles(req: SmilesRequest,
-                         x_simpleatom_proxy_key: str | None = Header(default=None)):
-    """Convert a SMILES string to a 3D XYZ structure using RDKit."""
+async def convert_smiles(request: Request, req: SmilesRequest,
+                         x_simpleatom_proxy_key: str | None = Header(default=None),
+                         x_simpleatom_client_ip: str | None = Header(default=None)):
+    """
+    Convert a SMILES string to a 3D XYZ structure using RDKit.
+
+    It runs as a job (D136): an embedding plus force-field relaxation costs
+    seconds of CPU, and it used to bypass every per-visitor and queue limit.
+    """
     _require_proxy_key(x_simpleatom_proxy_key)
     if _smiles_to_xyz is None:
         raise _error(503, "smiles_unavailable",
@@ -386,12 +394,30 @@ async def convert_smiles(req: SmilesRequest,
         raise _error(422, "limit_exceeded",
                      f"SMILES is {len(smiles)} characters; this deployment accepts at most "
                      f"{LIMITS['maxSmilesLength']}.", field="smiles")
-    try:
-        return await asyncio.to_thread(_smiles_to_xyz, smiles)
-    except ValueError as e:
-        raise _error(400, "invalid_smiles", str(e), field="smiles")
-    except Exception as e:  # noqa: BLE001
-        raise _error(500, "smiles_failed", f"{type(e).__name__}: {e}")
+    def run(_job):
+        try:
+            return _smiles_to_xyz(smiles)
+        except ValueError as e:
+            raise ContractError(str(e), code="invalid_smiles", field="smiles") from e
+
+    job = _submit(request, x_simpleatom_client_ip, run, None)
+    while True:
+        outcome = await asyncio.to_thread(_await_job, job, run_budget=60, queue_budget=60,
+                                          poll=0.5, max_wait=1.0)
+        if outcome != "pending":
+            break
+        if await request.is_disconnected():
+            JOBS.cancel(job.id)
+            raise _error(499, "cancelled", "The caller disconnected, so the conversion was cancelled.")
+    if outcome != "done":
+        JOBS.cancel(job.id)
+        raise _error(503 if outcome == "queue_timeout" else 504, "busy" if outcome == "queue_timeout" else "timeout",
+                     "The SMILES conversion did not run in time. Nothing was converted; try again shortly.")
+    if job.status == "succeeded":
+        return job.result
+    err = job.error or {"code": "smiles_failed", "message": "SMILES conversion failed.", "status": 500}
+    raise _error(err.get("status", 500), err.get("code", "smiles_failed"), err.get("message", ""),
+                 field=err.get("field"))
 
 
 @app.get("/capabilities")

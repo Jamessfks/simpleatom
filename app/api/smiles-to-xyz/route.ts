@@ -4,9 +4,11 @@ import {
   ApiError,
   MACE_API_URL,
   assertSameOrigin,
+  backendHeaders,
   errorResponse,
   runPythonJson,
 } from "@/lib/server/backend";
+import { clientIp } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -47,15 +49,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (MACE_API_URL) {
-      const token = process.env.MACE_API_TOKEN;
       let response: Response;
       try {
         response = await fetch(`${MACE_API_URL}/smiles-to-xyz`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { "X-SimpleAtom-Proxy-Key": token } : {}),
-          },
+          // The proxy key and the visitor's IP: the backend admits SMILES
+          // conversions per visitor like calculations (D136).
+          headers: { "Content-Type": "application/json", ...backendHeaders(clientIp(request)) },
           body: JSON.stringify({ smiles: trimmed }),
           signal: AbortSignal.any([request.signal, AbortSignal.timeout(55_000)]),
         });
