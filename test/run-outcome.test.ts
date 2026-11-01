@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runOutcome, stopCause } from "@/components/calculate/run-outcome";
+import { bfgsSteps, runOutcome, stopCause, warningsBeyondOutcome } from "@/components/calculate/run-outcome";
 import type { CalculationResult } from "@/types/mace";
 
 const result = (extra: Partial<CalculationResult>): CalculationResult => ({
@@ -78,5 +78,37 @@ describe("run outcome (D60)", () => {
   it("names the step limit when only the ceiling was hit", () => {
     expect(stopCause(result({ converged: false, params: { calculationType: "geometry-opt" } }))).toBe("step-limit");
     expect(stopCause(result({ converged: true }))).toBeNull();
+  });
+});
+
+// Design review: "(1 BFGS steps)", and the same fact said three times — in the
+// banner, in a second card and as a bullet in the warnings list.
+describe("the not-converged outcome says it once, in the singular when it is one step", () => {
+  const notConverged = result({
+    converged: false,
+    params: { calculationType: "geometry-opt", maxOptSteps: 1, optSteps: 1, finalFmax: 0.673, forceThreshold: 0.05 },
+    warnings: [
+      "Precision 'Auto' ran this geometry optimization in float64.",
+      "Optimization not converged: 0.6726 eV/Å > fmax 0.05 eV/Å after 1/1 steps.",
+    ],
+  });
+
+  it("pluralises BFGS steps", () => {
+    expect(bfgsSteps(1)).toBe("1 BFGS step");
+    expect(bfgsSteps(0)).toBe("0 BFGS steps");
+    expect(bfgsSteps(500)).toBe("500 BFGS steps");
+    const detail = runOutcome(notConverged).detail!;
+    expect(detail).toMatch(/\(1 BFGS step\)/);
+    expect(detail).not.toMatch(/1 BFGS steps/);
+  });
+
+  it("drops the backend's own not-converged warning, which the banner already says", () => {
+    expect(warningsBeyondOutcome(notConverged)).toEqual(["Precision 'Auto' ran this geometry optimization in float64."]);
+  });
+
+  it("keeps every warning when the run converged, or the banner has nothing to say", () => {
+    const converged = result({ converged: true, params: { calculationType: "geometry-opt" }, warnings: ["a", "Optimization not converged: x"] });
+    expect(warningsBeyondOutcome(converged)).toEqual(["a", "Optimization not converged: x"]);
+    expect(warningsBeyondOutcome(result({}))).toEqual([]);
   });
 });
