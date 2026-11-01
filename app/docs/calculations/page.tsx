@@ -40,9 +40,11 @@ export default function CalculationsPage() {
 
         <h2 id="optimization">Geometry optimization</h2>
         <p>
-          Relaxes atomic positions to a nearby local minimum by iteratively
-          moving atoms in the direction of the forces until the maximum
-          force component drops below a threshold, <code>fmax</code>.
+          Relaxes atomic positions to a nearby local minimum with the BFGS
+          quasi-Newton algorithm, which steps along a direction built from
+          the forces and a running estimate of the curvature, until the
+          largest force on any atom is at or below a threshold,{" "}
+          <code>fmax</code>.
         </p>
         <table>
           <thead>
@@ -88,7 +90,8 @@ export default function CalculationsPage() {
         <p>
           Only atomic positions are optimized — cell optimization is not yet
           supported. Watch the RMS force during optimization: it should
-          decrease monotonically as the structure approaches a minimum.
+          trend downward as the structure approaches a minimum, though BFGS
+          does not guarantee a decrease at every step.
         </p>
 
         <h2 id="md">Molecular dynamics</h2>

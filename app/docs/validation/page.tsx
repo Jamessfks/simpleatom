@@ -6,7 +6,7 @@ import { DocsPager } from "@/components/docs/docs-nav";
 export const metadata: Metadata = {
   title: "Validation & reproducibility",
   description:
-    "How SimpleAtom validates scientific results — the automated validation suite, its 5 tests, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
+    "How SimpleAtom validates scientific results — the validator's self-test and what each of its five tests does and does not assert, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
 };
 
 export default function ValidationPage() {
@@ -33,46 +33,68 @@ export default function ValidationPage() {
         <pre>
           <code>python test_scripts/validate_calculation.py --test</code>
         </pre>
-        <p>This runs five tests, all of which must pass:</p>
+        <p>
+          This runs five self-tests with real MACE calculations. It loads
+          MACE-MP-0 (small) and MACE-OFF (small), not the default MACE-MPA-0,
+          so it checks the calculation plumbing and the validator, not the
+          default model&rsquo;s accuracy. Three tests assert something; two
+          only record numbers:
+        </p>
         <table>
           <thead>
             <tr>
               <th>Test</th>
-              <th>What it checks</th>
+              <th>What it does</th>
+              <th>Asserted?</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>MACE-MP-0 Si bulk</td>
               <td>
-                Energy/atom in the correct range (&minus;5.37 eV),
-                equilibrium forces near zero.
+                Single-point on a 2-atom diamond cell (a = 5.43 &Aring;).
+                Records the energy per atom and the largest force.
+              </td>
+              <td>
+                No. It records the energy and the force without checking
+                either, so it cannot fail on physics.
               </td>
             </tr>
             <tr>
               <td>MACE-OFF H&#8322;O</td>
               <td>
-                Energy computed correctly, force conservation (net force =
-                0).
+                Single-point on an isolated water molecule. Records the
+                energy and the largest force.
               </td>
+              <td>No. It records the numbers without checking them.</td>
             </tr>
             <tr>
               <td>Ethanol geometry optimization</td>
               <td>
-                Energy decreases monotonically and converges within the
-                step limit.
+                MACE-OFF, up to 100 BFGS steps with fmax 0.05 eV/&Aring;.
+              </td>
+              <td>
+                Yes, but only that the energy does not rise: the final energy
+                must be no more than 0.001 eV above the starting energy. It
+                does not check that the optimization converged, or that the
+                energy fell at every step.
               </td>
             </tr>
             <tr>
               <td>Force conservation</td>
               <td>
-                Newton&rsquo;s third law: the sum of forces on an isolated
-                molecule equals zero.
+                The net force on the isolated water molecule, a
+                translation-invariance check.
               </td>
+              <td>Yes: it must be below 0.01 eV/&Aring;.</td>
             </tr>
             <tr>
               <td>Result validation</td>
-              <td>All physical bounds (energy, forces, distances, volume) pass.</td>
+              <td>
+                The physical-bounds checks listed below, run on the silicon
+                single-point result.
+              </td>
+              <td>Yes: the validator must report the result valid.</td>
             </tr>
           </tbody>
         </table>
@@ -144,7 +166,11 @@ python test_scripts/validate_calculation.py result.json`}</code>
             Forces &lt; 10 eV/Å for a reasonable structure — forces above 50
             eV/Å usually mean overlapping atoms.
           </li>
-          <li>RMS force decreases monotonically during optimization.</li>
+          <li>
+            RMS force trends downward during optimization. BFGS does not
+            guarantee a decrease at every step; a run that ends above the{" "}
+            <code>fmax</code> target did not converge.
+          </li>
           <li>
             MD energy is conserved in NVE; it fluctuates around the target
             temperature in NVT.

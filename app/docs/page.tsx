@@ -82,8 +82,11 @@ export default function DocsOverviewPage() {
 
         <h2 id="mission">The mission: accessible computational chemistry</h2>
         <p>
-          MLIPs have reached DFT-level accuracy, yet using them still typically
-          demands Python scripting, command-line fluency, and cluster access —
+          Machine-learned potentials now approach DFT accuracy on in-domain
+          materials benchmarks (the default MACE-MPA-0 ranks 22nd of 43 models
+          on Matbench Discovery, F1 0.852; Matbench Discovery, retrieved
+          2026-10-28), though accuracy still depends on the system. Using them
+          typically demands Python scripting, command-line fluency, and cluster access —
           barriers that exclude experimentalists, students, researchers in
           under-resourced labs, and scientists with accessibility needs.
           SimpleAtom exists to remove that first barrier and put a good idea one
