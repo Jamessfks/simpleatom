@@ -136,6 +136,22 @@ class TestCheckpointTrust(unittest.TestCase):
                 torch.load(trap_path, map_location="cpu", weights_only=False)
         self.assertFalse(marker.exists(), "the pickle payload ran")
 
+    def test_a_cache_link_to_a_file_outside_the_cache_is_refused_as_untrusted(self):
+        """D141: the link's own location decides, not only where it points."""
+        import torch
+        import safe_load
+
+        cache = pathlib.Path(self.tmp.name) / "cache"
+        cache.mkdir()
+        outside = pathlib.Path(self.tmp.name) / "elsewhere.bin"
+        torch.save({"weights": torch.zeros(2)}, outside)
+        link = cache / "2023-12-03-mace-128-L1_epoch-199"
+        link.symlink_to(outside)
+        with mock.patch.object(safe_load.provenance, "mace_cache_dir", return_value=str(cache)):
+            with safe_load.trusted_checkpoints(contract.allowed_checkpoint_sha256()):
+                with self.assertRaises(safe_load.UntrustedCheckpointError):
+                    torch.load(link, map_location="cpu")
+
     def test_explicitly_trusted_path_loads(self):
         import torch
         import safe_load
