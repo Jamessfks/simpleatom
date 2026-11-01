@@ -438,35 +438,44 @@
     {
       "id": "D36",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The docs tell users to change the MD seed to generate independent replicas, but the calculator has no seed input; only API callers can set it.",
       "where": "app/docs/calculations/page.tsx:170-176; components/calculate/parameter-panel.tsx (no 'seed')",
       "verify": true,
       "evidence": "grep -n 'seed' components/calculate/parameter-panel.tsx → no output",
       "howToVerify": "Either a seed field (contract param seed, 0–4294967295) in the MD section, or the sentence rewritten to 'via the API'.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "7b50933",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Seed field added; an invalid entry blocks the run. A failing test precedes the fix in git log."
     },
     {
       "id": "D37",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "The results 'Limitations and uncertainty' list is static: it shows 'MACE-OFF scope' on MACE-MPA-0 and MACE-MP-0 results and advises running 'multiple model sizes (small/medium/large)', though MPA-0 has one size.",
       "where": "components/calculate/metrics-dashboard.tsx:660-685",
       "verify": true,
       "evidence": "UI run (Playwright, MACE-MPA-0 single point on ethanol) → body text contains 'MACE-OFF scope: Trained on neutral, closed-shell organic molecules only'",
       "howToVerify": "Render the list from the registry entry of the model that ran (findModel()).",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "d5e3603",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Limitations list is model-aware. A failing test precedes the fix in git log."
     },
     {
       "id": "D38",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The validator's self-test (the gate called 'the scientific gate') runs MACE-OFF geometry optimisation in float32 and calls upstream mace_mp/mace_off directly, so `all_passed: true` says nothing about SimpleAtom's engine, and its geometry-opt test contradicts CLAUDE.md's float64-for-optimisation rule. Its Si test uses MACE-MP-0 small, not the default MPA-0.",
       "where": "test_scripts/validate_calculation.py:334,350,363-380",
       "verify": true,
       "evidence": "baseline gate: 'MACE-OFF ethanol geometry opt' energy_before -4221.59619140625 (exactly float32-representable: numpy.float32(x) == x → True)",
       "howToVerify": "Self-test runs through calculate.run_calculation with the effective params; geometry-opt asserts params.precision == 'float64'.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "3ee1d64",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Validator self-test runs the engine; no hard-coded verdicts. A failing test precedes the fix in git log."
     },
     {
       "id": "D39",
@@ -510,13 +519,16 @@
     {
       "id": "D42",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The hosted per-visitor cap (30 requests/hour) is smaller than one benchmark the hosted profile allows, so a permitted benchmark fails part-way with 429s recorded as per-pair errors.",
       "where": "mace-api/jobs.py (rate window); mace-api/contract.json profiles.hosted maxBenchmarkStructures; app/api/benchmark/route.ts:245-251",
       "verify": true,
       "evidence": "reviewer probe: 33 calls → 30×200 then 429",
       "howToVerify": "Count a benchmark as one admission, or size the cap from maxBenchmarkStructures × models.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "b96a6b8",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. maxCalculationsPerHour in the contract (hosted 120). A failing test precedes the fix in git log."
     },
     {
       "id": "D43",
@@ -535,79 +547,100 @@
     {
       "id": "D44",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Resource bounds leak: the `_submissions` table grows on every request, refused ones included, and uploads up to 30 MB are fully received and spooled before the 2 MB hosted cap or the 401 apply.",
       "where": "mace-api/jobs.py:63,74; mace-api/main.py:121-134,209-217,249-257",
       "verify": true,
       "evidence": "reviewer probes: +500 entries after 500 requests; 30 MB body accepted then refused",
       "howToVerify": "Prune _submissions by window on insert; reject on Content-Length before reading; authenticate before reading the body.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "e1514ea",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Visitor table bounded; proxy key and size checked before parsing. A failing test precedes the fix in git log."
     },
     {
       "id": "D45",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Synchronous /calculate keeps running after the client disconnects and holds the single worker and the visitor's slot; its wait counts queue time, so a job that never started is cancelled with 504; a cancel during a step-less phase (single point) is not honoured and the job later reports 'succeeded'.",
       "where": "mace-api/main.py:264-269; mace-api/jobs.py",
       "verify": true,
       "evidence": "reviewer probes: retry after disconnect → 429; queued job cancelled with 504; cancel → status succeeded",
       "howToVerify": "Cancel the job on disconnect; start the sync deadline at job start; report 'cancelled' when a cancel arrives, even if the step completes.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "f2ebab2",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Cancels and disconnects honoured; run time counted from start. A failing test precedes the fix in git log."
     },
     {
       "id": "D46",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "A geometry optimisation that converges on the step at which the time budget runs out (or stops before step 0) is labelled 'DID NOT CONVERGE … still above fmax' while reporting max force 0.0378 eV/Å below fmax 0.05.",
       "where": "mace-api/calculate.py:1103-1126,~1148",
       "verify": true,
       "evidence": "reviewer probe (ASE EMT, budget-stop at the converging step) → message 'DID NOT CONVERGE', max force 0.0378 < fmax 0.05",
       "howToVerify": "Decide convergence from the final forces (max|F| < fmax, ASE's strict test) after any stop, and say which stop happened.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "0916079",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Convergence judged from final forces. A failing test precedes the fix in git log."
     },
     {
       "id": "D47",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "MACE-OFF's element list in the registry is never enforced: a structure with Na or Cl-only ions fails after the model loads with the opaque 'np.int64(11) is not in list' (400 invalid_request locally, 500 hosted) instead of an unsupported_element refusal before any model I/O. Regression of the guard described in CONTINUE.md ('MACE-OFF element guard implemented but inert').",
       "where": "mace-api/calculate.py (no element check; grep 'elements' → 0 hits in calculate.py and contract.py); mace-api/contract.json models[MACE-OFF].elements",
       "verify": false,
       "evidence": "python mace-api/calculate_local.py nacl.xyz '{\"modelType\":\"MACE-OFF\",\"modelSize\":\"small\"}' → status error, code invalid_request, message 'np.int64(11) is not in list' (lead re-run)",
       "howToVerify": "ContractError('unsupported_element', field 'modelType') listing the offending symbols, raised before loading; add a guard to daily_gate.",
-      "source": "audit 2026-10-28"
+      "source": "audit 2026-10-28",
+      "fixedIn": "1c81286",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. MACE-OFF elements refused before loading. A failing test precedes the fix in git log."
     },
     {
       "id": "D48",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Seed validation coerces and crashes: `seed: Infinity` or a very large integer returns 500 rather than 400, and Python accepts 3.7 and truncates it to 3 while the TypeScript mirror refuses it (CLAUDE.md: never coerce).",
       "where": "mace-api/contract.py (seed); lib/contract.ts (seed)",
       "verify": true,
       "evidence": "reviewer probes: seed Infinity → 500; seed 3.7 → runs with seed 3",
       "howToVerify": "Integer-only, finite, in [0, 4294967295] in both mirrors; shared fixture.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "7ee0e72",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Seeds never coerced; mirrors refuse the same number strings. A failing test precedes the fix in git log."
     },
     {
       "id": "D49",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Deployed manifests report code.gitDirty: null with no note explaining why (the container has no .git), a regression in the D3 fix that made provenance explain every null.",
       "where": "mace-api/provenance.py:382-385 (pinned-commit fallback resets unavailableReason=None)",
       "verify": true,
       "evidence": "reviewer probe of the staged image environment",
       "howToVerify": "Add a note when dirty state is unknowable; test it.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "88c5900",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. gitDirty null explained. A failing test precedes the fix in git log."
     },
     {
       "id": "D50",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The Space deploy workflow can be run manually (workflow_dispatch) on any branch, skipping the CI gates that the workflow_call path requires, unless the hf-production environment restricts branches (not visible from the repo).",
       "where": ".github/workflows/deploy-hf-space.yml:13; .github/workflows/ci.yml:152-156",
       "verify": true,
       "evidence": "read-only — PLAUSIBLE",
       "howToVerify": "Restrict workflow_dispatch to main and require the CI checks, or remove it; owner checks the environment's branch rule.",
-      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28"
+      "source": "review subagent (code-review high + security-review), in-process probes under scratchpad/review/, 2026-10-28",
+      "fixedIn": "276acad",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Deploy from main only; checkout pinned. A failing test precedes the fix in git log. Owner still checks the hf-production environment's branch rule."
     },
     {
       "id": "D51",
@@ -659,13 +692,16 @@
     {
       "id": "D55",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed",
       "what": "Parameters that had no effect are echoed as effective: friction is recorded for NVE and NPT, where nothing uses it (CLAUDE.md pitfall 8: echo the effective parameters).",
       "where": "mace-api/calculate.py (_build_result params allow-list)",
       "verify": true,
       "evidence": "golden md_nve_ethanol params include friction (critic)",
       "howToVerify": "Echo friction only for NVT.",
-      "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)"
+      "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)",
+      "fixedIn": "e7318dd",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Friction echoed for NVT only. A failing test precedes the fix in git log."
     },
     {
       "id": "D56",
@@ -695,123 +731,156 @@
     {
       "id": "D58",
       "severity": "HIGH",
-      "status": "open",
+      "status": "fixed",
       "what": "A result is not pinned to the run that produced it: the dashboard filename, Share and 'Compare with foundation model' read live form state, so uploading another file after a run publishes the old numbers under the new filename as a permanent MACE Link, and Compare runs the foundation model on the new structure against the old result.",
       "where": "app/calculate/page.tsx:392-406,490,704,748",
       "verify": true,
       "evidence": "read-only (PLAUSIBLE, high confidence): result is cleared only in handleCalculate",
       "howToVerify": "Snapshot {files, params, filename, structure} at run start (lastRun) and feed the dashboard, share and compare from it; use result.params.modelType for isCustom.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "4d4fd83",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Result pinned to its run. A failing test precedes the fix in git log."
     },
     {
       "id": "D59",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The SMILES box and Ketcher 'Use in calculator' show '[object Object]' for every server error (the error body shape changed to {error:{code,message}}); the benchmark page parses errors with the old shape, always blames the Python backend, and offers a custom-model upload on the hosted profile where it is refused.",
       "where": "components/calculate/smiles-input.tsx; components/calculate/ketcher-editor.tsx; app/benchmark/page.tsx; components/benchmark/*",
       "verify": true,
       "evidence": "reviewer executed: SMILES error renders '[object Object]'",
       "howToVerify": "One client error reader shared by every caller; hide custom upload when capabilities.customModels is false.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "eb42315",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Server errors shown as sentences. A failing test precedes the fix in git log."
     },
     {
       "id": "D60",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "A non-converged optimisation or a run stopped by the time budget still shows a green 'Calculation complete' banner and a 'Complete' pill; stoppedEarly is never read, and the step-limit wording is wrong for the budget case.",
       "where": "app/calculate/page.tsx; components/calculate/metrics-dashboard.tsx",
       "verify": true,
       "evidence": "reviewer read + run",
       "howToVerify": "Banner state from result.converged / stoppedEarly with the stop reason.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "e8c595a",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Non-converged / stopped runs not called complete. A failing test precedes the fix in git log."
     },
     {
       "id": "D61",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Accessibility: every Select trigger and NumberField input lacks an accessible name; the benchmark file input is display:none (unreachable by keyboard); the upload input's focus ring is invisible (opacity 0); tab panels take focus with no outline; the job-progress live region contains a ticking timer, and completion is not announced on phones.",
       "where": "components/calculate/parameter-panel.tsx; components/benchmark/*; components/calculate/file-upload-section.tsx; app/calculate/page.tsx:610,681,852",
       "verify": true,
       "evidence": "reviewer executed (accessibility tree: combobox with no name)",
       "howToVerify": "Associate labels (id/aria-labelledby), visually-hidden focusable inputs with a visible focus ring, a quiet live region announcing state changes only.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "7ad0154",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Accessible names, focus, quiet live region. A failing test precedes the fix in git log."
     },
     {
       "id": "D62",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The client CIF parser does not expand symmetry, so for ordinary database CIFs the preview atom count, formula, hosted size limits and overlap warnings are wrong (NaCl shows 2 atoms where ASE reads 8). The backend reads the file correctly.",
       "where": "lib/parse-structure.ts (parseCIF)",
       "verify": true,
       "evidence": "reviewer executed: NaCl CIF → client 2 atoms vs ase.io.read 8",
       "howToVerify": "Apply symmetry operations (_symmetry_equiv_pos / _space_group_symop) or label the preview as asymmetric-unit only.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "d0a6f39",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Client CIF parser expands symmetry. A failing test precedes the fix in git log."
     },
     {
       "id": "D63",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Share publishes a permanent public link without telling the user: the client hard-codes consent: true, so the server's consent check (ADR-0024) is satisfied without consent ever being asked.",
       "where": "lib/share.ts; app/api/share/route.ts:95-97",
       "verify": true,
       "evidence": "reviewer read: request body built with consent: true",
       "howToVerify": "Ask before publishing (dialog stating permanence and visibility); send consent only from that dialog.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "d261eb7",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Share asks before publishing. A failing test precedes the fix in git log."
     },
     {
       "id": "D64",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "MACE Link renders unvalidated, client-supplied provenance and validation fields as facts; the gitCommit link allows path injection into the GitHub URL, and a crafted 50k-row result can freeze the page.",
       "where": "app/r/[id]/*; app/api/share/route.ts validateResult()",
       "verify": true,
       "evidence": "reviewer read + crafted payload reasoning (PLAUSIBLE)",
       "howToVerify": "Validate provenance/validation shapes server-side (hex SHA pattern for gitCommit), cap rendered rows, label stored metadata 'as recorded by the sharer'.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "11571fc",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. MACE Link provenance validated server-side. A failing test precedes the fix in git log."
     },
     {
       "id": "D65",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Run lifecycle: navigating away neither aborts nor cancels the job, one failed poll abandons it, and a Cancel pressed during submit is lost.",
       "where": "app/calculate/page.tsx; lib/api-client.ts",
       "verify": true,
       "evidence": "reviewer read",
       "howToVerify": "Cancel on unmount/pagehide (sendBeacon DELETE), retry polls with backoff, queue a cancel until the job id arrives.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "311a696",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Jobs cancelled on leave; polls retried; cancel during submit honoured. A failing test precedes the fix in git log."
     },
     {
       "id": "D66",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "The public /v2 dashboard shows stale Matbench ranks (34/21) and says SimpleAtom 'offers it nowhere' about MACE-MPA-0, which is now the default; it also uses #8A8478 text below AA contrast.",
       "where": "app/v2/* (renders docs/v2 content)",
       "verify": true,
       "evidence": "reviewer executed: /v2 text contains the stale ranks",
       "howToVerify": "Render ranks with their retrieval date from one source; fix the copy and the colour token. Extends D39.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "91012d0",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. /v2 shows current Matbench ranks. A failing test precedes the fix in git log."
     },
     {
       "id": "D67",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "Docs describe verification and accuracy the code does not provide: docs/validation describes checks that tests 1 and 2 never run, and the docs home claims 'DFT-level accuracy' without the Matbench-supported qualifier.",
       "where": "app/docs/validation/page.tsx; app/docs/page.tsx:85",
       "verify": true,
       "evidence": "reviewer read",
       "howToVerify": "Describe only what validate_calculation.py does; qualify accuracy with the leaderboard numbers and date.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "cc53023",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Docs claim only what the validator checks. A failing test precedes the fix in git log."
     },
     {
       "id": "D68",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed",
       "what": "'Compare with foundation model' prints an energy difference across two energy conventions without saying which foundation model ran, and the docs promise comparison metrics that are never computed.",
       "where": "components/calculate/model-comparison.tsx",
       "verify": true,
       "evidence": "reviewer read",
       "howToVerify": "Refuse cross-convention ΔE (ADR-0019), name the model, drop the promised metrics or compute them.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixedIn": "2e651cc",
+      "fixedOn": "2026-10-31",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Cross-convention ΔE refused; model named. A failing test precedes the fix in git log."
     },
     {
       "id": "D69",
@@ -822,7 +891,8 @@
       "verify": true,
       "evidence": "reviewer read/executed per item",
       "howToVerify": "Triage individually; each is a small PR.",
-      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md"
+      "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
+      "fixNote": "Partly fixed 2026-10-31 (47c31d7, c19ea98, 53a8ef6: F19, F20, F21 partial, F22, F24 partial, F25, F26, F28, F29, POSCAR scale). Still open: F27 viewer effects; F21 PDF omits warnings, convergence and licence notice; VASP4 (no element line) parsing; landing CTA text (frozen file); the 15 px footer link; F24 beyond the filename-prefix switch."
     },
     {
       "id": "D70",
