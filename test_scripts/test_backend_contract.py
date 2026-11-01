@@ -779,7 +779,7 @@ class TestCiGates(unittest.TestCase):
         self.assertIn("MACE-MPA-0", job)
         self.assertIn("golden_energies.json", job)
         self.assertIn("provenance", job)
-        self.assertIn("github.sha", job.split("provenance", 1)[1],
+        self.assertIn("GITHUB_SHA", job.split("provenance", 1)[1],
                       "the manifest commit must be the commit under test, not just truthy")
 
 
