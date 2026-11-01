@@ -405,8 +405,10 @@ def resolve_device(requested, profile_name: str) -> tuple[str, str | None]:
         return "cpu", (
             "CUDA was requested but is not available on this machine "
             "(torch.cuda.is_available() is False), so the calculation ran on CPU. "
-            "Values computed on CPU differ from a GPU run only at round-off level; "
-            "the timing is CPU timing."
+            "A single point or a short optimization computed on CPU agrees with a GPU run "
+            "to round-off; an MD trajectory will diverge from a GPU run over time, because "
+            "round-off grows in chaotic dynamics, while its averages and statistics do not. "
+            "The timing is CPU timing."
         )
     return requested, None
 
