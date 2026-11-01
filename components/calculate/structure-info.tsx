@@ -52,6 +52,7 @@ import {
   parseStructureFile,
   type ParsedStructure,
 } from "@/lib/parse-structure";
+import { CONTRACT } from "@/lib/contract";
 import { Badge } from "@/components/ui/badge";
 import { Formula } from "@/components/ui/formula";
 
@@ -65,6 +66,11 @@ const LARGE_THRESHOLD = 500;
 const VLARGE_THRESHOLD = 2000;
 /** Bounding box dimension (any axis) above this triggers a box size warning. */
 const HUGE_BOX_THRESHOLD = 100; // Angstroms
+/**
+ * Atoms closer than this overlap. Read from the registry, where the engine's
+ * refusal (`overlapping_atoms`) and the validator read the same value (D153).
+ */
+const MIN_DISTANCE = CONTRACT.structureChecks.minInteratomicDistanceA; // Angstroms
 
 // ---------------------------------------------------------------------------
 // Props
@@ -160,7 +166,7 @@ export function ParsedStructureInfo({ parsed }: { parsed: ParsedStructure }) {
       : "text-success border-success/40 bg-success/10";
 
   // ── Geometry sanity checks ──
-  const hasOverlap = parsed.minNeighborDist < 0.4;
+  const hasOverlap = parsed.minNeighborDist < MIN_DISTANCE;
   const hasWarnings = isLarge || isVeryLarge || isHugeBox || parsed.isPlanar || hasOverlap || parsed.notes.length > 0;
 
   // ── Geometry details — tight key/value rows (Materials-Project style:
@@ -243,14 +249,15 @@ export function ParsedStructureInfo({ parsed }: { parsed: ParsedStructure }) {
 
       {/* ── Warnings ── */}
 
-      {/* Overlapping atoms — red critical (distance < 0.4 Å) */}
+      {/* Overlapping atoms — red critical (closer than MIN_DISTANCE) */}
       {hasOverlap && (
         <div className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-3 text-sm text-error">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Overlapping atoms detected</strong> (min distance{" "}
-            {parsed.minNeighborDist.toFixed(3)} Å). This usually indicates
-            corrupted or incorrectly generated coordinates.
+            {parsed.minNeighborDist.toFixed(3)} Å, closer than {MIN_DISTANCE} Å).
+            This usually indicates corrupted or incorrectly generated
+            coordinates, and the calculation refuses it.
           </div>
         </div>
       )}
@@ -379,7 +386,6 @@ export function ParsedStructureInfo({ parsed }: { parsed: ParsedStructure }) {
  *     )}
  *
  *   Examples of future warnings:
- *   - Overlapping atoms (distance < 0.5 A)
  *   - Missing hydrogen atoms
  *   - Unsupported elements for selected model
  *   - Very small structures (< 3 atoms)
