@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { insertSharedResult } from "@/lib/server/share-store";
-import { checkSharedResultShape } from "@/lib/share";
+import { ELEMENT_SYMBOL, MAX_SHARED_ATOMS, checkSharedResultShape } from "@/lib/share";
 import { ApiError, assertSameOrigin, displayName, errorResponse } from "@/lib/server/backend";
 import { clientIp } from "@/lib/server/jobs";
 
@@ -11,9 +11,7 @@ export const maxDuration = 30;
 
 /** Largest result accepted for sharing. The calculator's own JSON stays well under this. */
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
-const MAX_ATOMS = 50_000;
 const MAX_FRAMES = 2_000;
-const ELEMENT = /^[A-Z][a-z]?$/;
 
 /**
  * Per-visitor write limit, per server instance. Best effort on serverless —
@@ -53,8 +51,8 @@ function validateResult(result: unknown): Record<string, unknown> {
     throw new ApiError("Only completed calculations can be shared.", 400, "invalid_result", "result.status");
   }
   const symbols = r.symbols;
-  if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > MAX_ATOMS ||
-      !symbols.every((s) => typeof s === "string" && ELEMENT.test(s))) {
+  if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > MAX_SHARED_ATOMS ||
+      !symbols.every((s) => typeof s === "string" && ELEMENT_SYMBOL.test(s))) {
     throw new ApiError("result.symbols must be element symbols.", 400, "invalid_result", "result.symbols");
   }
   for (const key of ["positions", "forces"] as const) {

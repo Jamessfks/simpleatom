@@ -108,16 +108,99 @@ function isTrajectory(value: unknown): value is Record<string, unknown> {
 
 /**
  * A trajectory the dashboard can draw without throwing: both lists it indexes,
- * and every series it sums, plots or formats, a list of numbers. Stricter than
- * `isTrajectory` on purpose and used only to read rows already stored. It checks
- * types, never sizes, so a long legitimate trajectory is kept whole.
+ * every series it sums, plots or formats a list of numbers, and every frame one
+ * finite 3-vector per atom (D164). Stricter than `isTrajectory` on purpose and
+ * used only to read rows already stored. It checks types and shapes, never
+ * sizes, so a long legitimate trajectory is kept whole. `atomCount` is the
+ * length of the row's symbols, or undefined when it has none to compare with.
  */
-function isRenderableTrajectory(value: unknown): boolean {
+function isRenderableTrajectory(value: unknown, atomCount?: number): boolean {
   if (!isTrajectory(value)) return false;
-  return SERIES.every((key) => {
+  const seriesOk = SERIES.every((key) => {
     const series = value[key];
     return series === undefined || (Array.isArray(series) && series.every((x) => typeof x === "number"));
   });
+  if (!seriesOk) return false;
+  return (value.positions as unknown[]).every(
+    (frame) => Array.isArray(frame) && (atomCount === undefined || frame.length === atomCount) && frame.every(isVec3),
+  );
+}
+
+const has = (o: Record<string, unknown>, key: string): boolean => Object.prototype.hasOwnProperty.call(o, key);
+
+/** `obj` without `keys`; `obj` itself when it holds none of them. */
+function omit(obj: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  if (!keys.some((key) => has(obj, key))) return obj;
+  return Object.fromEntries(Object.entries(obj).filter(([key]) => !keys.includes(key)));
+}
+
+/** `root` without the value at `path`, or null when there is nothing at that path to remove. */
+function without(root: Record<string, unknown>, path: readonly string[]): Record<string, unknown> | null {
+  const [head, ...rest] = path;
+  if (head === undefined || !has(root, head)) return null;
+  if (rest.length === 0) return omit(root, [head]);
+  const child = root[head];
+  if (!isObject(child)) return null;
+  const inner = without(child, rest);
+  return inner ? { ...root, [head]: inner } : null;
+}
+
+/**
+ * Sections whose parts say nothing on their own: a validation block without its
+ * issues is a clean verdict, and half a cell is no cell. A problem anywhere in
+ * one drops all of it. Every other section loses only the field that failed.
+ */
+const WHOLE_SECTIONS: ReadonlySet<string> = new Set(["validation", "lattice", "stoppedEarly"]);
+
+/**
+ * Run the write path's section checks over a stored result and delete what
+ * fails, one problem at a time, until nothing does. The trajectory is not in
+ * `result` here: it has its own, size-blind check (isRenderableTrajectory).
+ */
+function dropFailingSections(result: Record<string, unknown>): Record<string, unknown> {
+  let current = result;
+  for (let i = 0; i < 100; i++) {
+    const problem = checkSharedResultShape(current, 0);
+    if (!problem) return current;
+    const path = problem.field.split(".").slice(1); // "result.a.b" -> ["a", "b"]
+    const target = path.length > 0 && WHOLE_SECTIONS.has(path[0]) ? path.slice(0, 1) : path;
+    const next = without(current, target) ?? without(current, path.slice(0, 1));
+    if (!next) return current; // not locatable; nothing more can be done here
+    current = next;
+  }
+  return current;
+}
+
+/** The stored result with every section the page cannot draw safely removed (D164). */
+function readableResult(stored: Record<string, unknown>): Record<string, unknown> {
+  let r = stored;
+  const drop = (...keys: string[]) => {
+    r = omit(r, keys);
+  };
+
+  // What the write path demands of the core (validateResult in app/api/share/route.ts).
+  if (r.status !== undefined && r.status !== "success" && r.status !== "error") drop("status");
+  if (!absent(r.energy) && !isFinite_(r.energy)) drop("energy");
+  if (r.params !== undefined && !isObject(r.params)) drop("params");
+
+  if (r.symbols !== undefined && !isElementList(r.symbols)) drop("symbols", "positions", "forces", "trajectory");
+  const atomCount = Array.isArray(r.symbols) ? r.symbols.length : undefined;
+  for (const key of ["positions", "forces"] as const) {
+    if (r[key] !== undefined && !isVec3List(r[key], atomCount)) drop(key);
+  }
+
+  const trajectory = r.trajectory;
+  r = omit(r, ["trajectory"]);
+  r = dropFailingSections(r);
+  if (trajectory !== undefined && isRenderableTrajectory(trajectory, atomCount)) r = { ...r, trajectory };
+  return sameKeys(r, stored) ? stored : r;
+}
+
+/** The row's `params` column, held to the same per-parameter checks as `result.params`. */
+function readableParams(params: unknown): Record<string, unknown> {
+  if (!isObject(params)) return {};
+  const clean = dropFailingSections({ params }).params;
+  return isObject(clean) ? clean : {};
 }
 
 /**
@@ -132,15 +215,38 @@ function isRenderableTrajectory(value: unknown): boolean {
  * additionally claim the validator was unavailable, which for a row that simply
  * predates validation is a false statement about a run nobody can re-inspect.
  *
- * This only ever DELETES a contentless key (or a trajectory the page cannot draw). It never adds a field, never fills
- * a null, and never changes a number — a shared result must keep saying exactly
- * what it said when it was stored.
+ * It also holds every stored section to the checks the write path applies
+ * (checkSharedResultShape), because before the database was locked down (D32)
+ * any client could insert a row, and a value of the wrong type in any section
+ * crashed the page for everyone who opened the link (D164). A section that
+ * fails is dropped, and the rest of the row is read as it was stored. Sizes are
+ * held to the write path's caps except for the trajectory, whose frames and
+ * series are checked for type and shape only: rows stored before the cap may
+ * hold a longer one.
+ *
+ * This only ever DELETES: a contentless key, a section the page cannot draw, or
+ * a `result` that is not an object at all (replaced by a failed one). It never
+ * adds a field, never fills a null, and never changes a number — a shared
+ * result must keep saying exactly what it said when it was stored.
  *
  * Exported so it can be exercised directly against hand-built legacy payloads.
  */
 export function normalizeSharedResult(shared: SharedResult): SharedResult {
-  const result = shared.result;
-  if (!result || typeof result !== "object") return shared;
+  const stored = shared.result as unknown;
+  let next: SharedResult = shared;
+
+  if (shared.params !== undefined) {
+    const params = readableParams(shared.params);
+    if (!sameKeys(params, shared.params)) next = { ...next, params: params as SharedResult["params"] };
+  }
+  if (shared.filename !== undefined && shared.filename !== null && typeof shared.filename !== "string") {
+    next = omit(next as unknown as Record<string, unknown>, ["filename"]) as unknown as SharedResult;
+  }
+
+  if (!isObject(stored)) return { ...next, result: { status: "error" } };
+
+  const clean = readableResult(stored);
+  const result = clean as unknown as CalculationResult;
 
   const dropProvenance =
     "provenance" in result &&
@@ -156,19 +262,20 @@ export function normalizeSharedResult(shared: SharedResult): SharedResult {
   const dropValidation =
     "validation" in result && status !== "ran" && status !== "unavailable";
 
-  // A row stored before the server checked trajectories may hold `{}`; the page
-  // reads its arrays, so a trajectory that cannot be drawn is dropped (D64).
-  const dropTrajectory =
-    "trajectory" in result && !isRenderableTrajectory((result as { trajectory?: unknown }).trajectory);
+  if (clean === stored && !dropProvenance && !dropValidation) return next;
 
-  if (!dropProvenance && !dropValidation && !dropTrajectory) return shared;
+  const out: CalculationResult = { ...result };
+  if (dropProvenance) delete out.provenance;
+  if (dropValidation) delete out.validation;
+  return { ...next, result: out };
+}
 
-  const next: CalculationResult = { ...result };
-  if (dropTrajectory) delete next.trajectory;
-  if (dropProvenance) delete next.provenance;
-  if (dropValidation) delete next.validation;
-
-  return { ...shared, result: next };
+/** True when `clean` is `original` itself, or holds the same keys with the same values. */
+function sameKeys(clean: Record<string, unknown>, original: unknown): boolean {
+  if (clean === original) return true;
+  if (!isObject(original)) return false;
+  const a = Object.keys(clean);
+  return a.length === Object.keys(original).length && a.every((key) => clean[key] === original[key]);
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +303,11 @@ const MAX_TEXT = 2000;
 const MAX_LIST = 200;
 const MAX_SERIES = 2_000;
 
+/** Most atoms a shared result may hold (POST /api/share refuses more). */
+export const MAX_SHARED_ATOMS = 50_000;
+/** One element symbol as the parsers and the backend write it. */
+export const ELEMENT_SYMBOL = /^[A-Z][a-z]?$/;
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const isFinite_ = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -203,6 +315,11 @@ const isText = (v: unknown, max = MAX_TEXT): v is string => typeof v === "string
 const isTextList = (v: unknown): boolean =>
   Array.isArray(v) && v.length <= MAX_LIST && v.every((t) => isText(t));
 const isVec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && v.every(isFinite_);
+/** A list of finite 3-vectors, of length `n` when `n` is given. */
+const isVec3List = (v: unknown, n?: number): boolean =>
+  Array.isArray(v) && v.length <= MAX_SHARED_ATOMS && (n === undefined || v.length === n) && v.every(isVec3);
+const isElementList = (v: unknown): boolean =>
+  Array.isArray(v) && v.length > 0 && v.length <= MAX_SHARED_ATOMS && v.every((s) => typeof s === "string" && ELEMENT_SYMBOL.test(s));
 const absent = (v: unknown): boolean => v === undefined || v === null;
 
 const PARAM_NUMBERS = [
@@ -215,6 +332,15 @@ const PARAM_TEXT = [
   "customModelName", "upstreamModel", "license",
 ] as const;
 const PARAM_FLAGS = ["dispersion", "converged", "comMomentumRemoved"] as const;
+const PROVENANCE_TEXT: readonly (readonly string[])[] = [
+  ["paramsRef"], ["model", "type"], ["model", "size"], ["model", "checkpoint", "filename"],
+  ["model", "checkpoint", "resolvedBy"], ["input", "filename"], ["input", "format"], ["input", "formula"],
+  ["input", "structureHashSpec"], ["runtime", "device"], ["runtime", "precision"], ["runtime", "python"],
+  ["runtime", "platform"], ["runtime", "executable"],
+];
+const PROVENANCE_NUMBERS: readonly (readonly string[])[] = [
+  ["schemaVersion"], ["model", "checkpoint", "sizeBytes"], ["input", "nAtoms"], ["runtime", "seed"],
+];
 const SERIES = ["energies", "potentialEnergies", "kineticEnergies", "totalEnergies", "temperatures", "step"] as const;
 
 function bad(field: string, message: string): ShapeProblem {
@@ -275,6 +401,27 @@ function checkProvenance(prov: unknown): ShapeProblem | null {
     return bad(`${f}.code.gitCommit`, "must be a hexadecimal git commit.");
   }
   if (!absent(prov.notes) && !isTextList(prov.notes)) return bad(`${f}.notes`, "must be a list of short strings.");
+
+  // Every leaf the Provenance card prints is text, a number or a flag, never a
+  // group: an object there is not a React child, and it did not render (D164).
+  for (const group of ["input", "runtime", "code", "packages"] as const) {
+    if (!absent(prov[group]) && !isObject(prov[group])) return bad(`${f}.${group}`, "must be an object.");
+  }
+  const leaf = (path: readonly string[]): unknown => path.reduce<unknown>((o, key) => (isObject(o) ? o[key] : undefined), prov);
+  for (const path of PROVENANCE_TEXT) {
+    if (!absent(leaf(path)) && !isText(leaf(path))) return bad(`${f}.${path.join(".")}`, "must be short text.");
+  }
+  for (const path of PROVENANCE_NUMBERS) {
+    if (!absent(leaf(path)) && !isFinite_(leaf(path))) return bad(`${f}.${path.join(".")}`, "must be a finite number.");
+  }
+  if (!absent(leaf(["code", "gitDirty"])) && typeof leaf(["code", "gitDirty"]) !== "boolean") {
+    return bad(`${f}.code.gitDirty`, "must be true or false.");
+  }
+  if (isObject(prov.packages)) {
+    for (const [name, version] of Object.entries(prov.packages)) {
+      if (!absent(version) && !isText(version)) return bad(`${f}.packages.${name}`, "must be short text.");
+    }
+  }
   return null;
 }
 
@@ -312,7 +459,7 @@ export function checkSharedResultShape(r: Record<string, unknown>, atomCount: nu
   if (!absent(r.licenseNotice) && !isText(r.licenseNotice)) return bad("result.licenseNotice", "must be short text.");
   if (!absent(r.warnings) && !isTextList(r.warnings)) return bad("result.warnings", "must be a list of short strings.");
   if (!absent(r.converged) && typeof r.converged !== "boolean") return bad("result.converged", "must be true or false.");
-  for (const key of ["timeTaken", "referenceEnergy"] as const) {
+  for (const key of ["timeTaken", "referenceEnergy", "clientRoundTrip"] as const) {
     if (!absent(r[key]) && !isFinite_(r[key])) return bad(`result.${key}`, "must be a finite number.");
   }
 
@@ -346,11 +493,17 @@ export function checkSharedResultShape(r: Record<string, unknown>, atomCount: nu
   if (!absent(r.lattice) && !(Array.isArray(r.lattice) && r.lattice.length === 3 && r.lattice.every(isVec3))) {
     return bad("result.lattice", "must be three finite 3-vectors.");
   }
+  if (!absent(r.referenceForces) && !isVec3List(r.referenceForces)) {
+    return bad("result.referenceForces", "must be a list of finite 3-vectors.");
+  }
   if (r.properties !== undefined) {
     const p = r.properties;
     if (!isObject(p)) return bad("result.properties", "must be an object.");
-    for (const key of ["volume", "pressure"] as const) {
+    for (const key of ["volume", "pressure", "isolatedAtomsEnergy", "energyPerAtomVsIsolatedAtoms"] as const) {
       if (!absent(p[key]) && !isFinite_(p[key])) return bad(`result.properties.${key}`, "must be a finite number.");
+    }
+    if (!absent(p.stressIncludesKineticTerm) && typeof p.stressIncludesKineticTerm !== "boolean") {
+      return bad("result.properties.stressIncludesKineticTerm", "must be true or false.");
     }
     if (!absent(p.stress) && !(Array.isArray(p.stress) && p.stress.length === 6 && p.stress.every(isFinite_))) {
       return bad("result.properties.stress", "must be six finite numbers.");
