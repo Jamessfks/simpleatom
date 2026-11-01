@@ -22,7 +22,7 @@ os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from test_input_handling import _require_mace, _scripted_calculator  # noqa: E402
 
-ETHANOL = str(REPO_ROOT / "public" / "demo" / "ethanol.xyz")
+ETHANOL = str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz")  # D119: the strained file the goldens were measured on
 
 
 def _cu_slab_poscar(fixed: bool) -> str:

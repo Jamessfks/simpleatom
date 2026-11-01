@@ -25,7 +25,7 @@ sys.path.insert(0, str(REPO_ROOT / "mace-api"))
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 WATER = str(REPO_ROOT / "public" / "demo" / "water.xyz")
-ETHANOL = str(REPO_ROOT / "public" / "demo" / "ethanol.xyz")
+ETHANOL = str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz")  # D119: the strained file the goldens were measured on
 OFF_SMALL = {"modelType": "MACE-OFF", "modelSize": "small"}
 
 

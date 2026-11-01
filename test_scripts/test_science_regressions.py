@@ -21,7 +21,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "mace-api"))
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
-ETHANOL = str(REPO_ROOT / "public" / "demo" / "ethanol.xyz")
+ETHANOL = str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz")  # D119: the strained file the goldens were measured on
 SILICON = str(REPO_ROOT / "public" / "demo" / "silicon.cif")
 OFF_SMALL = {"modelType": "MACE-OFF", "modelSize": "small"}
 
