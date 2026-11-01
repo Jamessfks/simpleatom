@@ -474,6 +474,44 @@ class TestDegenerateCells(_RefusalMixin, unittest.TestCase):
         self.assertEqual(result["status"], "success")
 
 
+class TestReferenceData(unittest.TestCase):
+    """
+    D91: ASE >= 3.23 moves an extended-XYZ `energy=` and `forces` column into
+    a SinglePointCalculator, and the engine read only atoms.info/arrays, so
+    reference data written by ase.io.write (any DFT result exported to
+    extxyz) was silently dropped. It is read from the calculator's results,
+    preferring `energy` over `free_energy`, and the source is recorded.
+    """
+
+    def test_energy_and_forces_columns_are_the_reference(self):
+        result = _run_file(_fixture("xyz_energy_forces_columns"))
+        self.assertEqual(result["referenceEnergy"], -12.5)
+        self.assertEqual(result["referenceForces"][0], [0.1, 0.2, 0.3])
+        self.assertEqual(result["referenceSource"]["energy"], "energy")
+
+    def test_energy_is_preferred_to_free_energy(self):
+        self.assertEqual(_run_file(_fixture("xyz_free_energy_first"))["referenceEnergy"], -2.0)
+
+    def test_mace_training_keys_still_work(self):
+        result = _run_file(_fixture("xyz_REF_energy_forces"))
+        self.assertEqual(result["referenceEnergy"], -12.5)
+        self.assertEqual(len(result["referenceForces"]), 3)
+
+    def test_an_ase_written_dft_result_round_trips(self):
+        import numpy as np
+        from ase.calculators.singlepoint import SinglePointCalculator
+        from ase.io import read, write
+        atoms = read(WATER)
+        forces = np.arange(9, dtype=float).reshape(3, 3) / 10
+        atoms.calc = SinglePointCalculator(atoms, energy=-2079.86, forces=forces)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "dft.xyz")
+            write(path, atoms, format="extxyz")
+            result = _run_file(path)
+        self.assertEqual(result["referenceEnergy"], -2079.86)
+        np.testing.assert_allclose(result["referenceForces"], forces)
+
+
 class TestCliOutputIsStrictJson(unittest.TestCase):
     """
     D129, end to end: water with one H placed on the O made MACE return NaN,
