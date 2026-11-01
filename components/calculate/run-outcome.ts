@@ -38,6 +38,23 @@ export function stopCause(result: CalculationResult): "time-budget" | "step-limi
   return converged === false ? "step-limit" : null;
 }
 
+/** "1 BFGS step", "500 BFGS steps". */
+export function bfgsSteps(n: number): string {
+  return `${n} BFGS step${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * The backend warnings the banner does not already say. The backend's own
+ * "Optimization not converged: …" warning restates what the banner's detail
+ * sentence says about a run that stopped short, so listing both showed one fact
+ * three times (banner, second card, bullet).
+ */
+export function warningsBeyondOutcome(result: CalculationResult): string[] {
+  const warnings = result.warnings ?? [];
+  if (runOutcome(result).kind === "complete") return warnings;
+  return warnings.filter((w) => !/^Optimization not converged\b/i.test(w));
+}
+
 function requestedSteps(params: Partial<CalculationParams> | undefined): number | undefined {
   if (params?.calculationType === "geometry-opt") return params.maxOptSteps;
   if (params?.calculationType === "molecular-dynamics") return params.mdSteps;
@@ -76,7 +93,7 @@ export function runOutcome(result: CalculationResult): RunOutcome {
       headline: "Optimization did not converge",
       pill: "Not converged",
       detail:
-        `Stopped at the step limit${steps != null ? ` (${steps} BFGS steps)` : ""}${fmax}${target}. ` +
+        `Stopped at the step limit${steps != null ? ` (${bfgsSteps(steps)})` : ""}${fmax}${target}. ` +
         `The reported geometry is not a relaxed minimum.`,
       tone: "warning",
     };

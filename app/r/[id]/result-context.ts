@@ -31,7 +31,7 @@
  */
 
 import { findModel } from "@/lib/contract";
-import { stopCause } from "@/components/calculate/run-outcome";
+import { bfgsSteps, stopCause } from "@/components/calculate/run-outcome";
 import type {
   CalculationParams,
   CalculationResult,
@@ -212,7 +212,7 @@ function convergenceNote(
     typeof params.finalFmax === "number"
       ? `${params.finalFmax.toFixed(FORCE_DECIMALS)} eV/Å`
       : null;
-  const steps = typeof params.optSteps === "number" ? `${params.optSteps} BFGS steps` : null;
+  const steps = typeof params.optSteps === "number" ? bfgsSteps(params.optSteps) : null;
   const detail = [steps, fmax ? `max force ${fmax}` : null]
     .filter(Boolean)
     .join(", ");

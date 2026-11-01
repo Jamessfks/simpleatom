@@ -43,7 +43,7 @@ import {
 import { computeRmsForce } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
-import { runOutcome, stopCause } from "./run-outcome";
+import { runOutcome, stopCause, warningsBeyondOutcome } from "./run-outcome";
 import { referenceAccuracy, type ReferenceAccuracy } from "./reference-accuracy";
 import { limitationsFor } from "./limitations";
 import { GIT_COMMIT_PATTERN, visibleRows } from "@/lib/share";
@@ -320,16 +320,15 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             <Download className="h-4 w-4" strokeWidth={1.75} /> JSON
           </Button>
         </div>
+        {/* What stopped the run and what that means for the numbers: the body
+            of the banner, not a second card (and not repeated as a warning). */}
+        {outcome.detail && (
+          <p className="w-full basis-full text-sm text-text-primary">{outcome.detail}</p>
+        )}
       </div>
 
-      {outcome.detail && (
-        <p className="rounded-lg border border-warning/30 bg-warning/5 px-5 py-3 text-sm text-text-primary">
-          {outcome.detail}
-        </p>
-      )}
-
       {/* ═══ Backend warnings ═══ */}
-      <ResultWarnings warnings={result.warnings} />
+      <ResultWarnings warnings={warningsBeyondOutcome(result)} />
 
       {/* ═══ Tabs ═══ */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
