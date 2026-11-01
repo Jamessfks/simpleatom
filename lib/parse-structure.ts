@@ -7,7 +7,8 @@
  *
  * Supported formats:
  *   - XYZ / Extended XYZ (full support)
- *   - CIF  (extracts _atom_site positions — basic support)
+ *   - CIF  (extracts _atom_site positions and expands the listed symmetry
+ *           operations, so a database CIF's asymmetric unit becomes the full cell)
  *   - PDB  (extracts ATOM/HETATM records)
  *   - POSCAR/CONTCAR (extracts atom types + direct/cartesian coords)
  *
@@ -308,6 +309,8 @@ function parseCIF(text: string): {
   // CIF may give either fractional or Cartesian coordinates. Fractional must
   // be multiplied through the cell or every distance is meaningless.
   let coordsAreFractional = false;
+  // Fractional sites as listed: the asymmetric unit, until symmetry is applied.
+  const sites: { symbol: string; frac: [number, number, number] }[] = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -352,19 +355,31 @@ function parseCIF(text: string): {
         const y = parseFloat(parts[yIdx]);
         const z = parseFloat(parts[zIdx]);
         if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
-          symbols.push(sym);
           if (coordsAreFractional && lattice) {
-            // r_cart = f_a * a + f_b * b + f_c * c
-            positions.push([
-              x * lattice[0][0] + y * lattice[1][0] + z * lattice[2][0],
-              x * lattice[0][1] + y * lattice[1][1] + z * lattice[2][1],
-              x * lattice[0][2] + y * lattice[1][2] + z * lattice[2][2],
-            ]);
+            // Converted below, after the symmetry operations have been applied.
+            sites.push({ symbol: sym, frac: [x, y, z] });
           } else {
+            symbols.push(sym);
             positions.push([x, y, z]);
           }
         }
       }
+    }
+  }
+
+  if (coordsAreFractional && lattice) {
+    // Database CIFs list the asymmetric unit and rely on the symmetry
+    // operations for the rest, as ASE (the backend) expands them. Without this
+    // the preview's atom count, formula and distances describe another structure.
+    for (const site of expandSymmetry(sites, parseSymmetryOps(lines))) {
+      const [x, y, z] = site.frac;
+      symbols.push(site.symbol);
+      // r_cart = f_a * a + f_b * b + f_c * c
+      positions.push([
+        x * lattice[0][0] + y * lattice[1][0] + z * lattice[2][0],
+        x * lattice[0][1] + y * lattice[1][1] + z * lattice[2][1],
+        x * lattice[0][2] + y * lattice[1][2] + z * lattice[2][2],
+      ]);
     }
   }
 
@@ -377,6 +392,107 @@ function parseCIF(text: string): {
   }
 
   return { symbols, positions, lattice };
+}
+
+// ---------------------------------------------------------------------------
+// CIF symmetry operations
+// ---------------------------------------------------------------------------
+
+/** One operation f' = R f + t on fractional coordinates. */
+interface SymOp {
+  rot: number[][];
+  trans: number[];
+}
+
+/** "-x+1/2, y, z+0.25" -> rotation rows and translation, or null if unreadable. */
+function parseSymmetryOp(text: string): SymOp | null {
+  const comps = text.toLowerCase().replace(/[\s'"]/g, "").split(",");
+  if (comps.length !== 3) return null;
+  const rot: number[][] = [];
+  const trans: number[] = [];
+  for (const comp of comps) {
+    const row = [0, 0, 0];
+    let t = 0;
+    let consumed = 0;
+    for (const m of comp.matchAll(/([+-]?)(?:(\d+(?:\.\d+)?)(?:\/(\d+))?|([xyz]))/g)) {
+      consumed += m[0].length;
+      const sign = m[1] === "-" ? -1 : 1;
+      if (m[4]) row["xyz".indexOf(m[4])] += sign;
+      else t += (sign * parseFloat(m[2])) / (m[3] ? parseFloat(m[3]) : 1);
+    }
+    if (consumed !== comp.length || comp.length === 0) return null;
+    rot.push(row);
+    trans.push(t);
+  }
+  return { rot, trans };
+}
+
+/**
+ * The symmetry operations a CIF lists in a `_symmetry_equiv_pos_as_xyz` or
+ * `_space_group_symop_operation_xyz` loop. Empty when it lists none.
+ */
+function parseSymmetryOps(lines: string[]): SymOp[] {
+  const ops: SymOp[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() !== "loop_") continue;
+    const headers: string[] = [];
+    let j = i + 1;
+    while (j < lines.length && lines[j].trim().startsWith("_")) headers.push(lines[j++].trim().toLowerCase());
+    const col = headers.findIndex(
+      (h) => h === "_symmetry_equiv_pos_as_xyz" || h === "_space_group_symop_operation_xyz",
+    );
+    if (col < 0) continue;
+    for (; j < lines.length; j++) {
+      const row = lines[j].trim();
+      if (row === "" || row.startsWith("#")) continue;
+      if (row.startsWith("_") || row.startsWith("loop_") || row.startsWith("data_")) break;
+      const cells = row.match(/'[^']*'|"[^"]*"|\S+/g) ?? [];
+      const op = cells[col] ? parseSymmetryOp(cells[col]) : null;
+      if (op) ops.push(op);
+    }
+    i = j - 1;
+  }
+  return ops;
+}
+
+/** Fractional coordinate wrapped into [0, 1), with values within eps below 1 taken as 0. */
+const wrapUnit = (v: number): number => {
+  const w = v - Math.floor(v);
+  return w > 1 - 1e-8 ? 0 : w;
+};
+
+/**
+ * Apply `ops` to every listed site and drop repeats: two images of the same
+ * element within 0.001 of each other (in fractional coordinates, modulo the
+ * cell) are one atom, the tolerance ASE uses when it reads a CIF. Sites stay
+ * grouped by the listed site they came from, as ASE orders them.
+ */
+function expandSymmetry<T extends { symbol: string; frac: [number, number, number] }>(
+  sites: T[],
+  ops: SymOp[],
+): T[] {
+  if (ops.length <= 1) return sites;
+  const out: T[] = [];
+  for (const site of sites) {
+    const images: [number, number, number][] = [];
+    for (const { rot, trans } of ops) {
+      const f = site.frac;
+      const image = rot.map((row, k) => wrapUnit(row[0] * f[0] + row[1] * f[1] + row[2] * f[2] + trans[k])) as [
+        number,
+        number,
+        number,
+      ];
+      const seen = images.some((o) =>
+        o.every((c, k) => {
+          const d = Math.abs(c - image[k]);
+          return Math.min(d, 1 - d) < 1e-3;
+        }),
+      );
+      if (!seen) images.push(image);
+    }
+    for (const frac of images) out.push({ ...site, frac });
+  }
+  return out;
 }
 
 /**
