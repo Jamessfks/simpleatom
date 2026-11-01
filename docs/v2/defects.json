@@ -2248,10 +2248,8 @@
       "source": "batch-4 UI verification at 1270bf4, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch4/ui.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixedIn": "d9f3ea4",
-      "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. ADR-0030 fixed (docs nit, test in the same commit); PDF friction unit, leaderboard comment and validation-page force wording with the frontend writer. Awaiting the parent session's independent verdict before it counts as fixed."
+      "status": "open",
+      "fixNote": "Partly fixed: ADR-0030 (d9f3ea4). PDF friction unit, leaderboard comment and validation-page force wording with the frontend writer."
     }
   ]
 }
