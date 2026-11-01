@@ -22,6 +22,7 @@ interface BenchmarkExportProps {
 
 export function BenchmarkExport({ result }: BenchmarkExportProps) {
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfFailed, setPdfFailed] = useState(false);
 
   const modelLabels =
     result.results.length > 0
@@ -81,6 +82,7 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
 
   const downloadPDF = async () => {
     setPdfLoading(true);
+    setPdfFailed(false);
     try {
       const { renderBenchmarkBlob } = await import("./benchmark-export-pdf");
       const blob = await renderBenchmarkBlob(result);
@@ -90,6 +92,8 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
       a.download = "mace-benchmark-report.pdf";
       a.click();
       URL.revokeObjectURL(url);
+    } catch {
+      setPdfFailed(true);
     } finally {
       setPdfLoading(false);
     }
@@ -123,6 +127,11 @@ export function BenchmarkExport({ result }: BenchmarkExportProps) {
       >
         <Download className="h-3 w-3" /> Export JSON
       </Button>
+      {pdfFailed && (
+        <p role="alert" className="basis-full text-xs text-error">
+          The PDF could not be created. Try again, or export CSV or JSON.
+        </p>
+      )}
     </div>
   );
 }

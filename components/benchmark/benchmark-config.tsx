@@ -19,7 +19,7 @@
  * panel says so rather than guessing, and this page warns before the run.
  */
 
-import { MODELS, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { MODELS, isMaceOffModel } from "@/lib/contract";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Play, AlertTriangle, Info, Upload, X, File as FileIcon } from "lucide-react";
@@ -226,14 +226,6 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
       (m) => isMaceOffModel(m.type) && selectedModels.has(modelKey(m))
     );
   }, [selectedModels]);
-
-  const hasAnyMP0 = useMemo(() => {
-    return MODEL_OPTIONS.some(
-      (m) => isMaterialsModel(m.type) && selectedModels.has(modelKey(m))
-    );
-  }, [selectedModels]);
-
-  const onlyOFF = hasAnyOFF && !hasAnyMP0;
 
   const incompatibleIds = useMemo(() => {
     if (!hasAnyOFF) return new Set<string>();
@@ -466,7 +458,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                 <div>
                   <p>
                     MACE-OFF does not support {unsupportedElements.join(", ")}.
-                    {onlyOFF ? " These structures are excluded:" : " These structures will only run on MACE-MP-0:"}
+                    {" These structures are excluded while a MACE-OFF model is selected:"}
                   </p>
                   <p className="mt-1 text-text-secondary">
                     {incompatibleNames.join(", ")}
@@ -479,7 +471,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           {/* Precision note */}
           <div className="mt-4 flex items-start gap-1.5 text-sm text-text-muted">
             <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-            All calculations run at float64 precision on CPU for fair comparison.
+            Foundation-model calculations run at float64 precision on CPU for a fair comparison; a custom checkpoint keeps its own precision.
           </div>
         </div>
 

@@ -141,8 +141,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
   );
 }
 
+/** "MACE-MPA-0" -> "MPA-0": every registry label starts with the same prefix. */
 function shortenLabel(label: string): string {
-  return label
-    .replace("MACE-MP-0", "MP-0")
-    .replace("MACE-OFF", "OFF");
+  return label.replace(/MACE-/g, "");
 }

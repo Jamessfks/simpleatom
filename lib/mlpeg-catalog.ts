@@ -21,9 +21,11 @@
  *     - Network dependency (works offline / in local mode)
  *     - Complexity of parsing ml-peg's internal data formats
  *
- *   The structures here are generated using ASE's `bulk()` builder and
- *   standard molecular databases, matching what ml-peg uses internally
- *   (see ml_peg/calcs/bulk_crystal/lattice_constants/calc_lattice_constants.py).
+ *   The structures here are written by hand to model the systems in ml-peg's
+ *   benchmark set (see ml_peg/calcs/bulk_crystal/lattice_constants/
+ *   calc_lattice_constants.py). They are not copies of ml-peg's files, so
+ *   nothing here is ml-peg data or carries its licence; check a geometry
+ *   against ASE's `bulk()` before relying on it.
  *
  * CATEGORIES (matching ml-peg's app/ folder structure):
  *   - Bulk Crystals       (ml_peg/app/bulk_crystal/)

@@ -251,6 +251,7 @@ function CalculatePageInner() {
   const [isSharing, setIsSharing] = useState(false);
   const [confirmShareOpen, setConfirmShareOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyFailed, setShareCopyFailed] = useState(false);
   const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
 
   // Top-level tab: "calculator" or "draw"
@@ -512,11 +513,18 @@ function CalculatePageInner() {
     }
   };
 
-  const handleCopyShareUrl = () => {
+  const handleCopyShareUrl = async () => {
     if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl);
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopyFailed(false);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (insecure origin, permission denied): the link is
+      // on screen, so say so rather than showing a "copied" tick that is false.
+      setShareCopyFailed(true);
+    }
   };
 
   const currentStage = stageIndex(job);
@@ -784,6 +792,11 @@ function CalculatePageInner() {
                                 <Copy className="h-3.5 w-3.5" />
                               )}
                             </button>
+                            {shareCopyFailed && (
+                              <span role="alert" className="shrink-0 text-xs text-error">
+                                Could not copy; select the link instead.
+                              </span>
+                            )}
                           </div>
                         )
                       }
