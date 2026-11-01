@@ -831,9 +831,9 @@
       "evidence": "reviewer read + crafted payload reasoning (PLAUSIBLE)",
       "howToVerify": "Validate provenance/validation shapes server-side (hex SHA pattern for gitCommit), cap rendered rows, label stored metadata 'as recorded by the sharer'.",
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
-      "fixedIn": "dbb03bc + 11571fc",
+      "fixedIn": "dbb03bc + 11571fc + 851c7d1",
       "fixedOn": "2026-10-31",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. MACE Link metadata validated server-side (dbb03bc); the web review found the source-commit row still rendered non-strings, fixed in 11571fc. Failing test first: a6904bc. Awaiting the parent session's independent verdict."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. MACE Link metadata validated server-side (dbb03bc); the web review found the source-commit row still rendered non-strings (11571fc) and a null or empty shared trajectory crashed its page (851c7d1, test 2a54c49). Failing test first: a6904bc. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D65",
@@ -906,24 +906,30 @@
     {
       "id": "D70",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed-unverified",
       "what": "Both catalog slabs (cu-111, si-111) declare pbc=\"T T T\", so the app computes and shows a stress and pressure for them (si-111 −0.146 GPa via the CLI; cu-111 −0.475 GPa), although calculate.py itself says a slab's stress is meaningless. pbc=\"T T F\" leaves energy and forces identical and suppresses it.",
       "where": "lib/mlpeg-catalog.ts (cu-111, si-111 xyzData); mace-api/calculate.py:489-494",
       "verify": true,
       "evidence": "critic: CLI on si-111 → properties.pressure −0.146 GPa",
       "howToVerify": "Set pbc=\"T T F\" and confirm properties.stress is null with energy unchanged.",
-      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)"
+      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)",
+      "fixedIn": "f6aa998",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Catalog rebuilt from ase.build at the cited values (slab pbc T T F, exact cells). Failing test first: 71c9066. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D71",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed-unverified",
       "what": "Catalog metadata nits: cu-111's cell vector is rounded to 3 decimals ((1.278, 2.213) vs (1.278096, 2.213726)), leaving 2.6e-4 eV/Å in-plane forces and a 0.0104 GPa σxx–σyy gap; its comment says '20 Å vacuum' where the cell height is 20 Å and the vacuum gap is 15.83 Å; si-diamond's reference lattice constant is 5.431 Å but the cell uses 5.43 Å; 2–3-layer unrelaxed slabs cannot give converged surface energies, which the category description says they are for.",
       "where": "lib/mlpeg-catalog.ts (cu-111, si-diamond, surfaces category)",
       "verify": true,
       "evidence": "critic recomputation against ase.build.fcc111 / diamond111",
       "howToVerify": "Regenerate cu-111 with ase.build at full precision; reword the comments and the category description.",
-      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)"
+      "source": "science-critic on the D57 fix, 2026-10-30 (docs/v2/evidence/2026-10-30/science-critic-d57.md)",
+      "fixedIn": "f6aa998",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Catalog rebuilt from ase.build at the cited values (slab pbc T T F, exact cells). Failing test first: 71c9066. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D72",
@@ -1053,7 +1059,10 @@
       "source": "CI/docs review, 2026-10-31 (~/.cache/simpleatom/overnight/review/ci-docs.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "acd8500",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: da5cb01. Neighbour list over every pair, minimum image in a cell; NVE excursion per atom and fitted drift; NVT/NPT second-half temperature against the target. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D82",
@@ -1149,9 +1158,9 @@
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
       "status": "fixed-unverified",
-      "fixedIn": "33c3e2f + a50b988 + afe7bfb",
+      "fixedIn": "33c3e2f + a50b988 + afe7bfb + f85e321",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: a2e0570, 583750b. Guards judge their codes; staging reads HEAD; CI recompiles the lock; deploy waits for docs; cache keyed on pins. Not done: the lint baseline still counts errors and warnings together. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: a2e0570, 583750b, 6763b68. Guards judge their codes; staging reads HEAD; CI recompiles the lock; deploy waits for docs; cache keyed on pins; lint errors and warnings baselined separately. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D89",
@@ -1282,7 +1291,10 @@
       "source": "web review, 2026-10-31 (~/.cache/simpleatom/overnight/review/web.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "29466ca",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 6b3e1a3. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D99",
@@ -1321,7 +1333,10 @@
       "source": "Track 1 verification, 2026-10-31 (~/.cache/simpleatom/overnight/verify/track1.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "23e2339",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 01919f7. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D102",
@@ -1371,7 +1386,10 @@
       "source": "Track 1 verification, 2026-10-31 (~/.cache/simpleatom/overnight/verify/track1.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "23e2339",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 01919f7. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D106",
@@ -1644,7 +1662,10 @@
       "source": "batch-1 verification at 6ee0c31, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch-6ee0c31.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "197e97e",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 2acbbc9. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D127",
@@ -1697,7 +1718,10 @@
       "source": "backend review of 9bc7e73, 2026-11-01 (~/.cache/simpleatom/overnight/review/backend.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "c560533",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 661084c. MD stops with md_diverged on a temperature blow-up or an NVE energy jump. Timestep caps unchanged. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D131",
@@ -1722,7 +1746,10 @@
       "source": "backend review of 9bc7e73, 2026-11-01 (~/.cache/simpleatom/overnight/review/backend.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "0f84955",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: c2718a9. Provenance structure hash v2 includes constraints. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D133",
