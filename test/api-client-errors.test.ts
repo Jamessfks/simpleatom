@@ -72,3 +72,32 @@ describe("SMILES-generated files are marked, not guessed from the name (D69)", (
     expect(isSmilesGenerated(new File(["x"], "smiles_crystal.cif"))).toBe(false);
   });
 });
+
+// The only error code the UI branches on is "cancelled" (app/calculate/page.tsx).
+// Every other code falls through to the server's own sentence, so a code the
+// backend adds later needs no table entry: its message and code arrive intact.
+describe("the backend's input and run refusals reach the user in the server's words", () => {
+  const codes = [
+    "non_finite_result",
+    "overlapping_atoms",
+    "partial_occupancy",
+    "ambiguous_element",
+    "unknown_element",
+    "ambiguous_origin_choice",
+    "md_diverged",
+    "invalid_cell",
+    "npt_requires_triangular_cell",
+  ];
+
+  for (const code of codes) {
+    it(code, async () => {
+      const message = `The server's own sentence for ${code}. Nothing was computed.`;
+      const err = await readError(json(422, { status: "error", message, error: { code, message, field: "structure" } }));
+      expect(err).toBeInstanceOf(ApiRequestError);
+      expect(err.message).toBe(message);
+      expect(err.code).toBe(code);
+      expect(err.field).toBe("structure");
+      expect(err.status).toBe(422);
+    });
+  }
+});
