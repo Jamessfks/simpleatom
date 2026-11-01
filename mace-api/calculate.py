@@ -547,6 +547,10 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
                 f"Stress could not be computed ({type(exc).__name__}: {exc}); "
                 "pressure is not reported."
             )
+        if properties["stress"] is not None and not all(math.isfinite(x) for x in properties["stress"]):
+            # Same rule as energy and forces (D129): never pass a NaN through.
+            properties["stress"] = properties["pressure"] = None
+            warnings.append("The model returned a non-finite stress; stress and pressure are not reported.")
 
     if warnings:
         msg = f"{msg} | Warnings: {' '.join(warnings)}"
@@ -1180,9 +1184,75 @@ class _FrameRecorder:
             self._append(step, positions, values)
 
 
+def closest_pair(atoms, cutoff: float = 3.0):
+    """
+    (i, j, distance in Å) of the closest pair of atoms, minimum image when the
+    cell is periodic, or None when no pair is within `cutoff` (or the positions
+    are not finite). A neighbour list, so it stays linear in the atom count.
+    For a periodic cell i may equal j: an atom and its own periodic image.
+    """
+    import numpy as np
+    from ase.neighborlist import neighbor_list
+
+    if len(atoms) < 1 or not np.isfinite(atoms.get_positions()).all():
+        return None
+    try:
+        i, j, d = neighbor_list("ijd", atoms, cutoff)
+    except Exception:  # noqa: BLE001 — a diagnosis must never mask the real error
+        return None
+    if len(d) == 0:
+        return None
+    k = int(np.argmin(d))
+    return int(i[k]), int(j[k]), float(d[k])
+
+
+def describe_pair(atoms, pair) -> str:
+    i, j, d = pair
+    symbols = atoms.get_chemical_symbols()
+    if i == j:
+        return f"atom {i} ({symbols[i]}) and its own periodic image, {d:.3f} Å apart"
+    return f"atoms {i} ({symbols[i]}) and {j} ({symbols[j]}), {d:.3f} Å apart"
+
+
+def require_finite(atoms, energy, forces, where: str) -> None:
+    """
+    Refuse a NaN or infinite energy or force (D129).
+
+    A non-finite number is not a result the model computed for this structure,
+    and it cannot even be carried: JSON has no NaN (Starlette refused it, so
+    every poll of the job was a 500) and the local CLI printed `NaN`, which
+    Node's JSON.parse rejects. It used to be returned as "status": "success".
+    The usual cause is two atoms on top of each other, so the message names the
+    closest pair.
+    """
+    import numpy as np
+
+    bad = []
+    try:
+        if energy is None or not math.isfinite(float(energy)):
+            bad.append("energy")
+    except (TypeError, ValueError):
+        bad.append("energy")
+    if forces is not None and not np.isfinite(np.asarray(forces, dtype=float)).all():
+        bad.append("forces")
+    if not bad:
+        return
+    pair = closest_pair(atoms)
+    cause = (f"The closest pair is {describe_pair(atoms, pair)}; atoms that close usually "
+             "mean a misplaced or duplicated atom."
+             if pair else "No two atoms are within 3 Å of each other.")
+    raise ContractError(
+        f"The model returned a non-finite (NaN or infinite) {' and '.join(bad)} {where}. "
+        f"{cause} Nothing is reported, because a NaN is not a number the model computed "
+        "for this structure. Check the geometry and run again.",
+        code="non_finite_result", field="structure", status=422,
+    )
+
+
 def _run_single_point(ctx: _RunContext):
     energy = ctx.atoms.get_potential_energy()
     forces = ctx.atoms.get_forces()
+    require_finite(ctx.atoms, energy, forces, f"for {ctx.filename}")
     msg = f"Calculation completed for {ctx.filename} using MACE"
     return ctx.build(energy, forces, msg)
 
@@ -1212,9 +1282,13 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
         # duplicated frame and labels one higher than the step they showed (D5).
         step = int(opt.nsteps)
         energy = float(atoms.get_potential_energy())
+        forces = atoms.get_forces()
+        # Before BFGS sees them: a NaN force otherwise surfaces as numpy's
+        # "Eigenvalues did not converge" from inside the Hessian update (D129).
+        require_finite(atoms, energy, forces, f"at BFGS step {step} for {ctx.filename}")
         frames.offer(step, atoms.get_positions(), energies=energy)
         ctx.hooks.tick("geometry-opt", step, max_steps, energy=energy,
-                       fmax=_max_force(atoms.get_forces()))
+                       fmax=_max_force(forces))
 
     opt.attach(on_step)
 
@@ -1231,6 +1305,7 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    require_finite(atoms, energy, forces, f"at the end of the optimization of {ctx.filename}")
     final_fmax = _max_force(forces)
     frames.finish(int(opt.nsteps), atoms.get_positions(), energies=float(energy))
     if stopped_at is not None and final_fmax < fmax:
@@ -1360,6 +1435,9 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     def write_frame():
         step = int(dyn.get_number_of_steps())
         values = frame_values()
+        # Every step, so a blow-up stops the run where it happened (D129).
+        require_finite(atoms, values["totalEnergies"], atoms.get_forces(),
+                       f"at MD step {step} of {md_steps} for {ctx.filename}")
         frames.offer(step, atoms.get_positions(), **values)
         ctx.hooks.tick("molecular-dynamics", step, md_steps,
                        temperature=values["temperatures"], energy=values["totalEnergies"])
@@ -1441,6 +1519,7 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    require_finite(atoms, energy, forces, f"at the end of the MD run for {ctx.filename}")
     # The seed is stated in the message as well as in result["params"] because
     # the message survives everywhere a result travels (UI, PDF export, MACE
     # Link), so a shared trajectory always carries what is needed to re-run it.

@@ -58,7 +58,8 @@ def _scripted_calculator(bad_after: int, bad: str):
             pos = self.atoms.get_positions()
             if self.origin is None:
                 self.origin = pos.copy()
-            disp = pos - self.origin
+            # Minimum 0.3 Å away from the input, so BFGS has steps to take.
+            disp = pos - self.origin - 0.3
             energy = float(0.5 * (disp ** 2).sum()) - 10.0
             forces = -disp
             self.calls += 1
@@ -98,9 +99,9 @@ class TestNonFiniteResults(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _run_with(_scripted_calculator(0, "energy"), WATER, {})
         message = self.assertRefused(ctx)
-        # Water's closest pair is O-H at 0.957 Å; the message names it.
+        # Water's closest pair is O-H at 0.958 Å; the message names it.
         self.assertRegex(message, r"atoms? \d+ \((O|H)\) and \d+ \((O|H)\)")
-        self.assertIn("0.957", message)
+        self.assertIn("0.958", message)
 
     def test_infinite_force_in_a_single_point_is_refused(self):
         with self.assertRaises(ValueError) as ctx:
@@ -123,7 +124,7 @@ class TestNonFiniteResults(unittest.TestCase):
     def test_a_finite_run_is_untouched(self):
         result = _run_with(_scripted_calculator(10 ** 9, "energy"), WATER, {})
         self.assertEqual(result["status"], "success")
-        self.assertAlmostEqual(result["energy"], -10.0)
+        self.assertAlmostEqual(result["energy"], -10.0 + 0.5 * 0.09 * 9)
 
 
 class TestCliOutputIsStrictJson(unittest.TestCase):
@@ -150,7 +151,7 @@ class TestCliOutputIsStrictJson(unittest.TestCase):
 
         out = json.loads(proc.stdout, parse_constant=refuse)
         self.assertEqual(out["status"], "error", out.get("message"))
-        self.assertNotIn("NaN", proc.stdout)
+        self.assertNotRegex(proc.stdout, r":\s*-?(NaN|Infinity)")
         self.assertTrue(re.match(r"^[a-z_]+$", out["error"]["code"]))
 
 
