@@ -35,6 +35,13 @@ import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
 import { runOutcome, type RunOutcome } from "@/components/calculate/run-outcome";
 import {
+  STAGES,
+  completionAnnouncement,
+  stageAnnouncement,
+  stageIndex,
+  stepSummary,
+} from "@/components/calculate/job-stage";
+import {
   foundationParamsFor,
   isCustomResult,
   snapshotRun,
@@ -82,44 +89,6 @@ const KetcherEditor = dynamic(
     ),
   },
 );
-
-// ---------------------------------------------------------------------------
-// Real progress (docs/adr/0023)
-// ---------------------------------------------------------------------------
-
-/**
- * The stages a job reports, in order. The progress bar used to be a guess
- * from elapsed time (capped at 95%, phases advanced on a timer); every value
- * shown now comes from the backend: its phase, and the BFGS or MD step.
- */
-const STAGES: { key: string; label: string }[] = [
-  { key: "queued", label: "Queued" },
-  { key: "reading-structure", label: "Reading structure" },
-  { key: "loading-model", label: "Loading model" },
-  { key: "computing", label: "Computing" },
-];
-
-function stageIndex(job: JobView | null): number {
-  if (!job || job.status === "queued") return 0;
-  const phase = job.progress.phase;
-  if (phase === "reading-structure") return 1;
-  if (phase === "loading-model") return 2;
-  return 3;
-}
-
-function stepSummary(job: JobView | null): string | null {
-  const p = job?.progress;
-  if (!p || p.step == null) return null;
-  if (p.phase === "geometry-opt") {
-    const fmax = typeof p.fmax === "number" ? ` · max force ${p.fmax.toFixed(3)} eV/Å` : "";
-    return `BFGS step ${p.step} of at most ${p.totalSteps}${fmax}`;
-  }
-  if (p.phase === "molecular-dynamics") {
-    const t = typeof p.temperature === "number" ? ` · ${p.temperature.toFixed(0)} K` : "";
-    return `MD step ${p.step} of ${p.totalSteps}${t}`;
-  }
-  return `Step ${p.step}${p.totalSteps ? ` of ${p.totalSteps}` : ""}`;
-}
 
 // ---------------------------------------------------------------------------
 // Effective run parameters
@@ -363,6 +332,13 @@ function CalculatePageInner() {
     if (!result || isCalculating) return;
     const el = resultsRef.current;
     if (!el) return;
+    // The Run button was inactive during the run, so keyboard focus is on
+    // <body> or still on that button. Hand it to the results, without
+    // stealing it from a control the user has since moved to.
+    const active = document.activeElement;
+    if (!active || active === document.body || active.closest("[data-run-button]")) {
+      el.focus({ preventScroll: true });
+    }
     const { top } = el.getBoundingClientRect();
     if (top >= 0 && top < window.innerHeight * 0.6) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -418,6 +394,7 @@ function CalculatePageInner() {
     }, [lastRun]);
 
   const handleCalculate = async () => {
+    if (isCalculating) return;
     // Same gate as the Run button, restated here so the check cannot be
     // bypassed by anything that calls this directly.
     if (runBlockedReason) {
@@ -521,6 +498,14 @@ function CalculatePageInner() {
 
   const currentStage = stageIndex(job);
   const stepText = stepSummary(job);
+  // One persistent, visually hidden status region. It says the stage while a
+  // job runs (never the ticking timer) and how the run ended, so completion is
+  // announced on a phone too, where the status pill is not displayed.
+  const announcement = isCalculating
+    ? stageAnnouncement(job)
+    : result
+      ? completionAnnouncement(runOutcome(result), result)
+      : "";
   const stepPct =
     job?.progress.step != null && job.progress.totalSteps
       ? Math.min(100, Math.round((job.progress.step / job.progress.totalSteps) * 100))
@@ -529,6 +514,9 @@ function CalculatePageInner() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
 
       {/* Page sub-header */}
       <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
@@ -600,9 +588,13 @@ function CalculatePageInner() {
                 >
                   <Button
                     onClick={handleCalculate}
-                    disabled={isCalculating || runBlockedReason != null}
+                    // Mid-run the button is aria-disabled, not disabled, so the
+                    // keyboard focus that clicked it is not thrown to <body>.
+                    disabled={!isCalculating && runBlockedReason != null}
+                    aria-disabled={isCalculating || undefined}
+                    data-run-button=""
                     size="lg"
-                    className={result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}
+                    className={`aria-disabled:pointer-events-none aria-disabled:opacity-50 ${result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}`}
                   >
                     {isCalculating ? (
                       <>
@@ -625,10 +617,14 @@ function CalculatePageInner() {
 
                   {/* Progress feedback — every value here is reported by the backend */}
                   {isCalculating && (
-                    <div className="mt-5 space-y-4" aria-live="polite">
+                    <div className="mt-5 space-y-4">
                       <ol className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                         {STAGES.map((stage, i) => (
-                          <li key={stage.key} className="flex items-center gap-1.5">
+                          <li
+                            key={stage.key}
+                            className="flex items-center gap-1.5"
+                            aria-current={i === currentStage ? "step" : undefined}
+                          >
                             {i < currentStage ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             ) : i === currentStage ? (
@@ -644,6 +640,7 @@ function CalculatePageInner() {
                               }`}
                             >
                               {stage.label}
+                              {i < currentStage && <span className="sr-only"> (done)</span>}
                               {stage.key === "queued" && job?.queuePosition
                                 ? ` (position ${job.queuePosition + 1})`
                                 : ""}
@@ -716,7 +713,13 @@ function CalculatePageInner() {
 
                 {/* Results */}
                 {result && !isCalculating && (
-                  <div ref={resultsRef} className="animate-fade-in-up scroll-mt-20 space-y-6">
+                  <div
+                    ref={resultsRef}
+                    tabIndex={-1}
+                    role="region"
+                    aria-label="Calculation results"
+                    className="animate-fade-in-up scroll-mt-20 space-y-6 outline-none"
+                  >
                     <MetricsDashboard
                       result={result}
                       filename={lastRun?.filename}
@@ -859,11 +862,8 @@ function StatusPill({
         };
 
   return (
-    <span
-      className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex"
-      role="status"
-      aria-live="polite"
-    >
+    // Presentational: the persistent status region above announces state.
+    <span className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex">
       <span className={`h-2 w-2 rounded-full ${state.dot}`} aria-hidden />
       <span className={state.text}>{state.label}</span>
     </span>

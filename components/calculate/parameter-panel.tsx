@@ -22,7 +22,7 @@
 
 import { StepTitle } from "@/components/calculate/step-title";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useId, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
@@ -234,13 +234,13 @@ export function ParameterPanel({
                 updateParam("modelType", v as CalculationParams["modelType"])
               }
             >
-              <SelectTrigger className="w-full">
+              <FieldSelectTrigger className="w-full">
                 {/* The closed select shows the model name only; the option
                     list carries the domain and element count. */}
                 <SelectValue>
                   {params.modelType === "custom" ? "Custom checkpoint" : (findModel(params.modelType)?.label ?? params.modelType)}
                 </SelectValue>
-              </SelectTrigger>
+              </FieldSelectTrigger>
               <SelectContent>
                 {MODELS.filter((m) => m.loader !== "checkpoint" || caps.customModels).map((m) => (
                   <SelectItem key={m.id} value={m.id}>
@@ -305,7 +305,7 @@ export function ParameterPanel({
               </p>
 
               {!customModelFile ? (
-                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft">
+                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
                   <input
                     type="file"
                     accept=".model"
@@ -346,7 +346,7 @@ export function ParameterPanel({
               )}
 
               <Field label="Model label">
-                <Input
+                <FieldInput
                   type="text"
                   value={params.customModelName ?? ""}
                   onChange={(e) => updateParam("customModelName", e.target.value)}
@@ -371,9 +371,9 @@ export function ParameterPanel({
               }
               disabled={isCustom || sizes.length <= 1}
             >
-              <SelectTrigger>
+              <FieldSelectTrigger>
                 <SelectValue />
-              </SelectTrigger>
+              </FieldSelectTrigger>
               <SelectContent>
                 {sizes.map((size) => (
                   <SelectItem key={size} value={size}>
@@ -413,9 +413,9 @@ export function ParameterPanel({
                   )
                 }
               >
-                <SelectTrigger className="w-full">
+                <FieldSelectTrigger className="w-full">
                   <SelectValue>{params.precision ?? "Auto"}</SelectValue>
-                </SelectTrigger>
+                </FieldSelectTrigger>
                 <SelectContent>
                   <SelectItem value={PRECISION_AUTO}>
                     Auto — match upstream MACE
@@ -438,9 +438,9 @@ export function ParameterPanel({
                   updateParam("device", v as CalculationParams["device"])
                 }
               >
-                <SelectTrigger className="w-full">
+                <FieldSelectTrigger className="w-full">
                   <SelectValue />
-                </SelectTrigger>
+                </FieldSelectTrigger>
                 <SelectContent>
                   {deviceChoices(caps).map((choice) => (
                     <SelectItem key={choice.value} value={choice.value} disabled={choice.disabled}>
@@ -533,7 +533,7 @@ export function ParameterPanel({
                 <Label htmlFor="dispersion" className="text-sm">
                   D3 dispersion correction
                 </Label>
-                <InfoTip text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
+                <InfoTip subject="D3 dispersion correction" text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
               </div>
               <Switch
                 id="dispersion"
@@ -592,9 +592,9 @@ export function ParameterPanel({
                       updateParam("mdEnsemble", v as "NVE" | "NVT" | "NPT")
                     }
                   >
-                    <SelectTrigger>
+                    <FieldSelectTrigger>
                       <SelectValue />
-                    </SelectTrigger>
+                    </FieldSelectTrigger>
                     <SelectContent>
                       <SelectItem value="NVE">NVE — microcanonical</SelectItem>
                       <SelectItem value="NVT">NVT — canonical</SelectItem>
@@ -689,6 +689,9 @@ export function ParameterPanel({
 
 /* ── Local helpers ── */
 
+/** The id a Field's label points at; its control picks it up from here. */
+const FieldIdContext = createContext<string | undefined>(undefined);
+
 function Field({
   label,
   tooltip,
@@ -698,24 +701,35 @@ function Field({
   tooltip?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
-        <Label className="text-xs font-medium text-text-secondary">
+        <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
           {label}
         </Label>
-        {tooltip && <InfoTip text={tooltip} />}
+        {tooltip && <InfoTip text={tooltip} subject={label} />}
       </div>
-      {children}
+      <FieldIdContext.Provider value={id}>{children}</FieldIdContext.Provider>
     </div>
   );
+}
+
+/** SelectTrigger that carries the enclosing Field's label as its name. */
+function FieldSelectTrigger(props: React.ComponentProps<typeof SelectTrigger>) {
+  return <SelectTrigger id={useContext(FieldIdContext)} {...props} />;
+}
+
+/** Input that carries the enclosing Field's label as its name. */
+function FieldInput(props: React.ComponentProps<typeof Input>) {
+  return <Input id={useContext(FieldIdContext)} {...props} />;
 }
 
 /**
  * Hover/focus tooltip that also opens on tap: Radix tooltips ignore touch, so
  * without the click handler this explanation was unreachable on a phone.
  */
-function InfoTip({ text }: { text: string }) {
+function InfoTip({ text, subject }: { text: string; subject: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
@@ -724,7 +738,7 @@ function InfoTip({ text }: { text: string }) {
           type="button"
           onClick={() => setOpen(true)}
           className="touch-target rounded-full text-text-muted transition-colors hover:text-accent-strong"
-          aria-label="More information"
+          aria-label={`More information about ${subject}`}
         >
           <Info className="h-3.5 w-3.5" />
         </button>
@@ -761,6 +775,7 @@ function NumberField({
   max?: number;
   step?: number;
 }) {
+  const id = useId();
   const [localValue, setLocalValue] = useState<string>(String(value));
   const [isFocused, setIsFocused] = useState(false);
   const displayValue = isFocused ? localValue : String(value);
@@ -768,10 +783,17 @@ function NumberField({
     min != null && max != null
       ? `Range: ${min}–${max}${unit ? ` ${unit}` : ""}`
       : undefined;
+  const describedBy = [
+    hint ? `${id}-hint` : null,
+    rangeText ? `${id}-range` : null,
+    warning ? `${id}-warning` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-text-secondary">
+      <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
         {label}
         {unit && (
           <span className="ml-1 font-normal text-text-muted">
@@ -780,7 +802,9 @@ function NumberField({
         )}
       </Label>
       <Input
+        id={id}
         type="number"
+        aria-describedby={describedBy || undefined}
         className="no-spinner font-mono"
         value={displayValue}
         onFocus={() => {
@@ -816,17 +840,17 @@ function NumberField({
         step={step ?? 1}
       />
       {hint && (
-        <p className="font-mono text-xs text-text-muted">
+        <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
           {hint}
         </p>
       )}
       {rangeText && (
-        <p className="font-mono text-xs text-text-muted">
+        <p id={`${id}-range`} className="font-mono text-xs text-text-muted">
           {rangeText}
         </p>
       )}
       {warning && (
-        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
+        <p id={`${id}-warning`} className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{warning}</span>
         </p>

@@ -437,13 +437,13 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                   </Button>
                 </div>
               ) : (
-                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary">
+                <label className="relative flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
                   <Upload className="h-3 w-3" />
                   Upload .model file
                   <input
                     type="file"
                     accept=".model"
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => setCustomModel(e.target.files?.[0] ?? null)}
                   />
                 </label>
@@ -657,13 +657,14 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
             <div
               onDrop={handleStructureDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="relative rounded-lg border border-dashed border-border-emphasis px-3 py-3 text-center transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/5"
+              className="relative rounded-lg border border-dashed border-border-emphasis px-3 py-3 text-center transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
             >
               <input
                 type="file"
                 multiple
                 accept={ACCEPTED_STRUCTURE_FORMATS.join(",")}
                 onChange={handleStructureFileInput}
+                aria-label="Upload structure files"
                 className="absolute inset-0 cursor-pointer opacity-0"
               />
               <div className="flex items-center justify-center gap-2">

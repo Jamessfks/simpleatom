@@ -86,7 +86,7 @@ export function FileUploadSection({
               <div
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
-                className="group relative cursor-pointer rounded-xl border-2 border-dashed border-border-emphasis bg-bg-surface p-10 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft"
+                className="group relative cursor-pointer rounded-xl border-2 border-dashed border-border-emphasis bg-bg-surface p-10 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
               >
                 <input
                   type="file"
