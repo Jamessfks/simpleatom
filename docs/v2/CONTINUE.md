@@ -1,22 +1,63 @@
-# Resume here — overnight run, 2026-10-31
+# Resume here — 2026-11-01
 
 **Overnight brief (owner decisions 2026-10-30, relayed by the parent session):**
 * push and open PRs, no merge;
 * audit plus fixes only, with device honesty (ADR-0031 accepted);
 * D51 gets a visible warning;
-* no vibrations, cell relaxation or Feedback build.
+* no vibrations, cell relaxation or Feedback build. ADR-0032 and ADR-0033 stay proposed.
 
 The plan is `~/.claude/plans/run-it-overnight-auto-mode-zesty-pond.md`, Steps 4–5.
 
 | Step | State |
 |---|---|
 | Integration | Security branch merged (`df27d8b`); PR **#20** open, stacked on #19 |
-| 4.1 release blockers | D40, D41, D43, D57 fixed (see below) |
-| 4.2 Track 1, device honesty | done: `7ff064b` tests, `b2840fd` fix. D33–D35 fixed; UI checked at 1280 and 375 |
-| 4.3 D51 | done: test, then fix (see `git log`) |
-| 4.4 owner-free defects | **next**: D36–D39, D42, D44–D50, D52–D56, D58–D69 |
-| 4.5 D70+ | from the parent's audit, as D72+ |
-| 4.6 permanent gates | not started |
+| 4.1 release blockers | D40, D41, D43, D57 fixed |
+| 4.2 Track 1, device honesty | done (`7ff064b`, `b2840fd`); parent verdict PASS |
+| 4.3 D51 | done; parent verdict PASS (batch 1, `6ee0c31`) |
+| 4.4 owner-free defects | D36–D69 fixed except D52–D54 and part of D69; batch 2 (`3ee1d64`) awaits the parent's verdict |
+| 4.5 D72–D141 | recorded in [`defects.json`](defects.json): 47 `fixed-unverified`, 25 `open` |
+| 4.6 permanent gates | partly: zero-test runs fail (`run_suite.py`), the validator gate can fail, MPA-0 and D3 goldens, the lock is recompiled in CI, docker-smoke runs MPA-0 offline. The invariant suite (D78/D80) is with the backend writer |
+
+**Release note for the owner (no code needed).** `main` and `v2.2` still ship the broken
+diamonds and si-111 in the catalog (D57). Merging #19 alone does not fix the catalog; #20 is
+needed.
+
+**Measured on Vercel Sandbox (2026-11-01):** see
+[`hosted-compute-memo.md`](hosted-compute-memo.md), "Measured on Vercel Sandbox"; raw
+numbers are in `evidence/2026-11-01/sandbox/`.
+
+**Who has what (2026-11-01).** Two writers work in this worktree, with no overlapping files:
+* backend writer: `mace-api/calculate.py`, `smiles_to_xyz.py`, `provenance.py` and their
+  tests. Open with it: D130 (MD divergence), D132, D134, D135, D137, D101, D102, D105, D116,
+  D118, D122, D91, D52–D54, D76, D78, D80;
+* frontend writer: the parser, catalog, MP reference data, `components/**`, `app/**` except
+  `app/api` (but including `app/api/share`), `test/**`. Open with it: D97, D98, D109, D126,
+  the rest of D69, D119, D120;
+* lead (this session): contract, routes, CI, Dockerfile, staging, `main.py`, `safe_load.py`,
+  `jobs.py`, the docs. Open: D81 (validator distance and drift checks), the lint-baseline half
+  of D88.
+
+**How this branch is pushed.** Only an explicit SHA where every committed test has its fix:
+`git push origin <sha>:refs/heads/audit-next-feature`. A writer commits its failing test
+before its fix, so HEAD is often red for a few minutes. Run the suites on an export of that
+SHA (`git archive <sha> | tar -x`), not on the working tree, which holds the writers'
+uncommitted edits. Commit as the GitHub no-reply identity
+(`git -c user.name=… -c user.email=<id>+<login>@users.noreply.github.com`), never the
+checkout's configured address.
+
+**Owner actions, in order** (none performed by any session):
+1. Pause the Space, or merge #19 (the live checkpoint RCE).
+2. Supabase: apply `0003_lockdown.sql` after setting `SUPABASE_SERVICE_ROLE_KEY` on Vercel.
+3. Set `MACE_API_TOKEN` on Vercel and the Space before this branch deploys (D43).
+4. Protect `main` with the CI checks (Vercel does not wait for CI).
+5. Create the `hf-production` environment with a main-only rule and move `HF_TOKEN` into it (D50).
+6. Resend, if Feedback is ever built.
+7. Track 2/3 decisions (vibrations vs cell relaxation; ADR-0032, ADR-0033).
+8. A free Materials Project API key, to refetch the GGA task structures for the benchmark (D106).
+
+**Flagged for the owner:** `CLAUDE.md` pitfall 3 was reworded (D85). The unsourced
+"0.1–0.5 eV/atom overbinding" band was removed; no other rule text changed. The MACE-OFF
+typical energy band in `CLAUDE.md` and `contract.json` is also wrong (D52, open).
 
 ---
 
