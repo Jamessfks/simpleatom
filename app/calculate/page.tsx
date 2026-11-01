@@ -21,10 +21,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
-import {
-  parseStructureFile,
-  type ParsedStructure,
-} from "@/lib/parse-structure";
+import { parseStructureFile } from "@/lib/parse-structure";
+import { parsedFor, type ParseResult } from "@/components/calculate/parse-state";
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
 import { RunLedger } from "@/components/calculate/run-ledger";
@@ -207,8 +205,7 @@ function CalculatePageInner() {
    * periodicity gate — which stay inert while this is null, so nothing warns
    * before a structure is loaded.
    */
-  const [parsedStructure, setParsedStructure] =
-    useState<ParsedStructure | null>(null);
+  const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [params, setParams] = useState<CalculationParams>({
     modelSize: "medium",
     modelType: DEFAULT_MODEL_TYPE,
@@ -267,22 +264,22 @@ function CalculatePageInner() {
   // would be worse than one that stays quiet.
   useEffect(() => {
     const file = uploadedFiles[0];
-    if (!file) {
-      setParsedStructure(null);
-      return;
-    }
+    if (!file) return;
     let cancelled = false;
     parseStructureFile(file)
       .then((s) => {
-        if (!cancelled) setParsedStructure(s);
+        if (!cancelled) setParsed({ file, structure: s });
       })
       .catch(() => {
-        if (!cancelled) setParsedStructure(null);
+        if (!cancelled) setParsed({ file, structure: null });
       });
     return () => {
       cancelled = true;
     };
   }, [uploadedFiles]);
+  // The structure of the file that is current NOW. While a new file is still
+  // being read there is none, and Run waits for it (D98).
+  const { structure: parsedStructure, parsing: parsingStructure } = parsedFor(uploadedFiles[0], parsed);
 
   const handleFilesChange = useCallback(
     (files: File[]) => {
@@ -374,7 +371,9 @@ function CalculatePageInner() {
   const runBlockedReason: string | null =
     uploadedFiles.length === 0
       ? "Choose or upload a structure to enable the run button."
-      : isCustomModel && !customModelFile
+      : parsingStructure
+        ? "Reading the structure…"
+        : isCustomModel && !customModelFile
         ? "Upload a MACE .model checkpoint to run a custom model — or switch to a foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF). A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
         : params.calculationType === "phonon"
           ? "Phonon spectrum is not implemented. Choose single-point, geometry optimization, or molecular dynamics."
