@@ -758,6 +758,234 @@ def _resolve_run_params(calc_type: str, params: dict, profile_name: str) -> dict
     return {}
 
 
+# Atoms closer than this (minimum image) are refused before any model I/O.
+# The shortest bond in chemistry is H2 at 0.74 Å; 0.5 Å is well inside it, so
+# nothing physical is refused, while a misplaced or duplicated atom (0 Å), a
+# CIF site that lands on another after symmetry expansion, or a molecule in a
+# 1 Å placeholder cell (0.48 Å to its own image, D89) is. MACE returns NaN at
+# 0 Å and absurd numbers (+3.9e15 eV for that water) just above it: numbers
+# that look like results and are not (ADR-0004).
+MIN_INTERATOMIC_DISTANCE_A = 0.5
+
+# Space groups that International Tables vol. A lists with two origin choices.
+# For these an H-M symbol alone does not say which operators apply; ASE always
+# assumes origin choice 1, so origin-2 coordinates came out as a wrong crystal
+# (diamond Si: 16 atoms 1.92 Å apart, D114).
+_TWO_ORIGIN_GROUPS = frozenset({48, 50, 59, 68, 70, 85, 86, 88, 125, 126, 129, 130, 133, 134,
+                                137, 138, 141, 142, 201, 203, 222, 224, 227, 228})
+
+
+def refuse_overlaps(atoms, display: str) -> None:
+    """Refuse two atoms closer than MIN_INTERATOMIC_DISTANCE_A (minimum image)."""
+    pair = closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A)
+    if pair is None:
+        return
+    raise ContractError(
+        f"'{display}' has {describe_pair(atoms, pair)}, closer than the "
+        f"{MIN_INTERATOMIC_DISTANCE_A} Å this server accepts (the shortest real bond, H2, is "
+        "0.74 Å). That is a duplicated or misplaced atom, a CIF site that lands on another "
+        "after symmetry expansion, or a cell too small for its contents. Nothing was computed.",
+        code="overlapping_atoms", field="structure", status=422,
+    )
+
+
+def normalise_element(raw: str, *, from_label: bool) -> str:
+    """
+    The element a CIF type symbol (or, failing that, a site label) names (D113).
+
+    A type symbol is an element symbol in any case, optionally followed by a
+    charge or oxidation state ("NA", "na", "Na1+", "Fe2+", "O2-"). ASE matched
+    [A-Z][a-z]? instead, so "NA" read as N and "CL" as C. A label is read the
+    same way, except that an all-capitals label whose first two letters spell an
+    element different from its first letter ("CA1": calcium, or an alpha carbon?)
+    is refused rather than guessed.
+    """
+    import re
+    from ase.data import chemical_symbols
+
+    text = str(raw).strip()
+    letters = re.match(r"[A-Za-z]+", text)
+    if not letters:
+        raise ContractError(f"CIF site symbol {text!r} does not start with an element symbol. "
+                            "Nothing was computed.", code="unknown_element", field="structure", status=422)
+    letters = letters.group(0)
+    one = letters[0].upper()
+    two = one + letters[1].lower() if len(letters) > 1 else None
+    known = set(chemical_symbols[1:]) | {"D"}  # D: deuterium, which ASE reads as H of mass 2
+    two_ok, one_ok = two in known, one in known
+    if from_label and two_ok and one_ok and letters[:2].isupper():
+        raise ContractError(
+            f"CIF site label {text!r} could be {two} or {one}, and the file has no "
+            "_atom_site_type_symbol column to say which. Add one. Nothing was computed.",
+            code="ambiguous_element", field="structure", status=422)
+    if two_ok and (not from_label or letters[1].islower() or not one_ok):
+        return two
+    if one_ok and (len(letters) == 1 or from_label or not two_ok):
+        return one
+    raise ContractError(f"CIF site symbol {text!r} is not an element symbol. Nothing was computed.",
+                        code="unknown_element", field="structure", status=422)
+
+
+def _cif_spacegroup(block):
+    """(International Tables number or None, explicit origin setting or None)."""
+    import re
+    hm = block._get_spacegroup_name()
+    no = block._get_spacegroup_number()
+    colon = re.search(r":\s*([12])\s*$", str(hm)) if hm is not None else None
+    explicit = block.get("_symmetry_space_group_setting")
+    setting = int(colon.group(1)) if colon else (int(explicit) if explicit is not None else None)
+    if no is None and hm is not None:
+        from ase.spacegroup import Spacegroup
+        try:
+            no = Spacegroup(re.sub(r"\s*:\s*\S+\s*$", "", str(hm))).no
+        except Exception:  # noqa: BLE001 — ASE's own reader reports the bad symbol
+            no = None
+    return (int(no) if no is not None else None), setting
+
+
+def _expand_cif(block, tags: dict, setting: int | None, display: str):
+    """
+    Apply the block's symmetry, in origin `setting` when it is given. ASE merges
+    a site that lands on an earlier one (keeping the first) with only a Python
+    warning. The same element twice is a redundant listing (the demo silicon
+    lists all eight atoms) and merging it is right; two different elements on
+    one position is hidden disorder, and keeping either would invent a
+    composition the file does not state.
+    """
+    import re
+    import warnings as pywarnings
+    from ase.io.cif import CIFBlock
+    from ase.spacegroup import crystal
+
+    if setting is not None:
+        tags = dict(tags)
+        hm = block._get_spacegroup_name()
+        if hm is not None:
+            # ASE cannot parse 'F d -3 m :2'; the setting travels separately.
+            tags["_symmetry_space_group_name_h-m"] = re.sub(r"\s*:\s*\S+\s*$", "", str(hm))
+            tags.pop("_space_group_name_h-m_alt", None)
+        tags["_symmetry_space_group_setting"] = setting
+        block = CIFBlock(block.name, tags)
+    spacegroup = block.get_spacegroup(subtrans_included=True)
+    with pywarnings.catch_warnings(record=True) as caught:
+        pywarnings.simplefilter("always")
+        atoms = crystal(block.get_unsymmetrized_structure(), spacegroup=spacegroup,
+                        setting=spacegroup.setting, onduplicates="warn")
+    symbols = tags["_atom_site_type_symbol"]
+    labels = tags.get("_atom_site_label") or symbols
+    labels = [labels] if isinstance(labels, str) else labels
+    for record in caught:
+        pair = re.match(r"scaled_positions (\d+) and (\d+) are equivalent", str(record.message))
+        if pair and symbols[int(pair.group(1))] != symbols[int(pair.group(2))]:
+            first, second = int(pair.group(1)), int(pair.group(2))
+            raise ContractError(
+                f"'{display}': sites {labels[first]} ({symbols[first]}) and {labels[second]} "
+                f"({symbols[second]}) occupy the same position after symmetry expansion. Two "
+                "elements on one site is disorder, which MACE cannot compute; build an "
+                "ordered structure. Nothing was computed.",
+                code="overlapping_atoms", field="structure", status=422)
+    return atoms
+
+
+def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: list[str]):
+    """
+    A two-origin space group given by symbol alone, with no operators (D114).
+
+    ASE always expanded such a file in origin choice 1, so origin-2 diamond
+    came out as 16 atoms 1.92 Å apart at 237 GPa. Both readings are tried. Sites
+    a crystallographer writes down sit on special positions in the intended
+    setting, so the intended reading is the one that gives fewer atoms (diamond:
+    8, against 16 in the other); it is used, and the result says so. When both
+    readings give the same count (only general positions) the file cannot be
+    read without guessing, and is refused.
+    """
+    readings = {}
+    for setting in (1, 2):
+        try:
+            atoms = _expand_cif(block, tags, setting, display)
+        except ContractError:
+            continue
+        if closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A) is None:
+            readings[setting] = atoms
+    if not readings:
+        return _expand_cif(block, tags, 1, display)  # refuse_overlaps() names the clash
+    counts = {setting: len(atoms) for setting, atoms in readings.items()}
+    if len(readings) == 2 and counts[1] == counts[2]:
+        raise ContractError(
+            f"'{display}' gives space group {number} by its symbol only, and that group has two "
+            "origin choices in International Tables; these coordinates make a different "
+            f"{counts[1]}-atom crystal in each. Write the H-M symbol with ':1' or ':2' (e.g. "
+            "'F d -3 m :2'), or include the symmetry operations "
+            "(_space_group_symop_operation_xyz). Nothing was computed.",
+            code="ambiguous_origin_choice", field="structure", status=422)
+    chosen = min(readings, key=lambda s: counts[s])
+    other = 2 if chosen == 1 else 1
+    because = (f"{counts[chosen]} atoms, against {counts[other]} in origin choice {other}"
+               if other in counts else f"origin choice {other} puts atoms on top of each other")
+    warnings.append(
+        f"Space group {number} has two origin choices and '{display}' does not say which; its "
+        f"coordinates fit origin choice {chosen} ({because}), so that was used. Write "
+        f"':{chosen}' after the H-M symbol to make it explicit.")
+    return readings[chosen]
+
+
+def _read_cif(filepath: str, display: str, warnings: list[str]):
+    """
+    Read the first structure block of a CIF, refusing what ASE would silently
+    change: element symbols (D113), the origin choice (D114), partial occupancy
+    (D115) and different elements that coincide after symmetry expansion.
+    """
+    from ase.io.cif import CIFBlock, parse_cif
+
+    with open(filepath, "rb") as fh:
+        blocks = list(parse_cif(fh))
+    structural = [b for b in blocks
+                  if ("_atom_site_fract_x" in b or "_atom_site_cartn_x" in b)
+                  and ("_atom_site_type_symbol" in b or "_atom_site_label" in b)]
+    if not structural:
+        raise ContractError(f"'{display}' has no atom sites.", code="unreadable_structure",
+                            field="structure", status=422)
+    block = structural[0]
+    if len(structural) > 1:
+        warnings.append(f"'{display}' has {len(structural)} structures (data blocks); only the "
+                        f"first, data_{block.name}, was computed.")
+
+    tags = {key: block[key] for key in block}
+    from_label = "_atom_site_type_symbol" not in tags
+    raw = tags["_atom_site_label" if from_label else "_atom_site_type_symbol"]
+    raw = [raw] if not isinstance(raw, list) else raw
+    tags["_atom_site_type_symbol"] = [normalise_element(s, from_label=from_label) for s in raw]
+
+    occupancy = tags.pop("_atom_site_occupancy", None)
+    if occupancy is not None:
+        occupancy = [occupancy] if not isinstance(occupancy, list) else occupancy
+        labels = tags.get("_atom_site_label") or raw
+        labels = [labels] if not isinstance(labels, list) else labels
+        partial = [(labels[i], value) for i, value in enumerate(occupancy)
+                   if isinstance(value, (int, float)) and abs(float(value) - 1.0) > 1e-3]
+        if partial:
+            listed = ", ".join(f"{label} {value:g}" for label, value in partial[:5])
+            raise ContractError(
+                f"'{display}' has partially occupied sites ({listed}"
+                f"{', …' if len(partial) > 5 else ''}). MACE computes one ordered "
+                "configuration, so a disordered or vacant site has no single energy. Build an "
+                "ordered supercell (for example a special quasirandom structure) and upload "
+                "that. Nothing was computed.",
+                code="partial_occupancy", field="structure", status=422)
+
+    block = CIFBlock(block.name, tags)
+    if block.get_cell().rank != 3:
+        atoms = block.get_unsymmetrized_structure()
+    else:
+        number, setting = _cif_spacegroup(block)
+        if not block._get_sitesym() and setting is None and number in _TWO_ORIGIN_GROUPS:
+            atoms = _expand_cif_origin(block, tags, number, display, warnings)
+        else:
+            atoms = _expand_cif(block, tags, None if block._get_sitesym() else setting, display)
+    refuse_overlaps(atoms, display)
+    return atoms
+
+
 def _read_structure(filepath: str, display: str, warnings: list[str]):
     """
     Read the FIRST frame of a structure file.
@@ -771,7 +999,9 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
 
     fmt = detect_format(filepath)
     try:
-        atoms = read(filepath, format=fmt, index=0)
+        atoms = _read_cif(filepath, display, warnings) if fmt == "cif" else read(filepath, format=fmt, index=0)
+    except ContractError:
+        raise
     except Exception as exc:
         # extxyz is stricter than the plain xyz reader: a malformed comment line
         # that simple_read_xyz would ignore can make it raise. Degrade to the

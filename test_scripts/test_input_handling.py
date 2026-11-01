@@ -226,9 +226,10 @@ class TestCifOriginChoice(_RefusalMixin, unittest.TestCase):
     D114: Fd-3m has two origin choices. A CIF that gives only the H-M symbol
     (no symmetry operations) was expanded with origin-1 operators whatever the
     coordinates meant: origin-2 diamond came out as 16 atoms 1.92 Å apart at
-    237 GPa. An explicit ':2' was ignored too. Now ':1'/':2' (or
-    _symmetry_space_group_setting) is honoured and a bare H-M symbol for a
-    two-origin group is refused.
+    237 GPa. An explicit ':2' was ignored too, and ':1' crashed ASE. Now
+    ':1'/':2' is honoured; with a bare symbol both origins are tried and the
+    one that puts the listed sites on special positions (fewer atoms) is used
+    and announced. Equal counts cannot be told apart, and are refused.
     """
 
     NN = 5.4309 * 3 ** 0.5 / 4  # diamond nearest-neighbour distance for the fixtures' a
@@ -239,9 +240,25 @@ class TestCifOriginChoice(_RefusalMixin, unittest.TestCase):
         d = atoms.get_all_distances(mic=True)
         return float(d[d > 1e-6].min())
 
-    def test_bare_hm_symbol_for_a_two_origin_group_is_refused(self):
-        message = self.assertRefusedWith("ambiguous_origin_choice", _run_file,
-                                         _fixture("cif_diamond_origin2_hm_only"))
+    def test_bare_hm_symbol_in_origin_2_is_read_in_origin_2_and_says_so(self):
+        result = _run_file(_fixture("cif_diamond_origin2_hm_only"))
+        self.assertEqual(len(result["symbols"]), 8)
+        self.assertAlmostEqual(self._nn(result), self.NN, delta=1e-4)
+        self.assertTrue(any("origin choice 2" in w and ":2" in w for w in result.get("warnings", [])),
+                        result.get("warnings"))
+
+    def test_bare_hm_symbol_in_origin_1_is_read_in_origin_1(self):
+        result = _run_file(_fixture("cif_diamond_origin1_hm_only"))
+        self.assertEqual(len(result["symbols"]), 8)
+        self.assertAlmostEqual(self._nn(result), self.NN, delta=1e-4)
+
+    def test_a_general_position_with_a_bare_symbol_is_refused(self):
+        # One Ar on a general position: 192 atoms in either origin, a different
+        # crystal in each, and nothing in the file to choose between them.
+        text = (pathlib.Path(_fixture("cif_diamond_origin1_hm_only")).read_text()
+                .replace("5.4309", "30.0").replace("Si1 Si 0 0 0", "Ar1 Ar 0.11 0.23 0.37"))
+        self.assertIn("Ar1 Ar", text)
+        message = self.assertRefusedWith("ambiguous_origin_choice", _run_text, text, ".cif")
         self.assertIn(":2", message)
 
     def test_an_explicit_origin_2_is_honoured(self):
