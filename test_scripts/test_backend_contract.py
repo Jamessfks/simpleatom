@@ -714,6 +714,22 @@ class TestHarnessDocFacts(unittest.TestCase):
         self.assertNotIn("exits 0 and reports refusal", self.criteria)
 
 
+class TestUnitLabels(unittest.TestCase):
+    """D56: the Units page listed stress in eV/Å³ while results report GPa; the CIF comment said 2.3517 Å."""
+
+    def test_units_page_reports_stress_in_gpa(self):
+        import re
+        page = (REPO_ROOT / "app" / "docs" / "units" / "page.tsx").read_text()
+        row = re.search(r"<td>Stress</td>\s*<td>([^<]+)</td>", page)
+        self.assertIsNotNone(row)
+        self.assertIn("GPa", row.group(1))
+
+    def test_silicon_fixture_comment_states_the_right_neighbour_distance(self):
+        text = (REPO_ROOT / "public" / "demo" / "silicon.cif").read_text()
+        self.assertNotIn("2.3517", text)
+        self.assertIn("2.3516", text)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
