@@ -409,6 +409,43 @@ class TestCifExpansionBomb(_RefusalMixin, unittest.TestCase):
         self.assertEqual(len(result["symbols"]), 8)
 
 
+class TestConstrainedForces(unittest.TestCase):
+    """
+    D132: a single point reported ASE's constrained forces, so atoms fixed by
+    selective dynamics showed exactly zero force; the model's real forces on
+    them were discarded (true max |F| there 1.12 eV/Å for a Cu slab), and the
+    structure hash could not tell the constrained file from the free one.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        from test_md_stability import _cu_slab_poscar
+        cls.fixed = _cu_slab_poscar(True)
+        cls.free = _cu_slab_poscar(False)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.unlink(cls.fixed)
+        os.unlink(cls.free)
+
+    def test_single_point_reports_the_model_forces_on_fixed_atoms(self):
+        import numpy as np
+        fixed = _run_file(self.fixed)
+        free = _run_file(self.free)
+        np.testing.assert_allclose(fixed["forces"], free["forces"], atol=1e-9)
+        self.assertEqual(len(fixed["constrainedAtoms"]), 16)
+        self.assertTrue(any("16" in w and "fixed" in w for w in fixed.get("warnings", [])),
+                        fixed.get("warnings"))
+        self.assertNotIn("constrainedAtoms", free)
+
+    def test_the_structure_hash_tells_the_constraints_apart(self):
+        fixed = _run_file(self.fixed)["provenance"]["input"]
+        free = _run_file(self.free)["provenance"]["input"]
+        self.assertNotEqual(fixed["structureSha256"], free["structureSha256"])
+        self.assertEqual(fixed["structureHashSpec"], "simpleatom-structure-v2")
+
+
 class TestCliOutputIsStrictJson(unittest.TestCase):
     """
     D129, end to end: water with one H placed on the O made MACE return NaN,

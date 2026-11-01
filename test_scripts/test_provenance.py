@@ -194,6 +194,23 @@ class TestProvenanceUnits(unittest.TestCase):
         atoms.set_chemical_symbols(symbols)
         self.assertNotEqual(before, provenance.structure_sha256(atoms)[0])
 
+    def test_structure_hash_changes_when_atoms_are_fixed(self):
+        """
+        D132: selective dynamics changes what a calculation reports (forces on
+        fixed atoms, MD temperature), so the constraints are part of the input.
+        """
+        from ase.constraints import FixAtoms, FixScaled
+        atoms = self._ethanol_atoms()
+        free, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixAtoms(indices=[0, 1]))
+        fixed01, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixAtoms(indices=[0, 2]))
+        fixed02, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixScaled(0, [False, False, True], atoms.cell))
+        scaled, _ = provenance.structure_sha256(atoms)
+        self.assertEqual(len({free, fixed01, fixed02, scaled}), 4)
+        self.assertEqual(provenance.STRUCTURE_HASH_SPEC, "simpleatom-structure-v2")
+
     def test_structure_hash_is_insensitive_to_the_sign_of_zero(self):
         from ase import Atoms
         plus = Atoms("H2", positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]])
