@@ -1115,6 +1115,19 @@ class TestEverySuiteRuns(unittest.TestCase):
                          "test_scripts suites the daily gate never runs")
 
 
+class TestVerifyModelsExitCode(unittest.TestCase):
+    """D150: `validate_calculation.py --verify-models` exited 0 whatever the verdict."""
+
+    def test_a_failed_check_exits_one(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import io
+        import validate_calculation
+        failed = {"all_passed": False, "tests": [{"test": "x", "passed": False}]}
+        with mock.patch.object(validate_calculation, "run_verification_tests", return_value=failed), \
+             mock.patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(validate_calculation.cli(["--verify-models"]), 1)
+
+
 class TestLintBaseline(unittest.TestCase):
     """D88 (F14): one total let a new lint error hide behind a fixed warning."""
 
