@@ -475,6 +475,7 @@ export function ParameterPanel({
         </CardHeader>
         <CardContent className="space-y-5">
           <RadioGroup
+            aria-label="Calculation type"
             value={params.calculationType}
             onValueChange={(v) =>
               updateParam(

@@ -76,7 +76,7 @@ export function FileUploadSection({
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="upload">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList aria-label="Structure source" className="grid w-full grid-cols-3">
               <TabsTrigger value="upload">Upload</TabsTrigger>
               <TabsTrigger value="catalog">Catalog</TabsTrigger>
               <TabsTrigger value="smiles">SMILES</TabsTrigger>

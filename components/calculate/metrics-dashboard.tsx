@@ -334,6 +334,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
       {/* ═══ Tabs ═══ */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
         <TabsList
+          aria-label="Result sections"
           variant="line"
           className="h-auto w-full flex-wrap justify-start gap-x-6 gap-y-0 rounded-none border-b border-border bg-transparent p-0 max-sm:gap-x-5"
         >

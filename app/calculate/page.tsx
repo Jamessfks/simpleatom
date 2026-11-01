@@ -574,7 +574,7 @@ function CalculatePageInner() {
       {/* Main content */}
       <main id="main" className="mx-auto max-w-screen-2xl px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList aria-label="How to provide a structure">
             <TabsTrigger value="calculator" className="gap-1.5">
               <CalculatorIcon className="h-4 w-4" />
               Calculator
