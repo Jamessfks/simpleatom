@@ -1317,12 +1317,15 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     ctx.effective_params.update({
         "temperature": temp_K,
         "timeStep": dt_fs,
-        "friction": friction,
         "mdSteps": md_steps,
         "mdEnsemble": ensemble,
         "seed": seed,
         "temperatureDegreesOfFreedom": dof,
     })
+    if ensemble == "NVT":
+        # Only the Langevin thermostat reads it (D55: it was echoed for NVE
+        # and NPT too, as if it had acted).
+        ctx.effective_params["friction"] = friction
     if ensemble == "NPT":
         ctx.effective_params.update({
             "pressure": run_params["pressure"],
