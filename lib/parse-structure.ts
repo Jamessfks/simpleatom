@@ -896,6 +896,34 @@ const wrapUnit = (v: number): number => {
 const MAX_SYMMETRY_IMAGES = 100_000;
 
 /**
+ * What `expandCifSites` did, counted so a test can check that the work grows
+ * linearly with the number of images without reading a clock (a slow CI runner
+ * made a wall-clock bound flaky): images generated, and candidate atoms an
+ * image was compared with before it was kept or dropped.
+ */
+export interface ExpansionWork {
+  images: number;
+  comparisons: number;
+}
+
+/**
+ * The expansion the CIF reader performs, on listed sites and operation strings
+ * such as "-x+1/2, y, z". Exported only so a test can drive it without the
+ * nearest-neighbour search that `parseStructureText` runs afterwards.
+ */
+export function expandCifSites<T extends { symbol: string; frac: [number, number, number] }>(
+  sites: T[],
+  operations: string[],
+  work?: ExpansionWork,
+): T[] {
+  return expandSymmetry(
+    sites,
+    operations.map(parseSymmetryOp).filter((o): o is SymOp => o !== null),
+    work,
+  );
+}
+
+/**
  * Apply `ops` to every listed site and drop repeats, as ASE's `crystal()`
  * does: every image is wrapped into the cell, and one within 0.001 of an
  * earlier one (fractional, modulo the cell) is dropped — whichever listed site
@@ -907,6 +935,7 @@ const MAX_SYMMETRY_IMAGES = 100_000;
 function expandSymmetry<T extends { symbol: string; frac: [number, number, number] }>(
   sites: T[],
   ops: SymOp[],
+  work?: ExpansionWork,
 ): T[] {
   const operations: SymOp[] = ops.length > 0 ? ops : [{ rot: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], trans: [0, 0, 0] }];
   if (sites.length * operations.length > MAX_SYMMETRY_IMAGES) {
@@ -932,12 +961,14 @@ function expandSymmetry<T extends { symbol: string; frac: [number, number, numbe
         number,
         number,
       ];
+      if (work) work.images++;
       const [bx, by, bz] = image.map(bucket);
       let seen = false;
       for (let dx = -1; dx <= 1 && !seen; dx++)
         for (let dy = -1; dy <= 1 && !seen; dy++)
           for (let dz = -1; dz <= 1 && !seen; dz++) {
             for (const index of grid.get(key(bx + dx, by + dy, bz + dz)) ?? []) {
+              if (work) work.comparisons++;
               const o = out[index].frac;
               if (near(o[0], image[0]) && near(o[1], image[1]) && near(o[2], image[2])) {
                 seen = true;

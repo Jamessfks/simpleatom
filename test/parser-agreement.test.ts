@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getEntryById } from "@/lib/mlpeg-catalog";
 import { MP_REFERENCE_ENTRIES } from "@/lib/mp-reference-data";
-import { parseStructureText, type ParsedStructure } from "@/lib/parse-structure";
+import { expandCifSites, parseStructureText, type ExpansionWork, type ParsedStructure } from "@/lib/parse-structure";
 
 // The browser previews an upload with lib/parse-structure.ts; the backend
 // computes whatever ASE reads (mace-api/calculate.py `_read_structure`). When
@@ -359,16 +359,46 @@ describe("a CIF symmetry bomb cannot freeze the preview (D133)", () => {
       "",
     ].join("\n");
 
+  const sitesOf = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      symbol: "Cu",
+      frac: [(i * 0.6180339887) % 1, (i * 0.7548776662) % 1, (i * 0.5698402909) % 1] as [number, number, number],
+    }));
+
   it("refuses 6000 sites under 192 operations at once, naming the size", () => {
-    const started = Date.now();
     expect(() => parseStructureText(cif(6000), "bomb.cif")).toThrow(/symmetry|expand/i);
-    expect(Date.now() - started).toBeLessThan(2000);
   });
 
-  it("expands an ordinary large listing quickly and drops repeats", () => {
-    const started = Date.now();
-    const parsed = parseStructureText(cif(60), "big.cif");
-    expect(parsed.atomCount).toBeGreaterThan(60 * 100); // generic positions: close to 60 x 192 distinct images
-    expect(Date.now() - started).toBeLessThan(3000);
+  it("refuses before generating a single image", () => {
+    const work: ExpansionWork = { images: 0, comparisons: 0 };
+    expect(() => expandCifSites(sitesOf(6000), ops().map((o) => o.replace(/'/g, "")), work)).toThrow(/symmetry|expand/i);
+    expect(work).toEqual({ images: 0, comparisons: 0 });
+  });
+
+  it("expands an ordinary listing and drops repeats", () => {
+    const parsed = parseStructureText(cif(6), "big.cif");
+    expect(parsed.atomCount).toBeGreaterThan(6 * 100); // generic positions: close to 6 x 192 distinct images
+    expect(parsed.atomCount).toBeLessThan(6 * 192); // site 0 is a special position, so its repeats were dropped
+  });
+
+  // Counted, not timed: a runner several times slower than a laptop must not
+  // fail this, and a quadratic scan (every image against every kept atom) must.
+  it("does work linear in the number of images, not quadratic", () => {
+    const operations = ops().map((o) => o.replace(/'/g, ""));
+    const run = (n: number) => {
+      const work: ExpansionWork = { images: 0, comparisons: 0 };
+      const kept = expandCifSites(sitesOf(n), operations, work).length;
+      return { ...work, kept };
+    };
+    const small = run(100); // 19,200 images
+    const large = run(200); // 38,400 images, under the 100,000 cap
+    expect(small.images).toBe(100 * 192);
+    expect(large.images).toBe(200 * 192);
+    expect(large.kept).toBeLessThan(large.images); // repeats were found and dropped
+    // Each image meets the contents of at most 27 grid cells, a handful of atoms;
+    // a scan of everything kept so far would be ~images/2 per image (>10,000 here).
+    for (const r of [small, large]) expect(r.comparisons).toBeLessThan(27 * r.images);
+    // Doubling the images doubles the work (a quadratic scan would quadruple it).
+    expect(large.comparisons).toBeLessThan(3 * Math.max(small.comparisons, 1));
   });
 });
