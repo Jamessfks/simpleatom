@@ -33,6 +33,7 @@ import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-clie
 import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
+import { runOutcome, type RunOutcome } from "@/components/calculate/run-outcome";
 import {
   foundationParamsFor,
   isCustomResult,
@@ -541,7 +542,10 @@ function CalculatePageInner() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <StatusPill isCalculating={isCalculating} hasResult={!!result} />
+            <StatusPill
+              isCalculating={isCalculating}
+              outcome={result ? runOutcome(result) : null}
+            />
             <RecentCalculations />
           </div>
         </div>
@@ -833,10 +837,10 @@ function CalculatePageInner() {
 
 function StatusPill({
   isCalculating,
-  hasResult,
+  outcome,
 }: {
   isCalculating: boolean;
-  hasResult: boolean;
+  outcome: RunOutcome | null;
 }) {
   const state = isCalculating
     ? {
@@ -844,12 +848,10 @@ function StatusPill({
         dot: "bg-warning",
         text: "text-warning",
       }
-    : hasResult
-      ? {
-          label: "Complete",
-          dot: "bg-success",
-          text: "text-success",
-        }
+    : outcome
+      ? outcome.tone === "success"
+        ? { label: outcome.pill, dot: "bg-success", text: "text-success" }
+        : { label: outcome.pill, dot: "bg-warning", text: "text-warning" }
       : {
           label: "Ready",
           dot: "bg-text-muted",

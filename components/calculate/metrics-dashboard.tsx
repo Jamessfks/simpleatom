@@ -43,6 +43,7 @@ import {
 import { computeRmsForce } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
+import { runOutcome, stopCause } from "./run-outcome";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
 import { EnergyConvergence } from "./charts/energy-convergence";
@@ -252,6 +253,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
   }
 
   const accuracy = useMemo(() => computeAccuracyMetrics(result), [result]);
+  const outcome = runOutcome(result);
 
   const tabs: Tab[] = [
     { id: "summary", label: "Summary", icon: <BarChart3 className="h-4 w-4" strokeWidth={1.75} /> },
@@ -294,11 +296,25 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
   return (
     <div className="space-y-5">
       {/* ═══ Status Banner ═══ */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 px-5 py-3.5">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-3.5 ${
+          outcome.tone === "success"
+            ? "border-success/20 bg-success/5"
+            : "border-warning/30 bg-warning/5"
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-3">
-          <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
-          <span className="font-sans text-sm font-semibold text-success">
-            Calculation complete
+          {outcome.tone === "success" ? (
+            <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
+          ) : (
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" strokeWidth={1.75} />
+          )}
+          <span
+            className={`font-sans text-sm font-semibold ${
+              outcome.tone === "success" ? "text-success" : "text-warning"
+            }`}
+          >
+            {outcome.headline}
           </span>
           {/* Name the structure the numbers came from — this banner is also
               the header of a shared result, where the file is not otherwise
@@ -373,6 +389,12 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
           </Button>
         </div>
       </div>
+
+      {outcome.detail && (
+        <p className="rounded-lg border border-warning/30 bg-warning/5 px-5 py-3 text-sm text-text-primary">
+          {outcome.detail}
+        </p>
+      )}
 
       {/* ═══ Backend warnings ═══ */}
       <ResultWarnings warnings={result.warnings} />
@@ -2048,7 +2070,9 @@ function buildTrajectoryRows(
       label: "Converged",
       value: result.converged
         ? "Yes — reached fmax"
-        : "No — stopped at the step limit",
+        : stopCause(result) === "time-budget"
+          ? "No — stopped at the time budget"
+          : "No — stopped at the step limit",
     });
     if (result.params?.finalFmax != null) {
       rows.push({

@@ -31,6 +31,7 @@
  */
 
 import { findModel } from "@/lib/contract";
+import { stopCause } from "@/components/calculate/run-outcome";
 import type {
   CalculationParams,
   CalculationResult,
@@ -218,7 +219,9 @@ function convergenceNote(
 
   const head = converged
     ? "Converged to the force threshold"
-    : "Stopped at the step ceiling without reaching the force threshold — not a relaxed minimum";
+    : stopCause(result) === "time-budget"
+      ? "Stopped at the deployment's time budget without reaching the force threshold — not a relaxed minimum"
+      : "Stopped at the step ceiling without reaching the force threshold — not a relaxed minimum";
 
   return detail ? `${head} (${detail})` : head;
 }
