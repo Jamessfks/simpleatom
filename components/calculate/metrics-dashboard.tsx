@@ -1601,7 +1601,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     });
   }
 
-  if (code?.gitCommit) {
+  if (typeof code?.gitCommit === "string" && code.gitCommit) {
     rows.push({
       label: "Source commit",
       value: (
