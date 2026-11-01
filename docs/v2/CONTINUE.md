@@ -1,5 +1,7 @@
 # Resume here — 2026-11-01
 
+Morning report: [`reports/morning-2026-11-01.md`](reports/morning-2026-11-01.md).
+
 **Overnight brief (owner decisions 2026-10-30, relayed by the parent session):**
 * push and open PRs, no merge;
 * audit plus fixes only, with device honesty (ADR-0031 accepted);
