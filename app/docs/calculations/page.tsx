@@ -172,8 +172,10 @@ export default function CalculationsPage() {
             forces. Both are driven by a single seed, which defaults to{" "}
             <code>42</code>, so a run is reproducible bit-for-bit. The seed
             used is recorded in the result message and parameters, so a shared
-            trajectory can always be re-run exactly. Change it to generate
-            independent replicas of the same system.
+            trajectory can always be re-run exactly. Enter a different whole
+            number in the <em>Random seed</em> box (molecular dynamics
+            section) to generate an independent replica of the same system;
+            leave it blank for the default.
           </li>
           <li>
             <strong>What a trajectory records:</strong> potential energy,

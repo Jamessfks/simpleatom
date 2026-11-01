@@ -21,6 +21,7 @@
  */
 
 import { StepTitle } from "@/components/calculate/step-title";
+import { parseSeed } from "@/components/calculate/seed";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useId, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
@@ -672,6 +673,14 @@ export function ParameterPanel({
                     max={maxMdSteps}
                   />
                 </div>
+
+                <SeedField
+                  value={params.seed}
+                  onChange={(v) => updateParam("seed", v)}
+                  min={PARAMS.seed.min}
+                  max={PARAMS.seed.max}
+                  defaultSeed={PARAMS.seed.default}
+                />
               </div>
             )}
 
@@ -745,6 +754,63 @@ function InfoTip({ text, subject }: { text: string; subject: string }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">{text}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * Optional MD random seed. Empty sends nothing and the backend uses its
+ * default, so the same input reproduces the same trajectory; a different
+ * whole number gives an independent replica.
+ */
+function SeedField({
+  value,
+  onChange,
+  min,
+  max,
+  defaultSeed,
+}: {
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+  min: number;
+  max: number;
+  defaultSeed: number;
+}) {
+  const id = useId();
+  const [text, setText] = useState(value == null ? "" : String(value));
+  const { error } = parseSeed(text, min, max);
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
+        Random seed
+      </Label>
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        className="font-mono"
+        value={text}
+        placeholder={String(defaultSeed)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
+        onChange={(e) => {
+          setText(e.target.value);
+          const parsed = parseSeed(e.target.value, min, max);
+          // An invalid entry keeps the last good value out of the request:
+          // nothing is sent rather than a number the user did not type.
+          onChange(parsed.error ? undefined : parsed.value);
+        }}
+      />
+      <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
+        Optional. Blank uses {defaultSeed}. The same seed reproduces a trajectory; change it for an independent replica.
+      </p>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="flex items-start gap-1.5 text-xs leading-relaxed text-error">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{error}</span>
+        </p>
+      )}
+    </div>
   );
 }
 
