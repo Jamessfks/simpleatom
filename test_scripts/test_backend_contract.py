@@ -957,6 +957,18 @@ class TestLocalStack(unittest.TestCase):
         self.assertEqual(calculate_local.stack_drift(dict(pins), pins), [])
 
 
+class TestFixturePeriodicity(unittest.TestCase):
+    """D120: an extended-XYZ Lattice= with no pbc= is read as periodic by ASE."""
+
+    def test_every_lattice_line_in_the_harness_states_its_pbc(self):
+        import re
+        for path in sorted((REPO_ROOT / "test_scripts").glob("*.py")):
+            for line in path.read_text().splitlines():
+                if re.match(r'\s*Lattice="', line):
+                    with self.subTest(file=path.name, line=line.strip()):
+                        self.assertIn("pbc=", line)
+
+
 class TestHarnessDocFacts(unittest.TestCase):
     """
     D39: the harness docs carried stale facts — Matbench ranks 34/21 (36/22 of
