@@ -134,17 +134,22 @@ def _fixture(name: str) -> str:
     return str(next(ADVERSARIAL.glob(f"{name}__*")))
 
 
-def _run_text(text: str, suffix: str, params=None):
+def _run_text(text: str, suffix: str, params=None, _profile="local"):
     """Run a structure given as text through the engine with a scripted calculator."""
+    import calculate
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "upload" + suffix)
         pathlib.Path(path).write_text(text)
-        return _run_with(_scripted_calculator(10 ** 9, "energy"), path,
-                         {"modelType": "MACE-MPA-0", "modelSize": "medium", **(params or {})})
+        with mock.patch.object(calculate, "get_mace_calculator",
+                               return_value=_scripted_calculator(10 ** 9, "energy")):
+            return calculate.run_calculation(
+                path, {"modelType": "MACE-MPA-0", "modelSize": "medium", **(params or {})},
+                profile=_profile)
 
 
-def _run_file(path: str, params=None):
-    return _run_text(pathlib.Path(path).read_text(), pathlib.Path(path).suffix or ".vasp", params)
+def _run_file(path: str, params=None, _profile="local"):
+    return _run_text(pathlib.Path(path).read_text(), pathlib.Path(path).suffix or ".vasp", params,
+                     _profile=_profile)
 
 
 def _formula(result) -> dict:
@@ -353,6 +358,55 @@ class TestPlaceholderCellAndOverlaps(_RefusalMixin, unittest.TestCase):
     def test_0_6_angstrom_is_accepted(self):
         result = _run_text("2\n\nH 0 0 0\nH 0 0 0.6\n", ".xyz")
         self.assertEqual(result["status"], "success")
+
+
+def _bomb_cif(n_sites: int) -> str:
+    """Fm-3m with n random general sites: up to 192 atoms per site after expansion."""
+    import numpy as np
+    rng = np.random.default_rng(0)
+    lines = ["data_bomb", "_cell_length_a 60", "_cell_length_b 60", "_cell_length_c 60",
+             "_cell_angle_alpha 90", "_cell_angle_beta 90", "_cell_angle_gamma 90",
+             "_symmetry_space_group_name_H-M 'F m -3 m'", "_space_group_IT_number 225",
+             "loop_", "_atom_site_label", "_atom_site_type_symbol",
+             "_atom_site_fract_x", "_atom_site_fract_y", "_atom_site_fract_z"]
+    for i, (x, y, z) in enumerate(rng.random((n_sites, 3)) * 0.5):
+        lines.append(f"C{i} C {x:.5f} {y:.5f} {z:.5f}")
+    return "\n".join(lines) + "\n"
+
+
+class TestCifExpansionBomb(_RefusalMixin, unittest.TestCase):
+    """
+    D133: ASE expanded a CIF's symmetry with no limit, and the atom cap was
+    checked only afterwards. 1000 general sites in Fm-3m (a 31 kB file) took
+    4.6 s to expand to 188,883 atoms, 8000 sites 165 s, growing ~N^1.9, all on
+    the hosted Space's single worker. The expansion is now counted first and
+    refused over the profile's cap without being carried out.
+    """
+
+    def test_a_symmetry_bomb_is_refused_before_it_is_expanded(self):
+        import time
+        import ase.io.cif
+        import ase.spacegroup
+        real = ase.spacegroup.crystal
+        calls = []
+
+        def counting(*args, **kwargs):
+            calls.append(1)
+            return real(*args, **kwargs)
+
+        started = time.monotonic()
+        with mock.patch.object(ase.spacegroup, "crystal", counting), \
+                mock.patch.object(ase.io.cif, "crystal", counting):
+            message = self.assertRefusedWith("limit_exceeded", _run_text, _bomb_cif(1000), ".cif",
+                                             _profile="hosted")
+        self.assertEqual(calls, [], "the symmetry expansion ran before the cap was checked")
+        self.assertLess(time.monotonic() - started, 5.0)
+        self.assertIn("5000", message)  # the hosted single-point cap, from contract.json
+
+    def test_the_count_is_exact_for_special_positions(self):
+        # NaCl: 2 sites x 192 operations, but both on special positions: 8 atoms.
+        result = _run_file(_fixture("cif_nacl_asym_symops"), _profile="hosted")
+        self.assertEqual(len(result["symbols"]), 8)
 
 
 class TestCliOutputIsStrictJson(unittest.TestCase):
