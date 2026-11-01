@@ -809,6 +809,35 @@ class TestValidatorGateCanFail(unittest.TestCase):
             self.assertEqual(validate_calculation.cli(["--test"]), 0)
 
 
+class TestSuitesCannotPassEmpty(unittest.TestCase):
+    """
+    D86: on Python 3.11 `unittest discover` that finds nothing prints "Ran 0 tests
+    ... OK" and exits 0, so a renamed or broken test file passed CI. D88: the
+    daily gate counted any error as a refusal; each guard now names its code.
+    """
+
+    def _suite(self, *args):
+        return subprocess.run([sys.executable, str(REPO_ROOT / "test_scripts" / "run_suite.py"), *args],
+                              capture_output=True, text=True, timeout=300, cwd=REPO_ROOT,
+                              env={**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE"})
+
+    def test_a_pattern_that_matches_nothing_fails(self):
+        self.assertNotEqual(self._suite("test_no_such_suite_*.py").returncode, 0)
+
+    def test_minimum_count_is_enforced(self):
+        self.assertEqual(self._suite("test_geometry_opt.py", "--min", "1").returncode, 0)
+        self.assertNotEqual(self._suite("test_geometry_opt.py", "--min", "100000").returncode, 0)
+
+    def test_guards_judge_the_refusal_code(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        self.assertTrue(all(len(g) == 4 and g[2] for g in daily_gate.GUARDS))
+        wrong = subprocess.CompletedProcess([], 1, stdout=json.dumps(
+            {"status": "error", "error": {"code": "calculation_failed"}}), stderr="")
+        with mock.patch.object(daily_gate, "run", return_value=wrong):
+            self.assertTrue(all(not r.ok for r in daily_gate.gate_guards()))
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
