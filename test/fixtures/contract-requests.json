@@ -311,6 +311,96 @@
         "modelSize": " small "
       },
       "expect": "ok"
+    },
+    {
+      "name": "D123: a whitespace-only calculationType is treated as absent",
+      "profile": "local",
+      "params": {
+        "calculationType": "   "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D123: a whitespace-only number is treated as absent",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": "  "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D123: whitespace-only modelType and modelSize are treated as absent",
+      "profile": "local",
+      "params": {
+        "modelType": "  ",
+        "modelSize": " "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D124: a choice padded with U+0085 is refused on both sides",
+      "profile": "local",
+      "params": {
+        "device": "cpu"
+      },
+      "expect": "unsupported_device"
+    },
+    {
+      "name": "D124: a choice padded with a byte-order mark is refused on both sides",
+      "profile": "local",
+      "params": {
+        "precision": "﻿float64"
+      },
+      "expect": "unsupported_precision"
+    },
+    {
+      "name": "D125: an Arabic-Indic digit is not a number",
+      "profile": "local",
+      "params": {
+        "seed": "٣"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D125: a full-width digit is not a number",
+      "profile": "local",
+      "params": {
+        "seed": "３"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D139: a misspelled parameter is refused, not ignored",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "temprature": 300
+      },
+      "expect": "unknown_parameter"
+    },
+    {
+      "name": "D139: every parameter the calculator sends is known",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "modelType": "MACE-OFF",
+        "modelSize": "small",
+        "precision": "float32",
+        "device": "cpu",
+        "dispersion": false,
+        "temperature": 300,
+        "pressure": 0,
+        "timeStep": 0.5,
+        "friction": 0.01,
+        "mdSteps": 10,
+        "mdEnsemble": "NVT",
+        "forceThreshold": 0.05,
+        "maxOptSteps": 10,
+        "seed": 1,
+        "customModelName": "m.model"
+      },
+      "expect": "ok"
     }
   ]
 }
