@@ -27,9 +27,8 @@
  * WHAT AGREEMENT DOES AND DOES NOT PROVE
  *   MACE-MP-0 was trained on Materials Project PBE data. Agreement therefore
  *   measures how well the model reproduces PBE — its own training target — and
- *   says nothing about agreement with experiment. PBE itself inherits its
- *   differences from experiment, which depend on the material and the
- *   property.
+ *   says nothing about agreement with experiment. PBE itself differs from
+ *   experiment, by amounts that depend on the material and the property.
  *
  * See docs/v2/bars/materials-project.md for the caveats this module enforces,
  * and test_scripts/fetch_mp_reference.py for how the reference data is built
@@ -133,8 +132,8 @@ export const MP_CAVEATS: { title: string; body: string }[] = [
     title: "This tests agreement with PBE, not with experiment",
     body:
       "MACE-MP-0 was trained on Materials Project PBE(+U) data. Reproducing MP means the " +
-      "model fits its own training target. PBE itself inherits PBE's differences from " +
-      "experiment, which depend on the material and the property, and that difference is not visible here.",
+      "model fits its own training target. PBE itself differs from experiment, by amounts that " +
+      "depend on the material and the property, and that difference is not visible here.",
   },
   {
     title: "Formation energies only — never total energies",
