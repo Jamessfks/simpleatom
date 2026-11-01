@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bfgsSteps, runOutcome, stopCause, warningsBeyondOutcome } from "@/components/calculate/run-outcome";
+import { bfgsSteps, runOutcome, shareCaveats, stopCause, warningsBeyondOutcome } from "@/components/calculate/run-outcome";
 import type { CalculationResult } from "@/types/mace";
 
 const result = (extra: Partial<CalculationResult>): CalculationResult => ({
@@ -110,5 +110,30 @@ describe("the not-converged outcome says it once, in the singular when it is one
     const converged = result({ converged: true, params: { calculationType: "geometry-opt" }, warnings: ["a", "Optimization not converged: x"] });
     expect(warningsBeyondOutcome(converged)).toEqual(["a", "Optimization not converged: x"]);
     expect(warningsBeyondOutcome(result({}))).toEqual([]);
+  });
+});
+
+// Design review: the publish confirmation said nothing about a result that did
+// not converge or carries warnings, although both are published with it.
+describe("what the publish dialog warns about", () => {
+  it("nothing for a clean run", () => {
+    expect(shareCaveats(result({ converged: true, params: { calculationType: "geometry-opt" } }))).toEqual([]);
+    expect(shareCaveats(result({ params: { calculationType: "single-point" } }))).toEqual([]);
+  });
+
+  it("says a run that did not converge is not a relaxed minimum", () => {
+    const caveats = shareCaveats(
+      result({ converged: false, params: { calculationType: "geometry-opt", maxOptSteps: 5, optSteps: 5, finalFmax: 0.2, forceThreshold: 0.05 } }),
+    );
+    expect(caveats.join(" ")).toMatch(/not a relaxed minimum/);
+  });
+
+  it("counts the warnings that will be published with it", () => {
+    expect(shareCaveats(result({ warnings: ["a"] }))).toEqual([
+      "1 warning from the calculation is published with the result.",
+    ]);
+    expect(shareCaveats(result({ warnings: ["a", "b"] }))).toEqual([
+      "2 warnings from the calculation are published with the result.",
+    ]);
   });
 });
