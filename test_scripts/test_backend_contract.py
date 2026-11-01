@@ -645,6 +645,66 @@ class TestHostileParamsJson(unittest.TestCase):
                 self.assertEqual(doc["error"]["code"], "invalid_params", run.stderr[-500:])
 
 
+class TestCustomModelPeer(unittest.TestCase):
+    """D173: the FastAPI server let any network client upload a checkpoint in local mode
+    with ALLOW_CUSTOM_MODELS=1, and the file reached the unpickler."""
+
+    ENV = {"SIMPLEATOM_PROFILE": "local", "ALLOW_CUSTOM_MODELS": "1", "MACE_API_TOKEN": ""}
+
+    def _post(self, client_host, extra_headers=()):
+        import asyncio
+        import importlib
+        import main
+        with mock.patch.dict(os.environ, self.ENV):
+            main = importlib.reload(main)
+        self.addCleanup(importlib.reload, main)
+        body = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"w.xyz\"\r\n\r\n"
+                b"1\n\nH 0 0 0\n\r\n--x\r\nContent-Disposition: form-data; name=\"params\"\r\n\r\n"
+                b'{"modelType": "custom"}\r\n--x\r\nContent-Disposition: form-data; name=\"model\"; '
+                b'filename=\"mine.model\"\r\n\r\nnot a pickle\r\n--x--\r\n')
+        headers = [(b"content-type", b"multipart/form-data; boundary=x"),
+                   (b"content-length", str(len(body)).encode()), *extra_headers]
+        scope = {"type": "http", "method": "POST", "path": "/calculate", "raw_path": b"/calculate",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": headers, "client": (client_host, 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            await asyncio.sleep(0.05)
+            return {"type": "http.request", "body": b"", "more_body": True}
+
+        async def send(message):
+            messages.append(message)
+
+        ran = []
+        fake = lambda *a, **k: ran.append(k.get("model_path")) or {"status": "success", "energy": 0.0}
+        with mock.patch.dict(os.environ, self.ENV), mock.patch.object(main, "run_calculation", fake):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        payload = json.loads(b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body"))
+        return status, payload, ran
+
+    def test_a_network_peer_cannot_upload_a_checkpoint(self):
+        status, payload, ran = self._post("198.51.100.77")
+        self.assertEqual((status, payload["error"]["code"]), (403, "custom_models_local_only"), payload)
+        self.assertEqual(ran, [], "the upload reached the engine")
+
+    def test_forwarded_headers_do_not_make_a_peer_loopback(self):
+        status, payload, ran = self._post("198.51.100.77", [(b"x-forwarded-for", b"127.0.0.1")])
+        self.assertEqual(status, 403, payload)
+        self.assertEqual(ran, [])
+
+    def test_a_loopback_peer_is_admitted(self):
+        for host in ("127.0.0.1", "::1"):
+            with self.subTest(host=host):
+                status, payload, ran = self._post(host)
+                self.assertNotEqual(payload.get("error", {}).get("code"), "custom_models_local_only", payload)
+                self.assertEqual(len(ran), 1)
+
+
 class TestChunkedUploadCap(unittest.TestCase):
     """D142: a body sent without Content-Length (chunked) was received in full before its 413."""
 
