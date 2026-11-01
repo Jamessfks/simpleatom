@@ -558,6 +558,127 @@ class TestDeployWorkflow(unittest.TestCase):
             self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
 
 
+class TestDeployStaging(unittest.TestCase):
+    """D88 (F12): the staged Space is the commit that GIT_COMMIT names, nothing else."""
+
+    SCRIPT = REPO_ROOT / "scripts" / "stage-hf-space.sh"
+
+    def _repo(self, files):
+        root = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: subprocess.run(["rm", "-rf", str(root)]))
+        (root / "scripts").mkdir()
+        (root / "scripts" / "stage-hf-space.sh").write_bytes(self.SCRIPT.read_bytes())
+        (root / "test_scripts").mkdir()
+        (root / "test_scripts" / "validate_calculation.py").write_text("# validator\n")
+        for rel, text in files.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(text)
+        git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", "c"], check=True)
+        head = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        return root, head
+
+    def _stage(self, root, *args):
+        dest = root.parent / (root.name + "-stage")
+        self.addCleanup(lambda: subprocess.run(["rm", "-rf", str(dest)]))
+        run = subprocess.run(["bash", "scripts/stage-hf-space.sh", str(dest), *args],
+                             cwd=root, capture_output=True, text=True)
+        return run, dest
+
+    def test_a_clean_tree_stages_the_commit_and_names_it(self):
+        root, head = self._repo({"mace-api/calculate.py": "committed\n", "mace-api/test_x.py": "t\n"})
+        run, dest = self._stage(root)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual((dest / "calculate.py").read_text(), "committed\n")
+        self.assertEqual((dest / "GIT_COMMIT").read_text().strip(), head)
+        self.assertFalse((dest / "test_x.py").exists(), "tests must not ship")
+
+    def test_uncommitted_backend_edits_are_refused(self):
+        root, _ = self._repo({"mace-api/calculate.py": "committed\n"})
+        (root / "mace-api" / "calculate.py").write_text("edited, never committed\n")
+        run, dest = self._stage(root)
+        self.assertNotEqual(run.returncode, 0, "a dirty tree was staged under a clean commit's name")
+        self.assertIn("uncommitted", run.stderr)
+
+    def test_dirty_staging_is_labelled_dirty(self):
+        root, head = self._repo({"mace-api/calculate.py": "committed\n"})
+        (root / "mace-api" / "calculate.py").write_text("edited\n")
+        run, dest = self._stage(root, "--dirty")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual((dest / "calculate.py").read_text(), "edited\n")
+        self.assertEqual((dest / "GIT_COMMIT").read_text().strip(), head + "-dirty")
+
+    def test_two_files_with_one_name_are_refused(self):
+        root, _ = self._repo({"mace-api/calculate.py": "a\n", "mace-api/sub/calculate.py": "b\n"})
+        run, _ = self._stage(root)
+        self.assertNotEqual(run.returncode, 0, "the flat Space tree would silently keep one of them")
+        self.assertIn("calculate.py", run.stderr)
+
+
+class TestCiGates(unittest.TestCase):
+    """D82, D83, D88 (F8, F9, F13, F14, F21): what CI checks before the Space is built."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+        cls.dockerfile = (API_DIR / "Dockerfile").read_text()
+        cls.lock = (API_DIR / "requirements.lock.txt").read_text()
+
+    def _job(self, name):
+        import re
+        match = re.search(rf"(?ms)^  {re.escape(name)}:\n(.*?)(?=^  [\w-]+:\n|\Z)", self.ci)
+        self.assertIsNotNone(match, f"no {name} job in ci.yml")
+        return match.group(1)
+
+    def test_the_deploy_waits_for_every_other_job(self):
+        import re
+        jobs = set(re.findall(r"(?m)^  ([\w-]+):\n", self.ci.split("\njobs:\n", 1)[1]))
+        needs = re.search(r"needs:\s*\[([^\]]*)\]", self._job("deploy-hf")).group(1)
+        self.assertEqual({n.strip() for n in needs.split(",")}, jobs - {"deploy-hf"})
+
+    def test_the_lock_header_regenerates_the_index_lines(self):
+        header = "\n".join(line for line in self.lock.splitlines() if line.startswith("#"))
+        self.assertIn("--emit-index-url", header)
+        self.assertIn("--extra-index-url https://download.pytorch.org/whl/cpu", header)
+        self.assertIn("\n--extra-index-url https://download.pytorch.org/whl/cpu\n", self.lock)
+
+    def test_ci_regenerates_the_lock_and_diffs_it(self):
+        job = self._job("python-unit")
+        self.assertIn("uv pip compile mace-api/requirements.in", job)
+        self.assertIn("--emit-index-url", job)
+        self.assertIn("git diff --exit-code mace-api/requirements.lock.txt", job)
+
+    def test_the_checkpoint_cache_is_keyed_on_the_pins_alone(self):
+        job = self._job("python-models")
+        self.assertNotIn("hashFiles('mace-api/contract.json')", job,
+                         "every limit or version edit to contract.json throws the cache away")
+        self.assertIn("sha256", job)
+
+    def test_the_image_installs_only_hashed_files(self):
+        import re
+        self.assertRegex(self.dockerfile, r"(?m)^FROM python:3\.11-slim@sha256:[0-9a-f]{64}\b",
+                         "the base image must be pinned by digest")
+        self.assertNotIn("--upgrade pip", self.dockerfile, "an unpinned pip ran before the hashed install")
+        self.assertIn("--only-binary=:all:", self.dockerfile, "a new sdist would be built unnoticed")
+        self.assertIn("--no-build-isolation", self.dockerfile,
+                      "build isolation fetches setuptools unhashed for the two locked sdists")
+        build = (API_DIR / "build-requirements.lock.txt").read_text()
+        self.assertRegex(build, r"(?m)^setuptools==\S+ \\\n\s+--hash=sha256:[0-9a-f]{64}")
+        sdists = re.search(r"--no-binary=(\S+)", self.dockerfile).group(1).split(",")
+        self.assertEqual(sorted(sdists), ["bibtexparser", "python-hostlist"])
+
+    def test_the_smoke_runs_the_default_model_from_the_baked_checkpoints(self):
+        job = self._job("docker-smoke")
+        self.assertIn("--network none", job, "a checkpoint fetched at run time would hide a missing bake")
+        self.assertIn("MACE-MPA-0", job)
+        self.assertIn("golden_energies.json", job)
+        self.assertIn("provenance", job)
+        self.assertIn("github.sha", job.split("provenance", 1)[1],
+                      "the manifest commit must be the commit under test, not just truthy")
+
+
 class TestHourlyCap(unittest.TestCase):
     """
     D42: every (model, structure) pair of a benchmark is one admission, and the
