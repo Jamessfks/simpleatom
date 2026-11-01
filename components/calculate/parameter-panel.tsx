@@ -588,7 +588,7 @@ export function ParameterPanel({
               <div className="mt-5 space-y-4">
                 <Field
                   label="Ensemble"
-                  tooltip="NVE: no thermostat. NVT: Langevin thermostat. NPT: thermostat + barostat (needs a periodic cell)."
+                  tooltip="NVE: no thermostat. NVT: Langevin thermostat. NPT: thermostat + barostat (needs periodicity in all three directions)."
                 >
                   <Select
                     value={params.mdEnsemble ?? "NVT"}
@@ -612,8 +612,9 @@ export function ParameterPanel({
                   </Select>
                   {isPeriodic === false && (
                     <p className="text-xs text-text-muted">
-                      NPT is unavailable — this structure has no periodic
-                      cell (not a crystal/bulk structure). Only NVE/NVT apply.
+                      NPT is unavailable — this structure is not periodic in
+                      all three directions (a molecule, slab or wire, not a
+                      bulk crystal). Only NVE/NVT apply.
                     </p>
                   )}
                 </Field>
