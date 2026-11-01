@@ -500,25 +500,53 @@ def get_custom_calculator(model_path: str, device: str):
 
 
 def extract_reference_data(atoms) -> dict:
-    """Extract reference energy/forces from extended XYZ info/arrays."""
-    ref = {}
+    """
+    Reference energy/forces carried by the input file, and where each came from.
+
+    MACE's training keys (REF_energy, ...) stay in atoms.info/arrays. ASE
+    >= 3.23 moves the standard `energy=`, `free_energy=` and `forces` fields of
+    extended XYZ into a SinglePointCalculator instead (D91), which is exactly
+    what ase.io.write produces for any DFT result, so those are read from
+    atoms.calc.results; `energy` is preferred to `free_energy`. Must run before
+    the MACE calculator replaces atoms.calc.
+    """
+    import numpy as np
+
+    ref, source = {}, {}
+    results = dict(getattr(atoms.calc, "results", None) or {}) if atoms.calc is not None else {}
 
     for key in ("REF_energy", "ref_energy", "energy", "dft_energy"):
         if key in atoms.info:
             try:
                 ref["referenceEnergy"] = float(atoms.info[key])
+                source["energy"] = key
                 break
             except (TypeError, ValueError):
                 pass
+    if "referenceEnergy" not in ref:
+        for key in ("energy", "free_energy"):
+            value = results.get(key)
+            if value is not None and np.isfinite(float(value)):
+                ref["referenceEnergy"] = float(value)
+                source["energy"] = key
+                break
 
     for key in ("REF_forces", "ref_forces", "forces", "dft_forces"):
         if key in atoms.arrays:
             try:
                 ref["referenceForces"] = atoms.arrays[key].tolist()
+                source["forces"] = key
                 break
             except Exception:
                 pass
+    if "referenceForces" not in ref and results.get("forces") is not None:
+        forces = np.asarray(results["forces"], dtype=float)
+        if forces.shape == (len(atoms), 3) and np.isfinite(forces).all():
+            ref["referenceForces"] = forces.tolist()
+            source["forces"] = "forces"
 
+    if source:
+        ref["referenceSource"] = source
     return ref
 
 
