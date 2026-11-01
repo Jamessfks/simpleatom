@@ -79,7 +79,7 @@ raise SystemExit('v1 is on PyPI: this ADR is due for review' if v1 else 0)
 PY
 ```
 
-CI enforces the pin on every push: `pip install --require-hashes --no-deps -r mace-api/requirements.lock.txt` fails on any drift, and the `python-models` job runs the translation-invariance test that ADR-0025 requires. Today 1a prints `mace-torch 0.3.16 pinned in lock, .in and .txt` and 1b prints `PyPI mace-torch latest: 0.3.16 | major >= 1: none`.
+CI enforces the pin on every pull request and on pushes to `main`, `daily` and `v*`: `pip install --require-hashes --no-deps -r mace-api/requirements.lock.txt` fails on any drift, and the `python-models` job runs the translation-invariance test that ADR-0025 requires. Today 1a prints `mace-torch 0.3.16 pinned in lock, .in and .txt` and 1b prints `PyPI mace-torch latest: 0.3.16 | major >= 1: none`.
 
 **Part 2. Entry conditions (a migration PR may not be opened until each command succeeds).**
 

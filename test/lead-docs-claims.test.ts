@@ -19,6 +19,7 @@ describe("what the repository's own docs claim", () => {
     expect(contributing).not.toMatch(/every push/);
     expect(readme).not.toMatch(/CI gates every merge/);
     expect(changelog).not.toMatch(/CI on every push/);
+    expect(read("docs/adr/0030-mace-v1-migration.md")).not.toMatch(/on every push/);
   });
 
   it("has the Unreleased section it points to (D161)", () => {
