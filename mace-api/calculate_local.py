@@ -155,7 +155,7 @@ if __name__ == "__main__":
         params = json.loads(params_json)
         if not isinstance(params, dict):
             raise json.JSONDecodeError("not an object", params_json, 0)
-    except json.JSONDecodeError:
+    except (ValueError, RecursionError):  # also the 4300-digit integer limit and deep nesting (D138)
         emit_error("Invalid params JSON: expected an object.", code="invalid_params", status=400)
         sys.exit(1)
 

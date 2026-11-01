@@ -272,8 +272,11 @@ async def _intake(files: list[UploadFile], params: str, model: UploadFile | None
     """
     try:
         params_obj = json.loads(params)
-    except json.JSONDecodeError as e:
-        raise _error(400, "invalid_params", f"Invalid params JSON: {e}", field="params")
+    except (ValueError, RecursionError) as e:
+        # ValueError covers JSONDecodeError and Python's 4300-digit integer
+        # limit; RecursionError, nesting deeper than the decoder allows (D138).
+        reason = str(e) if isinstance(e, json.JSONDecodeError) else type(e).__name__
+        raise _error(400, "invalid_params", f"Invalid params JSON: {reason}", field="params")
     if not isinstance(params_obj, dict):
         raise _error(400, "invalid_params", "params must be a JSON object.", field="params")
     if not files:
