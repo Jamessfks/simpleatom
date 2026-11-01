@@ -228,13 +228,24 @@ class TestEmbeddingTimeLimit(unittest.TestCase):
     def test_a_slow_embedding_is_stopped_with_a_coded_refusal(self):
         import time
         from unittest import mock
+        from rdkit.Chem import AllChem
         import smiles_to_xyz as module
         from contract import ContractError
+        real = AllChem.EmbedMolecule
+        timeouts = []
+
+        def spy(mol, params):
+            timeouts.append(params.timeout)
+            return real(mol, params)
+
         started = time.monotonic()
-        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True):
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True), \
+                mock.patch.object(AllChem, "EmbedMolecule", spy):
             with self.assertRaises(ContractError) as ctx:
                 smiles_to_xyz(C60)
         self.assertLess(time.monotonic() - started, 6.0)
+        # RDKit ran the ETKDG attempt under the limit and stopped it; no retry followed.
+        self.assertEqual(timeouts, [1])
         err = ctx.exception
         self.assertEqual((err.code, err.status, err.field), ("smiles_embedding_timeout", 422, "smiles"))
         self.assertIn("1 s", str(err))
