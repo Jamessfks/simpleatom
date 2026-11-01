@@ -643,29 +643,41 @@ function cifFirst(block: CifBlock, tags: string[]): string[] | undefined {
 }
 
 /**
- * The element of one `_atom_site_type_symbol` or `_atom_site_label` value, by
- * ASE's rule (ase/io/cif.py): the first capital letter and an optional
- * lower-case one, so "Fe2+" is Fe and "H1A" is H. ASE applies that rule to an
- * all-capitals symbol too, and reads NA as N, CL as C, FE as F — D113. A type
- * symbol that is not written Na, Cl, Fe (optionally with a charge) is refused.
+ * The element of one `_atom_site_type_symbol` or `_atom_site_label` value, as the
+ * server reads it (`normalise_element` in mace-api/calculate.py, D113, D152). ASE
+ * matches [A-Z][a-z]? and so reads NA as N and CL as C; the server does not.
+ *
+ * A type symbol is an element symbol in any case, optionally followed by a charge
+ * or oxidation state: NA, na, Na1+, Fe2+ and O2- are Na, Na, Na, Fe and O. A label
+ * is read the same way except that an all-capitals label whose first two letters
+ * spell an element different from its first letter (CA1: calcium, or an alpha
+ * carbon?) is refused rather than guessed. Deuterium (D) reads as hydrogen.
  */
-function cifElement(raw: string, fromTypeSymbol: boolean): string {
+function cifElement(raw: string, fromLabel: boolean): string {
   if (raw === "." || raw === "?") {
     throw new Error("The CIF leaves an atom's element undetermined ('.' or '?').");
   }
-  if (fromTypeSymbol) {
-    const core = raw.replace(/(?:\d*[+-]|[+-]\d+)$/, "");
-    if (!/^[A-Z][a-z]?\d*$/.test(core)) {
-      throw new Error(
-        `The CIF writes an element as "${raw}", with the wrong capitalisation. ASE would read NA as N, CL as C and FE as F, ` +
-          "so the structure would not be the one you see. Write each symbol with a capital first letter and a lower-case " +
-          "second letter (Na, Cl, Fe), then upload again.",
-      );
-    }
+  const text = raw.trim();
+  const letters = text.match(/^[A-Za-z]+/)?.[0];
+  if (!letters) {
+    throw new Error(`The CIF writes an element as "${text}", which does not start with an element symbol.`);
   }
-  const match = raw.match(/[A-Z][a-z]?/);
-  if (!match) throw new Error(`The CIF writes an element as "${raw}", which has no element symbol in it.`);
-  return requireElement(match[0] === "D" ? "H" : match[0], "in the CIF");
+  const one = letters[0].toUpperCase();
+  const two = letters.length > 1 ? one + letters[1].toLowerCase() : null;
+  const known = (symbol: string | null) => symbol !== null && (SYMBOL_SET.has(symbol) || symbol === "D");
+  const twoOk = known(two);
+  const oneOk = known(one);
+  if (fromLabel && twoOk && oneOk && /^[A-Z]{2}$/.test(letters.slice(0, 2))) {
+    throw new Error(
+      `The CIF site label "${text}" could be ${two} or ${one}, and the file has no _atom_site_type_symbol column to say which. ` +
+        "Add one, then upload again.",
+    );
+  }
+  let symbol: string | null = null;
+  if (twoOk && (!fromLabel || /[a-z]/.test(letters[1]) || !oneOk)) symbol = two;
+  else if (oneOk && (letters.length === 1 || fromLabel || !twoOk)) symbol = one;
+  if (symbol === null) throw new Error(`The CIF site symbol "${text}" is not an element symbol.`);
+  return requireElement(symbol === "D" ? "H" : symbol, "in the CIF");
 }
 
 /** The 24 space groups with two origin choices (ITA), by number and normalised Hermann-Mauguin symbol. */
@@ -712,7 +724,7 @@ function readCifBlock(block: CifBlock, notes: string[]): Omit<RawStructure, "fra
   const occupancy = block.items.get("_atom_site_occupancy");
   if (occupancy?.some((o) => {
     const v = cifNumber(o);
-    return v !== null && Math.abs(v - 1) > 1e-6;
+    return v !== null && Math.abs(v - 1) > 1e-3; // the server's threshold (calculate.py `_read_cif`)
   })) {
     throw new Error(
       "The CIF lists sites with an occupancy other than 1 (a disordered or partly vacant structure). " +
@@ -721,7 +733,7 @@ function readCifBlock(block: CifBlock, notes: string[]): Omit<RawStructure, "fra
     );
   }
 
-  const symbols = symbolColumn.map((s) => cifElement(s, typeColumn !== undefined));
+  const symbols = symbolColumn.map((s) => cifElement(s, typeColumn === undefined));
   const coords = Array.from({ length: n }, (_, i) =>
     coordinates.map((col) => {
       const v = cifNumber(col[i]);
@@ -763,7 +775,8 @@ function readCifBlock(block: CifBlock, notes: string[]): Omit<RawStructure, "fra
       (r) => [0, 1, 2].map((k) => r[0] * inv[0][k] + r[1] * inv[1][k] + r[2] * inv[2][k]) as [number, number, number],
     );
   }
-  const sites = symbols.map((symbol, i) => ({ symbol, frac: frac[i] }));
+  const labelColumn = block.items.get("_atom_site_label");
+  const sites = symbols.map((symbol, i) => ({ symbol, label: labelColumn?.[i] ?? symbol, frac: frac[i] }));
 
   const opColumn = cifFirst(block, ["_space_group_symop_operation_xyz", "_space_group_symop.operation_xyz", "_symmetry_equiv_pos_as_xyz"]);
   const ops = (opColumn ?? []).map(parseSymmetryOp).filter((o): o is SymOp => o !== null);
@@ -788,12 +801,15 @@ function readCifBlock(block: CifBlock, notes: string[]): Omit<RawStructure, "fra
 /**
  * A CIF with no symmetry operations but a space group other than P1 gives
  * ASE's space-group table the job of expanding the sites. The browser has no
- * such table, so the preview draws only the listed sites and says so. A symbol
- * that ends ":2" asks for origin choice 2, which ASE ignores: it expands with
- * origin-1 operators and builds the wrong crystal (D114), so that file is
- * refused. Without the suffix a group with two origins (Fd-3m, Fddd, Pn-3m, …)
- * cannot say which one the coordinates use; ASE assumes origin 1, and the note
- * tells the user to check.
+ * such table, so the preview draws only the listed sites and says so (D152).
+ *
+ * What the server then does (`_read_cif` in mace-api/calculate.py, D114): an
+ * explicit origin, `:1` or `:2` after the symbol or a
+ * `_symmetry_space_group_setting`, is built as written. A group with two origin
+ * choices (Fd-3m, Fddd, Pn-3m, …) given without one is read in both, the origin
+ * that gives fewer atoms is used and a warning says which, and a file whose two
+ * readings have the same size is refused. The note describes that rule; it does
+ * not assume an origin.
  */
 function checkSymbolOnlySymmetry(block: CifBlock, notes: string[], listedSites: number): void {
   const numberColumn = cifFirst(block, ["_space_group.it_number", "_space_group_it_number", "_symmetry_int_tables_number"]);
@@ -805,21 +821,22 @@ function checkSymbolOnlySymmetry(block: CifBlock, notes: string[], listedSites: 
   if (isP1 || (Number.isNaN(number) && !name)) return;
 
   const group = name ? `"${name}"` : `number ${number}`;
-  if (/:\s*2\s*$/.test(name ?? "")) {
-    throw new Error(
-      `The CIF asks for origin choice 2 of space group ${group} but gives no symmetry operations. The calculation ignores the ":2" and ` +
-        "builds the crystal with origin choice 1, which is a different structure. Add the symmetry operations " +
-        "(_space_group_symop_operation_xyz) or write the full cell in P1, then upload again.",
-    );
-  }
+  const colon = name?.match(/:\s*([12])\s*$/);
+  const keyed = cifFirst(block, ["_symmetry_space_group_setting"]);
+  const keyedSetting = keyed ? parseInt(keyed[0], 10) : NaN;
+  const setting = colon ? Number(colon[1]) : keyedSetting === 1 || keyedSetting === 2 ? keyedSetting : null;
   const twoOrigins = TWO_ORIGIN_NUMBERS.has(number) || (compact !== undefined && TWO_ORIGIN_SYMBOLS.has(compact));
   notes.push(
     `The CIF names space group ${group} (a Hermann-Mauguin symbol or number) without listing its symmetry operations. ` +
       `The preview cannot expand it and shows only the ${listedSites} listed site${listedSites === 1 ? "" : "s"}; ` +
       "the calculation applies the group's operations to them, so its atom count may be larger." +
-      (twoOrigins
-        ? " This group has two origin choices and the symbol does not say which one the coordinates use; the calculation assumes origin 1, so check that yours does."
-        : ""),
+      (setting !== null
+        ? ` The calculation builds origin choice ${setting} as written.`
+        : twoOrigins
+          ? " This group has two origin choices and the symbol does not say which: the calculation tries both, uses the one that " +
+            "gives fewer atoms and says which in a warning, and refuses the file if both give the same number. " +
+            "Write ':1' or ':2' after the symbol to choose."
+          : ""),
   );
 }
 
@@ -911,7 +928,7 @@ export interface ExpansionWork {
  * such as "-x+1/2, y, z". Exported only so a test can drive it without the
  * nearest-neighbour search that `parseStructureText` runs afterwards.
  */
-export function expandCifSites<T extends { symbol: string; frac: [number, number, number] }>(
+export function expandCifSites<T extends { symbol: string; label?: string; frac: [number, number, number] }>(
   sites: T[],
   operations: string[],
   work?: ExpansionWork,
@@ -932,7 +949,7 @@ export function expandCifSites<T extends { symbol: string; frac: [number, number
  * found through a hash grid of 1/1000 cells, so the cost is linear in the
  * number of images.
  */
-function expandSymmetry<T extends { symbol: string; frac: [number, number, number] }>(
+function expandSymmetry<T extends { symbol: string; label?: string; frac: [number, number, number] }>(
   sites: T[],
   ops: SymOp[],
   work?: ExpansionWork,
@@ -971,6 +988,18 @@ function expandSymmetry<T extends { symbol: string; frac: [number, number, numbe
               if (work) work.comparisons++;
               const o = out[index].frac;
               if (near(o[0], image[0]) && near(o[1], image[1]) && near(o[2], image[2])) {
+                // The same element twice is a redundant listing and merges, as in
+                // ASE. Two elements on one position is hidden disorder, which the
+                // server refuses (`_expand_cif`): keeping either would invent a
+                // composition the file does not state.
+                const other = out[index];
+                if (other.symbol !== site.symbol) {
+                  throw new Error(
+                    `The CIF's sites ${other.label ?? other.symbol} (${other.symbol}) and ${site.label ?? site.symbol} ` +
+                      `(${site.symbol}) occupy the same position after symmetry expansion. Two elements on one site is ` +
+                      "disorder, which MACE cannot compute; build an ordered structure.",
+                  );
+                }
                 seen = true;
                 break;
               }
