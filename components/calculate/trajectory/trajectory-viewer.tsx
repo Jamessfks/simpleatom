@@ -174,8 +174,9 @@ function TrajectoryPlayer({
   const kineticEnergies = traj.kineticEnergies ?? [];
   const temperatures = traj.temperatures ?? [];
   const hasTotal = totalEnergies.length > 0;
+  // Rows stored before `step` was recorded have none: number the frames instead.
   const steps =
-    traj.step.length > 0 ? traj.step : potentialEnergies.map((_, i) => i);
+    (traj.step?.length ?? 0) > 0 ? traj.step : potentialEnergies.map((_, i) => i);
 
   // ── State ──
   const [currentFrame, setCurrentFrame] = useState(0);

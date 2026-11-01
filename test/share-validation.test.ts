@@ -123,7 +123,7 @@ describe("a shared trajectory has a step list as long as its energies and positi
 
   it("refuses a trajectory with no step list", () => {
     expect(problem({ trajectory: noStep })).toBe("result.trajectory");
-    expect(problem({ trajectory: { ...noStep, step: "0,1" } })).toBe("result.trajectory");
+    expect(problem({ trajectory: { ...noStep, step: "0,1" } })).toBe("result.trajectory.step");
   });
 
   it("refuses lists of different lengths", () => {

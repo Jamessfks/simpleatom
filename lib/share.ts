@@ -90,30 +90,19 @@ function hasRenderableLeaf(value: unknown): boolean {
 }
 
 /**
- * Make a stored payload safe for a reader that predates — or postdates — it.
- *
- * `result.provenance` and `result.validation` were added after MACE Link
- * shipped, so rows written earlier do not have them, and the UI must render
- * nothing at all rather than an empty section. Absent keys already do that.
- * What this guards is the middle case: a payload where the key EXISTS but says
- * nothing — a manifest of all-null leaves, or a validation object with no
- * `status`. Both would draw a headed, empty card, and the validation one would
- * additionally claim the validator was unavailable, which for a row that simply
- * predates validation is a false statement about a run nobody can re-inspect.
- *
- * This only ever DELETES a contentless key. It never adds a field, never fills
- * a null, and never changes a number — a shared result must keep saying exactly
- * what it said when it was stored.
- *
- * Exported so it can be exercised directly against hand-built legacy payloads.
+ * A trajectory the player can draw: an object whose `energies`, `step` and
+ * `positions` are lists with one entry per frame. The player indexes all three
+ * together, so a missing `step` or lists of different lengths are not drawable (D159).
  */
-/** A trajectory the dashboard can draw: an object with its `energies` and `positions` lists. */
 function isTrajectory(value: unknown): value is Record<string, unknown> {
+  if (!isObject(value)) return false;
+  const { energies, step, positions } = value;
   return (
-    isObject(value) &&
-    !Array.isArray(value) &&
-    Array.isArray((value as Record<string, unknown>).energies) &&
-    Array.isArray((value as Record<string, unknown>).positions)
+    Array.isArray(energies) &&
+    Array.isArray(step) &&
+    Array.isArray(positions) &&
+    energies.length === positions.length &&
+    step.length === positions.length
   );
 }
 
@@ -131,6 +120,24 @@ function isRenderableTrajectory(value: unknown): boolean {
   });
 }
 
+/**
+ * Make a stored payload safe for a reader that predates — or postdates — it.
+ *
+ * `result.provenance` and `result.validation` were added after MACE Link
+ * shipped, so rows written earlier do not have them, and the UI must render
+ * nothing at all rather than an empty section. Absent keys already do that.
+ * What this guards is the middle case: a payload where the key EXISTS but says
+ * nothing — a manifest of all-null leaves, or a validation object with no
+ * `status`. Both would draw a headed, empty card, and the validation one would
+ * additionally claim the validator was unavailable, which for a row that simply
+ * predates validation is a false statement about a run nobody can re-inspect.
+ *
+ * This only ever DELETES a contentless key (or a trajectory the page cannot draw). It never adds a field, never fills
+ * a null, and never changes a number — a shared result must keep saying exactly
+ * what it said when it was stored.
+ *
+ * Exported so it can be exercised directly against hand-built legacy payloads.
+ */
 export function normalizeSharedResult(shared: SharedResult): SharedResult {
   const result = shared.result;
   if (!result || typeof result !== "object") return shared;
@@ -350,14 +357,15 @@ export function checkSharedResultShape(r: Record<string, unknown>, atomCount: nu
     }
   }
 
-  // The page reads `trajectory.positions.length` and `.energies.length`, so a
-  // trajectory with neither list is refused rather than stored (D64): null,
-  // {} and arrays used to be accepted and then crashed every render of the link.
+  // The page reads `trajectory.positions.length` and `.energies.length`, and the
+  // player indexes `step` beside them, so a trajectory without all three lists,
+  // or with lists of different lengths, is refused rather than stored (D64, D159):
+  // null, {} and arrays used to be accepted and then crashed every render of the
+  // link. The series are checked first so each names its own field.
   if (r.trajectory !== undefined) {
-    if (!isTrajectory(r.trajectory)) {
-      return bad("result.trajectory", "must hold the energies, step and positions lists of the run.");
-    }
     const t = r.trajectory;
+    const whole = "must hold the energies, step and positions lists of the run, one entry per frame in each.";
+    if (!isObject(t)) return bad("result.trajectory", whole);
     for (const key of SERIES) {
       const series = t[key];
       if (series === undefined) continue;
@@ -375,6 +383,7 @@ export function checkSharedResultShape(r: Record<string, unknown>, atomCount: nu
         return bad("result.trajectory.positions", "must hold one finite 3-vector per atom in every frame.");
       }
     }
+    if (!isTrajectory(t)) return bad("result.trajectory", whole);
   }
   return null;
 }
