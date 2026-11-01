@@ -153,7 +153,7 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
   // ── Geometry sanity checks ──
   const hasOverlap = parsed.minNeighborDist < 0.4;
-  const hasWarnings = isLarge || isVeryLarge || isHugeBox || parsed.isPlanar || hasOverlap;
+  const hasWarnings = isLarge || isVeryLarge || isHugeBox || parsed.isPlanar || hasOverlap || parsed.notes.length > 0;
 
   // ── Geometry details — tight key/value rows (Materials-Project style:
   //    bold label left, value right, hairline rule between rows). Precision
@@ -246,6 +246,15 @@ export function StructureInfo({ file }: StructureInfoProps) {
           </div>
         </div>
       )}
+
+      {/* What the reader had to decide about this file (read as plain XYZ, a
+          placeholder cell ignored, symmetry it cannot expand…). */}
+      {parsed.notes.map((note) => (
+        <div key={note} className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <div>{note}</div>
+        </div>
+      ))}
 
       {/* Flat molecule — amber (all atoms coplanar with >3 atoms) */}
       {parsed.isPlanar && (
