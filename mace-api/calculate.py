@@ -1384,6 +1384,21 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
     except Exception as exc:  # noqa: BLE001 — provenance must never break a run
         manifest = provenance.unavailable_manifest(f"{type(exc).__name__}: {exc}")
 
+    # Fixed atoms (POSCAR selective dynamics, D132): said once, per calculation.
+    constrained = constrained_indices(atoms)
+    if constrained:
+        held = (f"{len(constrained)} of {len(atoms)} atoms are fixed (wholly or along some axes) "
+                "by the file's constraints (selective dynamics)")
+        warnings.append({
+            "single-point": f"{held}. A single point reports the model's full forces on them; "
+                            "a constraint only matters when atoms move.",
+            "geometry-opt": f"{held}: they were held in place, and the forces reported for them "
+                            "are the constrained ones (fixed components zero).",
+            "molecular-dynamics": f"{held}: they were held in place, the temperature is over the "
+                                  "free degrees of freedom only, and the final forces reported for "
+                                  "them are the constrained ones.",
+        }[calc_type])
+
     hooks.phase("computing")
     calc_start = time.time()
     context = _RunContext(atoms=atoms, filename=filename, calc_start=calc_start,
@@ -1402,6 +1417,9 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
         # guard so that adding a type to SUPPORTED_CALCULATION_TYPES without a
         # handler fails loudly instead of silently returning a single-point result.
         raise ValueError(f"No handler implemented for calculationType '{calc_type}'")
+
+    if constrained:
+        result["constrainedAtoms"] = constrained
 
     # A licence notice is not a warning about the result, so it travels in its
     # own field (shown with the result, in the PDF and on MACE Link) rather
@@ -1539,9 +1557,27 @@ def require_finite(atoms, energy, forces, where: str) -> None:
     )
 
 
+def constrained_indices(atoms) -> list[int]:
+    """
+    Indices of the atoms any constraint acts on: the rows an all-ones force
+    array does not survive unchanged through every constraint's adjust_forces.
+    Works for FixAtoms, FixScaled and FixCartesian alike, in any cell.
+    """
+    import numpy as np
+    if not atoms.constraints:
+        return []
+    probe = np.ones((len(atoms), 3))
+    for constraint in atoms.constraints:
+        constraint.adjust_forces(atoms, probe)
+    return [int(i) for i in np.flatnonzero(np.any(np.abs(probe - 1.0) > 1e-12, axis=1))]
+
+
 def _run_single_point(ctx: _RunContext):
     energy = ctx.atoms.get_potential_energy()
-    forces = ctx.atoms.get_forces()
+    # A single point asks for the model's forces. ASE's default applies the
+    # file's constraints and reports exactly zero on fixed atoms (D132): the
+    # real forces there (1.12 eV/Å on a Cu slab's frozen layer) were discarded.
+    forces = ctx.atoms.get_forces(apply_constraint=False)
     require_finite(ctx.atoms, energy, forces, f"for {ctx.filename}")
     msg = f"Calculation completed for {ctx.filename} using MACE"
     return ctx.build(energy, forces, msg)
