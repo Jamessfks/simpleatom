@@ -471,6 +471,8 @@ async def convert_smiles(request: Request, req: SmilesRequest,
     def run(_job):
         try:
             return _smiles_to_xyz(smiles)
+        except ContractError:
+            raise   # already coded (smiles_embedding_timeout, refused ions, ...): keep it (D151)
         except ValueError as e:
             raise ContractError(str(e), code="invalid_smiles", field="smiles") from e
 
