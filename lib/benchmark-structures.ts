@@ -5,8 +5,9 @@
  *
  *   1. the ml-peg catalog (lib/mlpeg-catalog.ts) — the structures the calculator
  *      page also offers, submitted as extended XYZ;
- *   2. the Materials Project reference set (lib/mp-reference-data.ts) — MP's own
- *      PBE-relaxed cells, each carrying MP's published formation energy, used by
+ *   2. the Materials Project reference set (lib/mp-reference-data.ts) — the cells
+ *      MP serves for each id (12 of 13 r2SCAN-relaxed, NiTi GGA/GGA+U; D106), sent
+ *      as CIF, each carrying MP's published GGA/GGA+U formation energy, used by
  *      the "vs Materials Project" tab.
  *
  * Kept in its own module so the MP set never reaches the calculator page's
@@ -25,6 +26,7 @@
  */
 
 import { getEntriesByIds, type CatalogEntry } from "./mlpeg-catalog";
+import { mpEntryLabel } from "./mp-reference";
 import { MP_REFERENCE_ENTRIES } from "./mp-reference-data";
 
 /** Category id used for Materials Project reference-set structures. */
@@ -75,7 +77,7 @@ export function getBenchmarkStructuresByIds(ids: string[]): BenchmarkStructure[]
     if (mp) {
       out.push({
         id: mp.id,
-        name: mp.name,
+        name: mpEntryLabel(mp), // the D107/D108 labels, in every leaderboard, heatmap and export (D156)
         category: MP_CATEGORY_ID,
         formula: mp.formula,
         atomCount: mp.atomCount,

@@ -25,10 +25,10 @@
  * (docs/v2/validation/structure-references.json, H1). Each cell is written twice,
  * as extended XYZ (positions in A to 8 decimal places) and as an ASE-generated CIF.
  *
- * The extended XYZ is what the benchmark sends. mace-api/calculate.py reads a
- * ".xyz" with ASE's extended-XYZ reader, which honours the `Lattice=` and
- * `pbc="T T T"` on the comment line, so it calculates the same periodic cell as
- * the CIF. The 2026-10-31 structure audit confirmed each pair describes one
+ * The benchmark sends the CIF (lib/benchmark-structures.ts). The extended XYZ
+ * would compute the same thing: mace-api/calculate.py reads a ".xyz" with ASE's
+ * extended-XYZ reader, which honours the `Lattice=` and `pbc="T T T"` on the
+ * comment line. The 2026-10-31 structure audit confirmed each pair describes one
  * structure (energy difference at most 3.3e-9 eV). Each CIF was also checked to
  * survive a write/read round trip with no loss of minimum-image interatomic
  * distances or cell parameters; the measured deviations are below.
