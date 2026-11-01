@@ -33,3 +33,13 @@ describe("hosted synchronous path (D41)", () => {
     expect(sent[0].get("x-simpleatom-proxy-key")).toBe("test-proxy-key");
   });
 });
+
+describe("local interpreter", () => {
+  it("spawns the interpreter SIMPLEATOM_PYTHON names, and python3 otherwise", async () => {
+    const { pythonExecutable } = await import("@/lib/server/backend");
+    vi.stubEnv("SIMPLEATOM_PYTHON", "/opt/simpleatom/venv/bin/python");
+    expect(pythonExecutable()).toBe("/opt/simpleatom/venv/bin/python");
+    vi.stubEnv("SIMPLEATOM_PYTHON", "  ");
+    expect(pythonExecutable()).toBe("python3");
+  });
+});

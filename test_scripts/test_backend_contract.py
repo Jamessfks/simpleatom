@@ -662,6 +662,27 @@ class TestDocumentedTestsExist(unittest.TestCase):
             self.assertTrue((REPO_ROOT / path).exists(), path)
 
 
+class TestLocalStack(unittest.TestCase):
+    """
+    Local mode runs whatever `python3` resolves to (on the audit machine:
+    miniconda 3.13 with mace-torch 0.3.15, not the pinned 0.3.16). A run on a
+    stack that drifts from requirements.in now says so in its result.
+    """
+
+    def test_drift_from_the_pins_is_named(self):
+        import calculate_local
+        pins = calculate_local.pinned_versions()
+        self.assertEqual(pins["mace-torch"], "0.3.16")
+        installed = {**pins, "mace-torch": "0.3.15", "torch": pins["torch"] + "+cpu", "numpy": None}
+        self.assertEqual(calculate_local.stack_drift(installed, pins),
+                         ["mace-torch 0.3.15 (pinned 0.3.16)", f"numpy not installed (pinned {pins['numpy']})"])
+
+    def test_the_pinned_stack_has_no_drift(self):
+        import calculate_local
+        pins = calculate_local.pinned_versions()
+        self.assertEqual(calculate_local.stack_drift(dict(pins), pins), [])
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
