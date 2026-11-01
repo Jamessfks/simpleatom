@@ -15,6 +15,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "mace-api"))
@@ -150,9 +151,6 @@ class TestDefectRegressions(unittest.TestCase):
         self.assertNotIn("Academic Software License", " ".join(r.get("warnings", [])))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestDeviceFallback(unittest.TestCase):
     """
@@ -196,3 +194,60 @@ class TestAutoPrecisionIsAnnounced(unittest.TestCase):
     def test_explicit_float64_is_not_called_an_override(self):
         result = self._opt(precision="float64")
         self.assertFalse(any("Auto" in w for w in result.get("warnings", [])), result.get("warnings"))
+
+
+WATER = str(REPO_ROOT / "public" / "demo" / "water.xyz")
+
+
+class TestCustomModelOutOfMemory(unittest.TestCase):
+    """
+    D101: get_custom_calculator() wrapped every exception in a ValueError with
+    no `from e`, so a CUDA out-of-memory while loading an uploaded checkpoint
+    reached the user as "Ensure the file is a valid MACE .model checkpoint"
+    (400 locally, 500 hosted) instead of cuda_out_of_memory (507).
+    """
+
+    def _load(self, error):
+        _require_mace()
+        import calculate
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = os.path.join(tmp, "mine.model")
+            pathlib.Path(checkpoint).write_bytes(b"not loaded: MACECalculator is patched")
+            with mock.patch.dict(os.environ, {"ALLOW_CUSTOM_MODELS": "1"}), \
+                    mock.patch("mace.calculators.MACECalculator", side_effect=error):
+                return calculate.run_calculation(WATER, {"device": "cpu"}, model_path=checkpoint,
+                                                 profile="local")
+
+    def test_out_of_memory_loading_a_custom_checkpoint_is_reported_as_such(self):
+        import torch
+        from contract import ContractError
+        with self.assertRaises(ContractError) as ctx:
+            self._load(torch.OutOfMemoryError("CUDA out of memory. Tried to allocate 2.00 GiB"))
+        self.assertEqual((ctx.exception.code, ctx.exception.status), ("cuda_out_of_memory", 507))
+
+    def test_other_load_failures_keep_their_cause(self):
+        cause = RuntimeError("unpickling stack underflow")
+        with self.assertRaises(ValueError) as ctx:
+            self._load(cause)
+        self.assertIn("Failed to load custom model", str(ctx.exception))
+        self.assertIs(ctx.exception.__cause__, cause)
+
+
+class TestFallbackWarningWording(unittest.TestCase):
+    """
+    D105: the CUDA-to-CPU fallback warning said "the numbers are unaffected".
+    Float arithmetic on CPU and GPU differs at round-off, so say that instead.
+    """
+
+    def test_the_warning_says_round_off_not_unaffected(self):
+        import calculate
+        with mock.patch.object(calculate, "_cuda_available", return_value=False):
+            device, warning = calculate.resolve_device("cuda", "local")
+        self.assertEqual(device, "cpu")
+        self.assertIn("computed on CPU", warning)
+        self.assertIn("round-off", warning)
+        self.assertNotIn("unaffected", warning)
+
+
+if __name__ == "__main__":
+    unittest.main()
