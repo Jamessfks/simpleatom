@@ -710,7 +710,7 @@
     {
       "id": "D55",
       "severity": "LOW",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "what": "Parameters that had no effect are echoed as effective: friction is recorded for NVE and NPT, where nothing uses it (CLAUDE.md pitfall 8: echo the effective parameters).",
       "where": "mace-api/calculate.py (_build_result params allow-list)",
       "verify": true,
@@ -719,7 +719,7 @@
       "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)",
       "fixedIn": "dedb90e",
       "fixedOn": "2026-11-01",
-      "fixNote": "Reopened by the batch-2 verdict (effectiveRunParams merged the form's friction back for NVE/NPT). effectiveRunParams moved to its own module (f72b8d0) and now drops friction unless the ensemble is NVT; failing test first: 50948be. Awaiting the parent session's independent verdict."
+      "fixNote": "effectiveRunParams drops friction unless NVT (dedb90e; test 50948be). Links stored before D55 still show friction; accepted. Verified by the parent session (batch 4, 1270bf4)."
     },
     {
       "id": "D56",
@@ -836,7 +836,7 @@
     {
       "id": "D64",
       "severity": "MEDIUM",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "what": "MACE Link renders unvalidated, client-supplied provenance and validation fields as facts; the gitCommit link allows path injection into the GitHub URL, and a crafted 50k-row result can freeze the page.",
       "where": "app/r/[id]/*; app/api/share/route.ts validateResult()",
       "verify": true,
@@ -845,7 +845,7 @@
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
       "fixedIn": "dbb03bc + 11571fc + 851c7d1 + d9517ec",
       "fixedOn": "2026-10-31",
-      "fixNote": "Batch-2 verdict at 3ee1d64: trajectory {} crashed /r/[id] and null gave a 500. 851c7d1 refuses null or empty trajectories with a 400; d9517ec reads energies defensively and drops a stored trajectory whose series are mistyped. Tests: a6904bc, 2a54c49, cb18205, 0c5a71d. Awaiting the parent session's independent verdict."
+      "fixNote": "851c7d1 and d9517ec fixed the trajectory crash; D159 (d3450ea) requires step. cb18205 is a regression test (it passes on its own pre-fix tree), not failing-first. The remaining read-path gap is D164. Verified by the parent session (batch 4, 1270bf4)."
     },
     {
       "id": "D65",
@@ -878,7 +878,7 @@
     {
       "id": "D67",
       "severity": "MEDIUM",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "what": "Docs describe verification and accuracy the code does not provide: docs/validation describes checks that tests 1 and 2 never run, and the docs home claims 'DFT-level accuracy' without the Matbench-supported qualifier.",
       "where": "app/docs/validation/page.tsx; app/docs/page.tsx:85",
       "verify": true,
@@ -887,7 +887,7 @@
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
       "fixedIn": "6477ba2",
       "fixedOn": "2026-11-01",
-      "fixNote": "Reopened by the batch-2 verdict. The validation page now describes the self-test as it runs (engine, MPA-0 medium, five assertions, convergence and float64, both Si and H2O); failing test first: 6f56513. Awaiting the parent session's independent verdict."
+      "fixNote": "The validation page describes the self-test as it runs (6477ba2; test 6f56513). Verified by the parent session (batch 4, 1270bf4)."
     },
     {
       "id": "D68",
@@ -1120,10 +1120,10 @@
       "source": "CI/docs review, 2026-10-31 (~/.cache/simpleatom/overnight/review/ci-docs.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "5bfc578 + 61d0b1d + a8dc61e + 664c5b5 + 0532eb4",
       "fixedOn": "2026-11-01",
-      "fixNote": "Batch-3 residuals fixed: README (a8dc61e), docs home and parameter table (664c5b5, test bade131), Model step subtitle (0532eb4). Awaiting the parent session's independent verdict."
+      "fixNote": "README (a8dc61e), docs home and parameter table (664c5b5; test bade131), Model step (0532eb4). Verified by the parent session (batch 4, at 4197ecd)."
     },
     {
       "id": "D85",
@@ -1302,10 +1302,10 @@
       "source": "web review, 2026-10-31 (~/.cache/simpleatom/overnight/review/web.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "c400085",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: f4369b4. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: f4369b4."
     },
     {
       "id": "D98",
@@ -1470,10 +1470,10 @@
       "source": "cited reference research, 2026-10-31 (docs/v2/validation/structure-references.json)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "0fc762a",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: ffc2afd. CIP labels confirmed with RDKit. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: ffc2afd. CIP labels confirmed with RDKit."
     },
     {
       "id": "D110",
@@ -1946,10 +1946,10 @@
       "source": "batch-2 verification at 3ee1d64, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch-3ee1d64.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "d002237",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: f6a0781. Server-side: the jobs route cancels a job whose caller disconnected before the answer. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: f6a0781. Server-side: the jobs route cancels a job whose caller disconnected before the answer."
     },
     {
       "id": "D144",
@@ -2072,8 +2072,8 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: de1bac4. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "status": "fixed",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: de1bac4.",
       "fixedIn": "28e3fe1",
       "fixedOn": "2026-11-01"
     },
@@ -2086,8 +2086,8 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 980249a, af2bc8a, ff842ac. structureChecks.minInteratomicDistanceA = 0.5 in the contract, read by the engine, the validator and the preview. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "status": "fixed",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 980249a, af2bc8a, ff842ac. structureChecks.minInteratomicDistanceA = 0.5 in the contract, read by the engine, the validator and the preview.",
       "fixedIn": "a2caa12 + b0898b8 + f704ff0 + 03917d9",
       "fixedOn": "2026-11-01"
     },
@@ -2128,10 +2128,8 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixedIn": "c65a375",
-      "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 8078814. Awaiting the parent session's independent verdict before it counts as fixed."
+      "status": "open",
+      "fixNote": "Leaderboard, heatmap and CSV show the D107/D108 labels (c65a375, verified in batch 4); the PDF cannot print them (D163)."
     },
     {
       "id": "D157",
@@ -2170,8 +2168,8 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 246bc2f. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "status": "fixed",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 246bc2f.",
       "fixedIn": "d3450ea",
       "fixedOn": "2026-11-01"
     },
@@ -2184,10 +2182,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixedIn": "0532eb4",
+      "status": "fixed",
+      "fixedIn": "0532eb4 + df6f7e9",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1b15dd8. Capabilities carry pending; the panel shows only the checking text, without the hosted link. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1b15dd8. Pending carries no profile; batch 4 found the unreachable state still showed the hosted link, now neutral too (df6f7e9)."
     },
     {
       "id": "D161",
@@ -2198,10 +2196,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "a8dc61e",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1ca0671. README, CONTRIBUTING and CHANGELOG corrected; branch protection itself is an owner action. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1ca0671. README, CONTRIBUTING and CHANGELOG corrected; branch protection itself is an owner action."
     },
     {
       "id": "D162",
@@ -2212,10 +2210,48 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Doc comment moved. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "status": "fixed",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Doc comment moved.",
       "fixedIn": "d3450ea",
       "fixedOn": "2026-11-01"
+    },
+    {
+      "id": "D163",
+      "severity": "MEDIUM",
+      "what": "`components/benchmark/benchmark-export-pdf.tsx` uses built-in Helvetica, which cannot print the new labels: 'ω-Ti (mp-72)' renders as 'É-Ti' with overlapping glyphs and 'H₂O' as 'H‚O'. Check `components/calculate/pdf-report-document.tsx` too.",
+      "where": "components/benchmark/benchmark-export-pdf.tsx, components/calculate/pdf-report-document.tsx",
+      "verify": true,
+      "source": "batch-4 UI verification at 1270bf4, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch4/ui.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "open",
+      "fixNote": "With the frontend writer."
+    },
+    {
+      "id": "D164",
+      "severity": "LOW",
+      "what": "the `lib/share.ts` read path (normalizeSharedResult / isRenderableTrajectory) does not type-check stored rows for trajectory frames, provenance.notes, validation lists, warnings, energy or volume; forged rows (possible before ADR-0024 and D32) crash /r/[id], and notes are not capped on read.",
+      "where": "lib/share.ts",
+      "verify": true,
+      "source": "batch-4 UI verification at 1270bf4, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch4/ui.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "open",
+      "fixNote": "With the frontend writer."
+    },
+    {
+      "id": "D165",
+      "severity": "LOW",
+      "what": "the PDF prints 'Friction: 0.005' with no unit; a stale 'average energy/atom' comment in `components/benchmark/benchmark-leaderboard.tsx`; `app/docs/validation/page.tsx` states the force comparison backwards; `docs/adr/0030-mace-v1-migration.md` still said 'on every push'.",
+      "where": "components/benchmark/benchmark-leaderboard.tsx, app/docs/validation/page.tsx, docs/adr/0030-mace-v1-migration.md",
+      "verify": true,
+      "source": "batch-4 UI verification at 1270bf4, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch4/ui.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "fixed-unverified",
+      "fixedIn": "d9f3ea4",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. ADR-0030 fixed (docs nit, test in the same commit); PDF friction unit, leaderboard comment and validation-page force wording with the frontend writer. Awaiting the parent session's independent verdict before it counts as fixed."
     }
   ]
 }
