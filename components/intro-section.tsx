@@ -127,7 +127,7 @@ const WORKFLOW = [
     icon: SlidersHorizontal,
     title: "Choose a model & calculation",
     description:
-      "Select a MACE foundation model (or your own fine-tuned checkpoint), then a single-point energy, geometry optimization, or molecular-dynamics run.",
+      "Select a MACE foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF), then a single-point energy, geometry optimization, or molecular-dynamics run.",
   },
   {
     icon: Cpu,
@@ -149,7 +149,7 @@ const CAPABILITIES = [
     icon: Layers,
     title: "Foundation models",
     description:
-      "Run MACE-MP-0 and MACE-OFF out of the box, or upload a fine-tuned .model checkpoint for a custom potential.",
+      "Run MACE-MPA-0, MACE-MP-0 and MACE-OFF out of the box. On a local install you can opt in to your own .model checkpoint (ALLOW_CUSTOM_MODELS=1); the public site never loads one.",
   },
   {
     icon: Orbit,
@@ -173,7 +173,7 @@ const CAPABILITIES = [
     icon: GitCompareArrows,
     title: "Model benchmarking",
     description:
-      "Compare foundation models and your own checkpoints across reference structures on energy and force error metrics.",
+      "Compare the foundation models across reference structures on energy per atom, forces and run time; the Materials Project set also checks formation energies against MP.",
   },
   {
     icon: Share2,
@@ -415,7 +415,7 @@ export function IntroSection() {
         <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
           <div className="max-w-2xl">
             <h2 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              Two foundation models, one interface
+              Three foundation models, one interface
             </h2>
             <p className="mt-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
               MACE ships pre-trained potentials for distinct chemical domains.
