@@ -611,7 +611,8 @@ class TestSyncLifecycle(unittest.TestCase):
             if not state["sent"]:
                 state["sent"] = True
                 return {"type": "http.request", "body": body, "more_body": False}
-            await asyncio.sleep(0.2)            # the caller goes away while it waits
+            # The caller has gone. A real server queues this message at once;
+            # Starlette's is_disconnected() reads it without waiting.
             return {"type": "http.disconnect"}
 
         async def send(message):
