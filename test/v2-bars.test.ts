@@ -37,3 +37,14 @@ describe("/v2 Matbench Discovery card (D66)", () => {
     expect(barText({ name: "Mol*", fetchable: "Fully public." })).toBe("Fully public.");
   });
 });
+
+// Design review: the /v2 heading said "v2.0" while the app is v2.2.0. The one
+// source for the version is contract.json's appVersion (APP_VERSION).
+describe("the /v2 heading carries the real version", () => {
+  it("reads APP_VERSION and hard-codes no version", async () => {
+    const { readFileSync } = await import("node:fs");
+    const page = readFileSync("app/v2/page.tsx", "utf8");
+    expect(page).toMatch(/SimpleAtom v\{APP_VERSION\} progress/);
+    expect(page).not.toMatch(/SimpleAtom v\d/);
+  });
+});
