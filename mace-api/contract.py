@@ -199,7 +199,7 @@ def resolve_model_size(model: dict, raw) -> str | None:
     if isinstance(raw, str) and clean_text(raw) in sizes:
         return clean_text(raw)
     raise ContractError(
-        f"Unsupported modelSize {raw!r} for {model['id']}. "
+        f"Unsupported modelSize {_shown(raw)} for {model['id']}. "
         f"Available sizes: {', '.join(sizes)}.",
         code="unsupported_model_size", field="modelSize",
     )
@@ -255,7 +255,7 @@ def resolve_choice(raw, field: str, choices: list[str], default: str) -> str:
     if isinstance(raw, str) and clean_text(raw) in choices:
         return clean_text(raw)
     raise ContractError(
-        f"Unsupported {field} {raw!r}. Supported values: {', '.join(choices)}.",
+        f"Unsupported {field} {_shown(raw)}. Supported values: {', '.join(choices)}.",
         code=f"unsupported_{field}", field=field,
     )
 
@@ -273,12 +273,20 @@ def resolve_bool(raw, field: str, default: bool = False) -> bool:
     if isinstance(raw, str) and clean_text(raw).lower() in ("true", "false"):
         return clean_text(raw).lower() == "true"
     raise ContractError(
-        f"Invalid {field}: expected true or false, got {raw!r}.",
+        f"Invalid {field}: expected true or false, got {_shown(raw)}.",
         code="invalid_boolean", field=field,
     )
 
 
 DECIMAL = re.compile(r"[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?", re.ASCII)
+
+
+def _shown(raw) -> str:
+    """repr() for a refusal message, safe for ints past Python's 4300-digit print limit (D138)."""
+    if isinstance(raw, int) and not isinstance(raw, bool) and raw.bit_length() > 256:
+        return f"an integer of about {int(raw.bit_length() * 0.30103)} digits"
+    text = repr(raw)
+    return text if len(text) <= 80 else text[:77] + "..."
 
 
 def resolve_number(params: dict, field: str):
@@ -299,19 +307,19 @@ def resolve_number(params: dict, field: str):
     # also takes "1_000", which JavaScript's Number() does not, and the two
     # mirrors must refuse the same requests.
     if isinstance(raw, str) and not DECIMAL.fullmatch(clean_text(raw)):
-        raise ContractError(f"Invalid {field}: expected a number, got {raw!r}.",
+        raise ContractError(f"Invalid {field}: expected a number, got {_shown(raw)}.",
                             code="invalid_number", field=field)
     try:
         value = float(raw)
     except (TypeError, ValueError, OverflowError):
-        raise ContractError(f"Invalid {field}: expected a number, got {raw!r}.",
+        raise ContractError(f"Invalid {field}: expected a number, got {_shown(raw)}.",
                             code="invalid_number", field=field)
     if not math.isfinite(value):
         raise ContractError(f"Invalid {field}: must be a finite number.",
                             code="invalid_number", field=field)
     if spec["type"] == "integer":
         if value != int(value):
-            raise ContractError(f"Invalid {field}: expected a whole number, got {raw!r}.",
+            raise ContractError(f"Invalid {field}: expected a whole number, got {_shown(raw)}.",
                                 code="invalid_number", field=field)
         value = int(value)
     unit = f" {spec['unit']}" if spec.get("unit") else ""
