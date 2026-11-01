@@ -100,7 +100,8 @@ class _CheckBeforeTheBodyIsRead:
     is parsed (D44): Starlette reads and spools the whole form before a route
     runs, so a 30 MB upload used to be received in full before its 413 — or,
     from an unauthenticated caller, its 401. A body sent without a declared
-    length is still capped per file by `_save_capped`.
+    length (chunked) is counted as it arrives and refused the moment it passes
+    the same cap (D142); before, all of it was spooled first.
 
     Plain ASGI rather than @app.middleware("http"): BaseHTTPMiddleware wraps
     `receive` and hides http.disconnect from the routes, which the synchronous
@@ -125,7 +126,46 @@ class _CheckBeforeTheBodyIsRead:
                 response = await _http_error(None, exc)
                 await response(scope, receive, send)
                 return
+            if not declared.isdigit():
+                await self._counted(scope, receive, send, cap)
+                return
         await self.app(scope, receive, send)
+
+    async def _counted(self, scope, receive, send, cap: int):
+        """
+        Run the app on a body of unknown length, stopping at `cap` bytes. Past
+        the cap the app is told the client went away, so nothing more is read,
+        its answer to the cut-off body is dropped, and the 413 is sent here.
+        """
+        received, over = 0, False
+
+        async def counted_receive():
+            nonlocal received, over
+            if over:
+                return {"type": "http.disconnect"}
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > cap:
+                    over = True
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def guarded_send(message):
+            if not over:
+                await send(message)
+
+        try:
+            await self.app(scope, counted_receive, guarded_send)
+        except Exception:
+            if not over:
+                raise
+        if over:
+            response = await _http_error(None, _error(
+                413, "upload_too_large",
+                f"This upload passed {cap / 1e6:.1f} MB, the most this deployment accepts per "
+                "calculation, and was not read further.", field="files"))
+            await response(scope, receive, send)
 
 
 app.add_middleware(_CheckBeforeTheBodyIsRead)
