@@ -747,6 +747,34 @@ class TestDailyGateCoverage(unittest.TestCase):
         self.assertIn("test_geometry_opt.py", {pattern for _n, pattern, _m in daily_gate.SUITES})
 
 
+class TestValidatorGateCanFail(unittest.TestCase):
+    """
+    D79: the validator printed all_passed: false, exited 0, and the daily gate
+    reported PASS (it accepted exit 0 without the marker). The validator now
+    exits 1 on failure and the gate judges the JSON verdict.
+    """
+
+    def test_gate_fails_on_a_false_verdict_even_with_exit_zero(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        fake = subprocess.CompletedProcess([], 0, stdout='{"all_passed": false, "tests": []}', stderr="")
+        with mock.patch.object(daily_gate, "run", return_value=fake):
+            self.assertFalse(daily_gate.gate_validator().ok)
+        silent = subprocess.CompletedProcess([], 0, stdout="no json at all", stderr="")
+        with mock.patch.object(daily_gate, "run", return_value=silent):
+            self.assertFalse(daily_gate.gate_validator().ok)
+
+    def test_validator_exits_nonzero_when_a_check_fails(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import validate_calculation
+        with mock.patch.object(validate_calculation, "run_verification_tests",
+                               return_value={"all_passed": False, "tests": [{"test": "x", "passed": False}]}):
+            self.assertEqual(validate_calculation.cli(["--test"]), 1)
+        with mock.patch.object(validate_calculation, "run_verification_tests",
+                               return_value={"all_passed": True, "tests": [{"test": "x", "passed": True}]}):
+            self.assertEqual(validate_calculation.cli(["--test"]), 0)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
