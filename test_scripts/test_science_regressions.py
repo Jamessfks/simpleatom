@@ -248,6 +248,20 @@ class TestFallbackWarningWording(unittest.TestCase):
         self.assertIn("round-off", warning)
         self.assertNotIn("unaffected", warning)
 
+    def test_the_warning_does_not_promise_an_identical_md_trajectory(self):
+        """
+        D158: round-off agreement holds for a single point or a short
+        optimisation, not for MD: a trajectory is chaotic, so CPU and GPU runs
+        decorrelate step by step while their averages agree.
+        """
+        import calculate
+        with mock.patch.object(calculate, "_cuda_available", return_value=False):
+            _, warning = calculate.resolve_device("cuda", "local")
+        self.assertNotIn("only at round-off", warning)
+        self.assertIn("single point", warning)
+        self.assertIn("MD trajectory will diverge from a GPU run", warning)
+        self.assertIn("statistics", warning)
+
 
 
 class TestCompositionAwareEnergy(unittest.TestCase):
