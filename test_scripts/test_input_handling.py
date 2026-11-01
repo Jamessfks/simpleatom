@@ -305,6 +305,56 @@ class TestCifOccupancyAndDuplicates(_RefusalMixin, unittest.TestCase):
         self.assertRefusedWith("overlapping_atoms", _run_text, text, ".cif")
 
 
+class TestPlaceholderCellAndOverlaps(_RefusalMixin, unittest.TestCase):
+    """
+    D89: the PDB format prescribes `CRYST1 1.000 1.000 1.000 90 90 90 P 1` for
+    every structure not solved by diffraction, and ASE read it as a periodic
+    1 Å cube: water came out at +3.9e15 eV, as success, with a pressure. That
+    record is read as "no cell", with a warning. And any structure with two
+    atoms closer than 0.5 Å (minimum image) is refused before a model loads.
+    """
+
+    def test_the_cryst1_placeholder_is_not_a_cell(self):
+        result = _run_file(_fixture("pdb_cryst1_placeholder"))
+        self.assertIsNone(result["lattice"])
+        self.assertIsNone(result["properties"]["stress"])
+        self.assertTrue(any("CRYST1" in w for w in result.get("warnings", [])), result.get("warnings"))
+
+    def test_the_placeholder_energy_equals_the_molecule_without_it(self):
+        _require_mace()
+        import calculate
+        text = pathlib.Path(_fixture("pdb_cryst1_placeholder")).read_text()
+        energies = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, body in (("with.pdb", text),
+                               ("without.pdb", "\n".join(l for l in text.splitlines()
+                                                          if not l.startswith("CRYST1")) + "\n")):
+                path = os.path.join(tmp, name)
+                pathlib.Path(path).write_text(body)
+                energies.append(calculate.run_calculation(path, {**OFF_SMALL, "precision": "float64"},
+                                                          profile="local")["energy"])
+        self.assertAlmostEqual(energies[0], energies[1], delta=1e-6)
+
+    def test_a_real_cryst1_cell_stays_periodic(self):
+        text = pathlib.Path(_fixture("pdb_cryst1_placeholder")).read_text().replace(
+            "CRYST1    1.000    1.000    1.000", "CRYST1   20.000   20.000   20.000")
+        result = _run_text(text, ".pdb")
+        self.assertEqual([round(result["lattice"][i][i], 6) for i in range(3)], [20.0, 20.0, 20.0])
+
+    def test_atoms_0_3_angstrom_apart_are_refused(self):
+        message = self.assertRefusedWith("overlapping_atoms", _run_text,
+                                         "2\n\nH 0 0 0\nH 0 0 0.3\n", ".xyz")
+        self.assertIn("0.300", message)
+
+    def test_an_overlap_across_the_periodic_boundary_is_refused(self):
+        message = self.assertRefusedWith("overlapping_atoms", _run_file, _fixture("xyz_overlap_across_boundary"))
+        self.assertIn("0.200", message)
+
+    def test_0_6_angstrom_is_accepted(self):
+        result = _run_text("2\n\nH 0 0 0\nH 0 0 0.6\n", ".xyz")
+        self.assertEqual(result["status"], "success")
+
+
 class TestCliOutputIsStrictJson(unittest.TestCase):
     """
     D129, end to end: water with one H placed on the O made MACE return NaN,
