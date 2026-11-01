@@ -87,6 +87,22 @@ async function start(job: LocalJob) {
   });
   job.child = child;
 
+  // D95: a Python that cannot be spawned (ENOENT) emits "error" and never
+  // "close", which left the job "running" forever and blocked the queue.
+  child.on("error", (error: Error) => {
+    if (job.status !== "running") return;
+    job.error = {
+      code: "python_unavailable",
+      message:
+        `Could not start the local Python (${pythonExecutable()}): ${error.message}. ` +
+        "Set SIMPLEATOM_PYTHON to an environment built from mace-api/requirements.lock.txt. Nothing was computed.",
+      field: null,
+      status: 503,
+    };
+    finish(job, "failed");
+    void pump();
+  });
+
   let stdout = "";
   let stderrTail = "";
   let pending = "";
@@ -111,6 +127,7 @@ async function start(job: LocalJob) {
   });
 
   child.on("close", () => {
+    if (job.status !== "running") return;
     if (job.cancelRequested) {
       finish(job, "cancelled");
     } else {
