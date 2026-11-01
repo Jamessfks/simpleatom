@@ -245,9 +245,10 @@ deploys only after it passes on `main`. Run it locally before pushing.
 ### Automated Validator Checks
 - Energy bounds (model-aware, from the registry: MACE-MP family vs MACE-OFF; skipped for custom)
 - Force magnitude and conservation (net force ≈ 0 for molecules)
-- Interatomic distances (overlapping atoms detection)
+- Interatomic distances over every pair, minimum image in a cell (overlap < 0.4 Å is an issue)
 - Lattice validity (positive volume, 3x3 matrix)
-- MD trajectory stability (NaN/Inf detection, energy fluctuation)
+- MD: NaN/Inf; NVE total-energy excursion per atom (> 0.05 eV/atom is an issue) and fitted drift;
+  NVT/NPT second-half mean temperature against the target (> 2× is an issue)
 - Parameter sanity (D3+MACE-OFF double-counting)
 
 ### Manual Verification Checklist

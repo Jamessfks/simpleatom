@@ -48,6 +48,11 @@ ENERGY_PER_ATOM_MAX = 100.0   # eV/atom (very high energy)
 FORCE_MAX_REASONABLE = 50.0   # eV/Å (above this = likely overlapping atoms)
 FORCE_MAX_CRITICAL = 200.0    # eV/Å (almost certainly unphysical)
 MIN_INTERATOMIC_DIST = 0.4    # Å (below this = overlapping atoms)
+NEIGHBOUR_CUTOFF = 3.0        # Å: the nearest contact is named when one is this close
+NVE_EXCURSION_ISSUE = 0.05    # eV/atom: NVE total energy this far from its start = not conserved
+NVE_EXCURSION_WARN = 0.005    # eV/atom
+THERMOSTAT_LOST = 2.0         # second-half mean T above this multiple of the target = lost control
+THERMOSTAT_WARN = 1.5
 MAX_INTERATOMIC_DIST = 100.0  # Å (above this = disconnected structure)
 
 
@@ -75,6 +80,80 @@ def _energy_bounds(model_type: str):
     if model_type in ("MACE-OFF", "MACE-OFF23"):
         return ENERGY_PER_ATOM_MIN_OFF, ENERGY_PER_ATOM_MAX_OFF
     return ENERGY_PER_ATOM_MIN_MP, ENERGY_PER_ATOM_MAX_MP
+
+
+def _min_distance(positions, lattice):
+    """
+    Smallest interatomic distance over every pair (D81), with the minimum image
+    when the result has a cell. A result carries `lattice` only when it is
+    periodic and does not say along which axes, so a cell is treated as periodic
+    in all three; across a slab's vacuum that changes nothing. Returns None when
+    no two atoms are within NEIGHBOUR_CUTOFF.
+    """
+    from ase import Atoms
+    from ase.neighborlist import neighbor_list
+    periodic = lattice is not None
+    atoms = Atoms(positions=positions, cell=lattice if periodic else None, pbc=periodic)
+    d = neighbor_list("d", atoms, NEIGHBOUR_CUTOFF)
+    return float(d.min()) if len(d) else None
+
+
+def _judge_md(trajectory: dict, params: dict, n_atoms: int, issues, warnings_list, info) -> None:
+    """
+    Judge an MD run by what each ensemble conserves or controls (D81). The old
+    check divided the energy range by |mean total energy|, whose zero is
+    arbitrary, so a +500 eV NVE drift was "stable".
+      NVE: total energy must stay at its starting value (excursion per atom);
+           the fitted drift is reported per atom per ps.
+      NVT/NPT: total energy is not conserved; the thermostat must hold the
+           temperature, judged on the second half of the run.
+    """
+    ensemble = params.get("mdEnsemble")
+    totals = trajectory.get("totalEnergies") or []
+    temps = trajectory.get("temperatures") or []
+    steps = trajectory.get("step") or []
+    dt_fs = params.get("timeStep")
+
+    if ensemble == "NVE" and len(totals) >= 2 and n_atoms:
+        excursion = max(abs(e - totals[0]) for e in totals) / n_atoms
+        drift = ""
+        if len(steps) == len(totals) and dt_fs and steps[-1] > steps[0]:
+            ts = [s * dt_fs / 1000.0 for s in steps]   # ps
+            t_mean, e_mean = sum(ts) / len(ts), sum(totals) / len(totals)
+            slope = (sum((x - t_mean) * (e - e_mean) for x, e in zip(ts, totals))
+                     / sum((x - t_mean) ** 2 for x in ts))
+            drift = f"; fitted drift {slope / n_atoms * 1000:+.3f} meV/atom/ps"
+        if excursion > NVE_EXCURSION_ISSUE:
+            issues.append(
+                f"NVE total energy is not conserved: it moved {excursion:.3f} eV/atom from its "
+                f"starting value (limit {NVE_EXCURSION_ISSUE} eV/atom){drift}. The run diverged "
+                f"or the timestep is too large."
+            )
+        elif excursion > NVE_EXCURSION_WARN:
+            warnings_list.append(
+                f"NVE total energy moved {excursion * 1000:.1f} meV/atom from its starting value"
+                f"{drift}. Consider a smaller timestep."
+            )
+        else:
+            info.append(f"NVE total energy conserved to {excursion * 1000:.2f} meV/atom{drift}")
+
+    target = params.get("temperature")
+    if ensemble in ("NVT", "NPT") and temps and target:
+        half = temps[len(temps) // 2:]
+        mean = sum(half) / len(half)
+        if mean > THERMOSTAT_LOST * target:
+            issues.append(
+                f"Mean temperature over the second half of the run is {mean:.0f} K for a "
+                f"{target:.0f} K target: the thermostat lost control. The run diverged or the "
+                f"timestep is too large."
+            )
+        elif mean > THERMOSTAT_WARN * target:
+            warnings_list.append(
+                f"Mean temperature over the second half of the run is {mean:.0f} K for a "
+                f"{target:.0f} K target."
+            )
+        else:
+            info.append(f"Mean temperature over the second half = {mean:.1f} K (target {target:.0f} K)")
 
 
 def validate_result(result: dict) -> dict:
@@ -167,22 +246,15 @@ def validate_result(result: dict) -> dict:
                     f"(should be ~0). May indicate numerical issues."
                 )
 
-    # --- Position validation ---
+    # --- Position validation (every pair, minimum image in a cell) ---
     if positions is not None and len(positions) > 1:
-        min_dist = float("inf")
-        n = len(positions)
-        for i in range(min(n, 200)):  # Cap for performance
-            for j in range(i + 1, min(n, 200)):
-                dx = positions[i][0] - positions[j][0]
-                dy = positions[i][1] - positions[j][1]
-                dz = positions[i][2] - positions[j][2]
-                d = math.sqrt(dx**2 + dy**2 + dz**2)
-                min_dist = min(min_dist, d)
-
-        if min_dist < MIN_INTERATOMIC_DIST:
-            warnings_list.append(
+        min_dist = _min_distance(positions, lattice)
+        if min_dist is None:
+            info.append(f"No two atoms are closer than {NEIGHBOUR_CUTOFF} Å")
+        elif min_dist < MIN_INTERATOMIC_DIST:
+            issues.append(
                 f"Minimum interatomic distance = {min_dist:.3f} Å "
-                f"(< {MIN_INTERATOMIC_DIST} Å). Atoms may be overlapping."
+                f"(< {MIN_INTERATOMIC_DIST} Å). Atoms overlap."
             )
         else:
             info.append(f"Min interatomic distance = {min_dist:.3f} Å — reasonable")
@@ -204,25 +276,13 @@ def validate_result(result: dict) -> dict:
         else:
             issues.append("Lattice is not a valid 3x3 matrix")
 
-    # --- Trajectory validation (MD) ---
+    # --- Trajectory validation ---
     if trajectory is not None:
-        energies = trajectory.get("energies", [])
-        if energies:
-            if any(math.isnan(e) or math.isinf(e) for e in energies):
-                issues.append("Trajectory contains NaN or Inf energies — MD diverged")
-            else:
-                e_range = max(energies) - min(energies)
-                e_mean = sum(energies) / len(energies)
-                if abs(e_mean) > 0:
-                    relative_fluct = e_range / abs(e_mean)
-                    if relative_fluct > 0.5:
-                        warnings_list.append(
-                            f"Large energy fluctuation in MD trajectory "
-                            f"(range/mean = {relative_fluct:.2%}). "
-                            f"May indicate instability or large timestep."
-                        )
-                    else:
-                        info.append(f"MD energy fluctuation = {relative_fluct:.4%} — stable")
+        series = [trajectory.get(k) or [] for k in ("energies", "totalEnergies", "temperatures")]
+        if any(math.isnan(e) or math.isinf(e) for s in series for e in s):
+            issues.append("Trajectory contains NaN or Inf values — the run diverged")
+        else:
+            _judge_md(trajectory, params, len(symbols or positions or []), issues, warnings_list, info)
 
     # --- Symbol validation ---
     if symbols:
