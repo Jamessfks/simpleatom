@@ -302,6 +302,15 @@
         "mdSteps": 20000
       },
       "expect": "limit_exceeded"
+    },
+    {
+      "name": "parity: a padded modelSize is trimmed on both sides",
+      "profile": "local",
+      "params": {
+        "modelType": "MACE-OFF",
+        "modelSize": " small "
+      },
+      "expect": "ok"
     }
   ]
 }
