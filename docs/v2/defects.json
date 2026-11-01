@@ -184,12 +184,15 @@
     {
       "id": "D15",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed-unverified",
       "what": "Audit findings 6, 9 and 12 from docs/v2/audit-vs-acesuit.md were never closed out. Findings 7, 10 and 11 are recorded as done.",
       "where": "docs/v2/audit-vs-acesuit.md",
       "verify": true,
       "howToVerify": "Read the audit and confirm which findings are still live against current code.",
-      "source": "CONTINUE.md reference-conformance piece"
+      "source": "CONTINUE.md reference-conformance piece",
+      "fixedIn": "(earlier commits; closed on evidence 2026-11-01)",
+      "fixedOn": "2026-11-01",
+      "fixNote": "Findings 6, 9 and 12 of audit-vs-acesuit.md are fixed in code and covered: 6, the duplicated first optimisation frame (on_step records via the observer only; test_science_regressions.py asserts len(steps) == optSteps + 1); 9, unpinned dependencies (== pins and a hashed lock, ADR-0025; provenance records the stack); 12, the NPT periodicity guard (npt_requires_periodic) and MelchionnaNPT. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D16",
@@ -672,9 +675,9 @@
       "evidence": "golden sp_water_off energy −2081.1209 eV / 3 atoms = −693.71 eV/atom (lead check); critic: CO2 → validator warning",
       "howToVerify": "Bounds from the model's own atomic energies (E − Σ E0(Z) per atom), or composition-weighted bands; regression test on water, CO2, CH2Br2.",
       "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)",
-      "fixedIn": "6003a8d + da93f38",
+      "fixedIn": "6003a8d + da93f38 + c2c70dc",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 47848af, d988120. properties.energyPerAtomVsIsolatedAtoms (measured -4.99 to -0.82 eV/atom over 22 molecules); raw MACE-OFF band nulled; validator judges the relative value; CLAUDE.md updated. Dashboard note with the frontend writer. Awaiting the parent session's independent verdict."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 47848af, d988120. properties.energyPerAtomVsIsolatedAtoms (measured -4.99 to -0.82 eV/atom over 22 molecules); raw MACE-OFF band nulled; validator judges the relative value; CLAUDE.md updated. Docs state the relative band from the registry (c2c70dc). Awaiting the parent session's independent verdict."
     },
     {
       "id": "D53",
@@ -707,16 +710,16 @@
     {
       "id": "D55",
       "severity": "LOW",
-      "status": "open",
+      "status": "fixed-unverified",
       "what": "Parameters that had no effect are echoed as effective: friction is recorded for NVE and NPT, where nothing uses it (CLAUDE.md pitfall 8: echo the effective parameters).",
       "where": "mace-api/calculate.py (_build_result params allow-list)",
       "verify": true,
       "evidence": "golden md_nve_ethanol params include friction (critic)",
       "howToVerify": "Echo friction only for NVT.",
       "source": "science-critic recomputation 2026-10-28 (docs/v2/evidence/2026-10-28/golden/)",
-      "fixedIn": "e7318dd",
-      "fixedOn": "2026-10-31",
-      "fixNote": "Reopened 2026-11-01 by the batch-2 verdict: the backend echoes friction for NVT only, but app/calculate/page.tsx effectiveRunParams merges the form default back in, so friction still shows for NVE/NPT in the dashboard, PDF and MACE Link. With the frontend writer."
+      "fixedIn": "dedb90e",
+      "fixedOn": "2026-11-01",
+      "fixNote": "Reopened by the batch-2 verdict (effectiveRunParams merged the form's friction back for NVE/NPT). effectiveRunParams moved to its own module (f72b8d0) and now drops friction unless the ensemble is NVT; failing test first: 50948be. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D56",
@@ -840,9 +843,9 @@
       "evidence": "reviewer read + crafted payload reasoning (PLAUSIBLE)",
       "howToVerify": "Validate provenance/validation shapes server-side (hex SHA pattern for gitCommit), cap rendered rows, label stored metadata 'as recorded by the sharer'.",
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
-      "fixedIn": "dbb03bc + 11571fc + 851c7d1",
+      "fixedIn": "dbb03bc + 11571fc + 851c7d1 + d9517ec",
       "fixedOn": "2026-10-31",
-      "fixNote": "Batch-2 verdict (at 3ee1d64): trajectory {} crashed /r/[id] and null gave a 500. 851c7d1 (after 3ee1d64; test 2a54c49) refuses null or empty trajectories with a 400, drops stored ones and reads defensively; the frontend writer is re-proving it. Awaiting verdict."
+      "fixNote": "Batch-2 verdict at 3ee1d64: trajectory {} crashed /r/[id] and null gave a 500. 851c7d1 refuses null or empty trajectories with a 400; d9517ec reads energies defensively and drops a stored trajectory whose series are mistyped. Tests: a6904bc, 2a54c49, cb18205, 0c5a71d. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D65",
@@ -875,16 +878,16 @@
     {
       "id": "D67",
       "severity": "MEDIUM",
-      "status": "open",
+      "status": "fixed-unverified",
       "what": "Docs describe verification and accuracy the code does not provide: docs/validation describes checks that tests 1 and 2 never run, and the docs home claims 'DFT-level accuracy' without the Matbench-supported qualifier.",
       "where": "app/docs/validation/page.tsx; app/docs/page.tsx:85",
       "verify": true,
       "evidence": "reviewer read",
       "howToVerify": "Describe only what validate_calculation.py does; qualify accuracy with the leaderboard numbers and date.",
       "source": "frontend review subagent (code-review high), 2026-10-28 — notes: review-frontend.md",
-      "fixedIn": "cc53023",
-      "fixedOn": "2026-10-31",
-      "fixNote": "Reopened 2026-11-01 by the batch-2 verdict: app/docs/validation/page.tsx and test/docs-claims.test.ts still describe the pre-D38 self-test. With the frontend writer."
+      "fixedIn": "6477ba2",
+      "fixedOn": "2026-11-01",
+      "fixNote": "Reopened by the batch-2 verdict. The validation page now describes the self-test as it runs (engine, MPA-0 medium, five assertions, convergence and float64, both Si and H2O); failing test first: 6f56513. Awaiting the parent session's independent verdict."
     },
     {
       "id": "D68",
@@ -1005,7 +1008,10 @@
       "source": "parent session review of the overnight branch, 2026-10-31",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "6bc46d0",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Coverage test plus a narrowed docstring: extxyz, CIF and POSCAR of one crystal hash the same; PDB only at its 3-decimal precision; a molecule as CIF is a different input. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D77",
@@ -1604,7 +1610,8 @@
       "source": "structure audit, 2026-10-31 (docs/v2/evidence/2026-10-31/structure-audit)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "open",
+      "fixNote": "Open by choice: public/demo/ethanol.xyz carries the MACE-OFF golden energies (test_provenance), docker-smoke's MACE-OFF check and the validator's optimisation self-test, which needs a strained start. Replacing it needs a separate fixture for those, then a cited or documented-relaxed demo geometry."
     },
     {
       "id": "D120",
@@ -1615,7 +1622,10 @@
       "source": "structure audit, 2026-10-31 (docs/v2/evidence/2026-10-31/structure-audit)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open"
+      "status": "fixed-unverified",
+      "fixedIn": "ea121b8",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: ba7a35e. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D121",

@@ -10,13 +10,13 @@ The plan is `~/.claude/plans/run-it-overnight-auto-mode-zesty-pond.md`, Steps 4�
 
 | Step | State |
 |---|---|
-| Integration | Security branch merged (`df27d8b`); PR **#20** open, stacked on #19 |
+| Integration | Security branch merged (`df27d8b`); PR **#20** open, stacked on #19; CI green on `23e2339` (run 41290053046, new docker-smoke and lock steps included) |
 | 4.1 release blockers | D40, D41, D43, D57 fixed |
-| 4.2 Track 1, device honesty | done (`7ff064b`, `b2840fd`); parent verdict PASS |
+| 4.2 Track 1, device honesty | done; parent verdict PASS |
 | 4.3 D51 | done; parent verdict PASS (batch 1, `6ee0c31`) |
-| 4.4 owner-free defects | D36–D69 fixed except D52–D54 and part of D69; batch 2 (`3ee1d64`) awaits the parent's verdict |
-| 4.5 D72–D141 | recorded in [`defects.json`](defects.json): 47 `fixed-unverified`, 25 `open` |
-| 4.6 permanent gates | partly: zero-test runs fail (`run_suite.py`), the validator gate can fail, MPA-0 and D3 goldens, the lock is recompiled in CI, docker-smoke runs MPA-0 offline. The invariant suite (D78/D80) is with the backend writer |
+| 4.4 owner-free defects | batch 2 (`3ee1d64`): 12 of 16 PASS; D55, D62, D64, D67 reopened, then refixed except D62 (with the frontend writer) |
+| 4.5 D72–D144 | in [`defects.json`](defects.json). Open: D30, D32 (owner), D62, D69 (F27 viewer effects), D119 (see its note). Batch 3 (`23e2339`) is with three verifiers |
+| 4.6 permanent gates | done: zero-test runs fail, the validator gate can fail, MPA-0/D3 goldens, the lock recompiled in CI, docker-smoke offline MPA-0, the invariant suite (D78/D80), every `test_scripts` suite in CI and the daily gate (a test enforces it) |
 
 **Release note for the owner (no code needed).** `main` and `v2.2` still ship the broken
 diamonds and si-111 in the catalog (D57). Merging #19 alone does not fix the catalog; #20 is
@@ -26,16 +26,24 @@ needed.
 [`hosted-compute-memo.md`](hosted-compute-memo.md), "Measured on Vercel Sandbox"; raw
 numbers are in `evidence/2026-11-01/sandbox/`.
 
-**Who has what (2026-11-01).** Two writers work in this worktree, with no overlapping files:
-* backend writer: `mace-api/calculate.py`, `smiles_to_xyz.py`, `provenance.py` and their
-  tests. Open with it: D130 (MD divergence), D132, D134, D135, D137, D101, D102, D105, D116,
-  D118, D122, D91, D52–D54, D76, D78, D80;
-* frontend writer: the parser, catalog, MP reference data, `components/**`, `app/**` except
-  `app/api` (but including `app/api/share`), `test/**`. Open with it: D97, D98, D109, D126,
-  the rest of D69, D119, D120;
-* lead (this session): contract, routes, CI, Dockerfile, staging, `main.py`, `safe_load.py`,
-  `jobs.py`, the docs. Open: D81 (validator distance and drift checks), the lint-baseline half
-  of D88.
+**UI check.** The PR's Vercel preview is behind Vercel deployment protection, so no session
+can open it without the owner's login. verify-ui ran on the local dev build at 1280 and 375
+instead (2026-11-01), and the design critic scored it 35/60. Its contrast failure (tab labels)
+and the two phone-layout faults are fixed (`e761cf3`, `f9ee76f`). Its other notes are a
+restyle, out of scope: a neutral "waiting for structure" pill, an amber-tinted warning card,
+and plainer device wording.
+
+**Who has what.** The backend writer has finished (its report is in the lead's transcript).
+The frontend writer has D62 (cross-site CIF dedupe), the new result types and error codes,
+and `public/demo/silicon.cif` rewritten as P1 (removes the origin-choice warning from every
+demo run). The lead owns the contract, routes, CI, Dockerfile, staging, `main.py`,
+`safe_load.py`, `jobs.py`, the validator and the docs.
+
+**Decision for the owner (raised with the parent).** MD timestep with hydrogen: relaxed
+ethanol and water under MACE-OFF NVT diverge at 2 fs (steps 587/902) and within 75 steps at
+2.5 fs; every run at 1.5 fs or less stayed bound. The engine now stops a diverging run
+(`md_diverged`) and warns above 1.5 fs when H is present; the contract still allows 4 fs.
+Lowering the cap is a user-visible limit change, so it waits for a decision.
 
 **How this branch is pushed.** Only an explicit SHA where every committed test has its fix:
 `git push origin <sha>:refs/heads/audit-next-feature`. A writer commits its failing test
@@ -55,9 +63,13 @@ checkout's configured address.
 7. Track 2/3 decisions (vibrations vs cell relaxation; ADR-0032, ADR-0033).
 8. A free Materials Project API key, to refetch the GGA task structures for the benchmark (D106).
 
-**Flagged for the owner:** `CLAUDE.md` pitfall 3 was reworded (D85). The unsourced
-"0.1–0.5 eV/atom overbinding" band was removed; no other rule text changed. The MACE-OFF
-typical energy band in `CLAUDE.md` and `contract.json` is also wrong (D52, open).
+**Flagged for the owner: `CLAUDE.md` changes on this branch.**
+* Pitfall 3 dropped the unsourced "0.1–0.5 eV/atom overbinding" band (D85).
+* Energy Reference Conventions: MACE-OFF is judged by energy per atom relative to the model's
+  own isolated atoms (typical −6 to −0.5, enforced −10 to +1 eV/atom), not a raw E/N band (D52).
+* The validator check list describes minimum-image distances and per-ensemble MD checks (D81).
+* The lint baseline is two constants, `LINT_ERROR_BASELINE` / `LINT_WARNING_BASELINE` (D88).
+* CI wording and the ADR count were corrected.
 
 ---
 
