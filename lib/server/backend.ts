@@ -141,12 +141,14 @@ const PRINTABLE = /^[\p{L}\p{M}\p{N}\p{P}\p{S} ]$/u;
 
 /** Benchmark ids for uploaded files: `user-<stem>`, made distinct when stems collide (D99). */
 export function uniqueUploadIds(names: string[]): string[] {
-  const seen = new Map<string, number>();
+  const used = new Set<string>();
   return names.map((name) => {
     const base = `user-${displayName(name).replace(/\.[^.]+$/, "")}`;
-    const n = (seen.get(base) ?? 0) + 1;
-    seen.set(base, n);
-    return n === 1 ? base : `${base}-${n}`;
+    // Count up past every id already given, so "a-2.xyz" after a second "a" stays distinct.
+    let id = base;
+    for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+    used.add(id);
+    return id;
   });
 }
 
