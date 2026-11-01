@@ -209,10 +209,10 @@ function convergenceNote(
   if (converged == null) return null;
 
   const fmax =
-    params.finalFmax != null
+    typeof params.finalFmax === "number"
       ? `${params.finalFmax.toFixed(FORCE_DECIMALS)} eV/Å`
       : null;
-  const steps = params.optSteps != null ? `${params.optSteps} BFGS steps` : null;
+  const steps = typeof params.optSteps === "number" ? `${params.optSteps} BFGS steps` : null;
   const detail = [steps, fmax ? `max force ${fmax}` : null]
     .filter(Boolean)
     .join(", ");
@@ -314,12 +314,17 @@ export function summarizeShared(shared: SharedResult): ResultSummary {
     energyPerAtom,
     model,
     convention,
-    computedUtc: formatUtcMinute(provenance?.timestampUtc),
+    computedUtc: formatUtcMinute(
+      typeof provenance?.timestampUtc === "string" ? provenance.timestampUtc : null,
+    ),
     sharedUtc: formatUtcDay(shared.created_at),
     settings: settingChips(params),
     convergence: convergenceNote(result, params),
     status: result.status ?? null,
-    checkpointSha: provenance?.model?.checkpoint?.sha256 ?? null,
+    checkpointSha:
+      typeof provenance?.model?.checkpoint?.sha256 === "string"
+        ? provenance.model.checkpoint.sha256
+        : null,
     hasProvenance: !!provenance,
     hasValidation: !!result.validation,
   };

@@ -133,3 +133,212 @@ export function normalizeSharedResult(shared: SharedResult): SharedResult {
 
   return { ...shared, result: next };
 }
+
+// ---------------------------------------------------------------------------
+// What a shared result may contain (D64)
+// ---------------------------------------------------------------------------
+
+/** A git commit as `git rev-parse` prints it. Anything else is never made a link. */
+export const GIT_COMMIT_PATTERN = /^[0-9a-f]{7,40}$/;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const ISO_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
+
+/** Most table rows a shared page draws; a larger result says how many it left out. */
+export const MAX_RENDERED_ROWS = 200;
+
+export function visibleRows<T>(rows: readonly T[], limit = MAX_RENDERED_ROWS): { shown: T[]; hidden: number } {
+  return { shown: rows.slice(0, limit), hidden: Math.max(0, rows.length - limit) };
+}
+
+export interface ShapeProblem {
+  field: string;
+  message: string;
+}
+
+const MAX_TEXT = 2000;
+const MAX_LIST = 200;
+const MAX_SERIES = 2_000;
+
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+const isFinite_ = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isText = (v: unknown, max = MAX_TEXT): v is string => typeof v === "string" && v.length <= max;
+const isTextList = (v: unknown): boolean =>
+  Array.isArray(v) && v.length <= MAX_LIST && v.every((t) => isText(t));
+const isVec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && v.every(isFinite_);
+const absent = (v: unknown): boolean => v === undefined || v === null;
+
+const PARAM_NUMBERS = [
+  "temperature", "pressure", "timeStep", "friction", "mdSteps", "forceThreshold", "maxOptSteps", "seed",
+  "optSteps", "finalFmax", "temperatureDegreesOfFreedom", "trajectoryStride", "nptThermostatTimeFs",
+  "nptBarostatTimeFs", "nptBulkModulusGPa",
+] as const;
+const PARAM_TEXT = [
+  "calculationType", "modelType", "modelSize", "precision", "device", "requestedDevice", "mdEnsemble",
+  "customModelName", "upstreamModel", "license",
+] as const;
+const PARAM_FLAGS = ["dispersion", "converged", "comMomentumRemoved"] as const;
+const SERIES = ["energies", "potentialEnergies", "kineticEnergies", "totalEnergies", "temperatures", "step"] as const;
+
+function bad(field: string, message: string): ShapeProblem {
+  return { field, message };
+}
+
+/** Plain JSON tree of bounded depth and width whose leaves are renderable. */
+function checkTree(value: unknown, field: string, depth: number): ShapeProblem | null {
+  if (value === null || typeof value === "boolean") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? null : bad(field, "must be a finite number.");
+  if (typeof value === "string") return value.length <= MAX_TEXT ? null : bad(field, "is too long.");
+  if (Array.isArray(value)) {
+    if (depth > 4 || value.length > MAX_LIST) return bad(field, "is too large.");
+    for (const item of value) {
+      const problem = checkTree(item, field, depth + 1);
+      if (problem) return problem;
+    }
+    return null;
+  }
+  if (isObject(value)) {
+    const keys = Object.keys(value);
+    if (depth > 4 || keys.length > 60) return bad(field, "is too large.");
+    for (const key of keys) {
+      const problem = checkTree(value[key], `${field}.${key}`, depth + 1);
+      if (problem) return problem;
+    }
+    return null;
+  }
+  return bad(field, "has an unsupported value.");
+}
+
+function checkProvenance(prov: unknown): ShapeProblem | null {
+  const f = "result.provenance";
+  if (!isObject(prov)) return bad(f, "must be an object.");
+  const tree = checkTree(prov, f, 0);
+  if (tree) return tree;
+  if (!absent(prov.timestampUtc) && !(isText(prov.timestampUtc) && ISO_UTC_PATTERN.test(prov.timestampUtc))) {
+    return bad(`${f}.timestampUtc`, "must be an ISO-8601 UTC timestamp.");
+  }
+  const sub = (o: unknown, key: string): Record<string, unknown> | undefined => {
+    const v = isObject(o) ? o[key] : undefined;
+    return isObject(v) ? v : undefined;
+  };
+  const model = sub(prov, "model");
+  if (!absent(prov.model) && !model) return bad(`${f}.model`, "must be an object.");
+  const checkpoint = sub(model, "checkpoint");
+  if (model && !absent(model.checkpoint) && !checkpoint) return bad(`${f}.model.checkpoint`, "must be an object.");
+  const hashes: [string, unknown][] = [
+    [`${f}.model.checkpoint.sha256`, checkpoint?.sha256],
+    [`${f}.input.fileSha256`, sub(prov, "input")?.fileSha256],
+    [`${f}.input.structureSha256`, sub(prov, "input")?.structureSha256],
+  ];
+  for (const [field, hash] of hashes) {
+    if (!absent(hash) && !(isText(hash) && SHA256_PATTERN.test(hash))) return bad(field, "must be a SHA-256 hex digest.");
+  }
+  const commit = sub(prov, "code")?.gitCommit;
+  if (!absent(commit) && !(isText(commit) && GIT_COMMIT_PATTERN.test(commit))) {
+    return bad(`${f}.code.gitCommit`, "must be a hexadecimal git commit.");
+  }
+  if (!absent(prov.notes) && !isTextList(prov.notes)) return bad(`${f}.notes`, "must be a list of short strings.");
+  return null;
+}
+
+function checkValidation(v: unknown): ShapeProblem | null {
+  const f = "result.validation";
+  if (!isObject(v)) return bad(f, "must be an object.");
+  if (v.status !== "ran" && v.status !== "unavailable") return bad(`${f}.status`, 'must be "ran" or "unavailable".');
+  if (!absent(v.valid) && typeof v.valid !== "boolean") return bad(`${f}.valid`, "must be true or false.");
+  for (const key of ["issues", "warnings", "info"] as const) {
+    if (!absent(v[key]) && !isTextList(v[key])) return bad(`${f}.${key}`, "must be a list of short strings.");
+  }
+  for (const key of ["source", "policy", "unavailableReason"] as const) {
+    if (!absent(v[key]) && !isText(v[key])) return bad(`${f}.${key}`, "must be short text.");
+  }
+  if (!absent(v.params)) {
+    if (!isObject(v.params)) return bad(`${f}.params`, "must be an object.");
+    if (!absent(v.params.valid) && typeof v.params.valid !== "boolean") return bad(`${f}.params.valid`, "must be true or false.");
+    for (const key of ["issues", "warnings"] as const) {
+      if (!absent(v.params[key]) && !isTextList(v.params[key])) return bad(`${f}.params.${key}`, "must be a list of short strings.");
+    }
+  }
+  return null;
+}
+
+/**
+ * Shape check for everything MACE Link renders that is not coordinates: text,
+ * provenance, validation, parameters, properties and trajectory series. The
+ * stored row is public and permanent and any client can post one, so the page
+ * must not be able to be broken, or made to assert a hash, a commit link or a
+ * validator verdict, by a value the backend never produces. Returns the first
+ * problem, or null. `atomCount` is the length of `result.symbols`.
+ */
+export function checkSharedResultShape(r: Record<string, unknown>, atomCount: number): ShapeProblem | null {
+  if (!absent(r.message) && !isText(r.message, 4000)) return bad("result.message", "must be short text.");
+  if (!absent(r.licenseNotice) && !isText(r.licenseNotice)) return bad("result.licenseNotice", "must be short text.");
+  if (!absent(r.warnings) && !isTextList(r.warnings)) return bad("result.warnings", "must be a list of short strings.");
+  if (!absent(r.converged) && typeof r.converged !== "boolean") return bad("result.converged", "must be true or false.");
+  for (const key of ["timeTaken", "referenceEnergy"] as const) {
+    if (!absent(r[key]) && !isFinite_(r[key])) return bad(`result.${key}`, "must be a finite number.");
+  }
+
+  const stoppedOk = (v: unknown) =>
+    absent(v) || (isObject(v) && isText(v.reason, 100) && isFinite_(v.atStep) && isFinite_(v.budgetSeconds));
+  if (!stoppedOk(r.stoppedEarly)) return bad("result.stoppedEarly", "must name a reason, a step and a budget.");
+
+  if (isObject(r.params)) {
+    const p = r.params;
+    for (const key of PARAM_NUMBERS) {
+      if (!absent(p[key]) && !isFinite_(p[key])) return bad(`result.params.${key}`, "must be a finite number.");
+    }
+    for (const key of PARAM_TEXT) {
+      if (!absent(p[key]) && !isText(p[key], 500)) return bad(`result.params.${key}`, "must be short text.");
+    }
+    for (const key of PARAM_FLAGS) {
+      if (!absent(p[key]) && typeof p[key] !== "boolean") return bad(`result.params.${key}`, "must be true or false.");
+    }
+    if (!stoppedOk(p.stoppedEarly)) return bad("result.params.stoppedEarly", "must name a reason, a step and a budget.");
+  }
+
+  if (r.provenance !== undefined) {
+    const problem = checkProvenance(r.provenance);
+    if (problem) return problem;
+  }
+  if (r.validation !== undefined) {
+    const problem = checkValidation(r.validation);
+    if (problem) return problem;
+  }
+
+  if (!absent(r.lattice) && !(Array.isArray(r.lattice) && r.lattice.length === 3 && r.lattice.every(isVec3))) {
+    return bad("result.lattice", "must be three finite 3-vectors.");
+  }
+  if (r.properties !== undefined) {
+    const p = r.properties;
+    if (!isObject(p)) return bad("result.properties", "must be an object.");
+    for (const key of ["volume", "pressure"] as const) {
+      if (!absent(p[key]) && !isFinite_(p[key])) return bad(`result.properties.${key}`, "must be a finite number.");
+    }
+    if (!absent(p.stress) && !(Array.isArray(p.stress) && p.stress.length === 6 && p.stress.every(isFinite_))) {
+      return bad("result.properties.stress", "must be six finite numbers.");
+    }
+  }
+
+  if (isObject(r.trajectory)) {
+    const t = r.trajectory;
+    for (const key of SERIES) {
+      const series = t[key];
+      if (series === undefined) continue;
+      if (!Array.isArray(series) || series.length > MAX_SERIES || !series.every(isFinite_)) {
+        return bad(`result.trajectory.${key}`, "must be a list of finite numbers.");
+      }
+    }
+    if (t.positions !== undefined) {
+      const frames = t.positions;
+      if (
+        !Array.isArray(frames) ||
+        frames.length > MAX_SERIES ||
+        !frames.every((frame) => Array.isArray(frame) && frame.length === atomCount && frame.every(isVec3))
+      ) {
+        return bad("result.trajectory.positions", "must hold one finite 3-vector per atom in every frame.");
+      }
+    }
+  }
+  return null;
+}

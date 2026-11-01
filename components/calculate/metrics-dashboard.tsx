@@ -45,6 +45,7 @@ import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
 import { runOutcome, stopCause } from "./run-outcome";
 import { limitationsFor } from "./limitations";
+import { GIT_COMMIT_PATTERN, visibleRows } from "@/lib/share";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
 import { EnergyConvergence } from "./charts/energy-convergence";
@@ -1606,6 +1607,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
       value: (
         <span className="inline-flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <HashValue value={code.gitCommit} label="git commit" prefixChars={7} />
+          {GIT_COMMIT_PATTERN.test(code.gitCommit) && (
           <a
             href={`${REPO_URL}/commit/${code.gitCommit}`}
             target="_blank"
@@ -1615,6 +1617,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
             view
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
           </a>
+          )}
           {code.gitDirty === true ? (
             <span className="text-warning">uncommitted changes</span>
           ) : code.gitDirty === false ? (
@@ -1797,6 +1800,9 @@ function ForcesTable({
   symbols: string[];
   maxForceIdx: number;
 }) {
+  // A very large structure would otherwise draw one row per atom; the CSV and
+  // JSON exports carry every row.
+  const { shown, hidden } = visibleRows(forces);
   return (
     <>
       <div className="max-h-72 overflow-auto rounded border border-border">
@@ -1820,7 +1826,7 @@ function ForcesTable({
             </tr>
           </thead>
           <tbody className="text-text-secondary">
-            {forces.map((force, i) => {
+            {shown.map((force, i) => {
               const mag = Math.sqrt(force[0] ** 2 + force[1] ** 2 + force[2] ** 2);
               const isMax = i === maxForceIdx;
               return (
@@ -1844,6 +1850,7 @@ function ForcesTable({
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         {forces.length} atoms &middot; Max |F| highlighted
+        {hidden > 0 && ` · first ${shown.length} shown; the CSV and JSON exports have all ${forces.length}`}
       </p>
     </>
   );

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { insertSharedResult } from "@/lib/server/share-store";
+import { checkSharedResultShape } from "@/lib/share";
 import { ApiError, assertSameOrigin, displayName, errorResponse } from "@/lib/server/backend";
 import { clientIp } from "@/lib/server/jobs";
 
@@ -70,6 +71,12 @@ function validateResult(result: unknown): Record<string, unknown> {
   if (r.params !== undefined && (typeof r.params !== "object" || r.params === null)) {
     throw new ApiError("result.params must be an object.", 400, "invalid_result", "result.params");
   }
+  // Everything the shared page renders besides coordinates: text, provenance,
+  // validation, parameters, properties and trajectory series (D64). The row is
+  // public and permanent, so a value the backend never produces is refused
+  // here rather than rendered as fact later.
+  const shape = checkSharedResultShape(r, symbols.length);
+  if (shape) throw new ApiError(`${shape.field} ${shape.message}`, 400, "invalid_result", shape.field);
   return r;
 }
 
