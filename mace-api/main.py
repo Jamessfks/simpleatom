@@ -33,6 +33,7 @@ _logger = logging.getLogger("mace-api")
 import torch
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -137,6 +138,21 @@ async def _http_error(_request: Request, exc: HTTPException):
         "code": "http_error", "message": str(exc.detail), "field": None}
     return JSONResponse({"status": "error", "message": detail["message"], "error": detail},
                         status_code=exc.status_code, headers=exc.headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request: Request, exc: RequestValidationError):
+    """
+    A body FastAPI rejects before a route runs (a missing form field, a SMILES
+    that is not a string) gets the same shape as every other refusal (D140),
+    not FastAPI's {"detail": [...]}, which the front end does not read.
+    """
+    first = (exc.errors() or [{}])[0]
+    loc = [str(part) for part in first.get("loc", ()) if part not in ("body", "query", "header")]
+    field = loc[-1] if loc else None
+    message = f"{field or 'request'}: {first.get('msg', 'invalid request')}"
+    error = {"code": "invalid_request", "message": message, "field": field}
+    return JSONResponse({"status": "error", "message": message, "error": error}, status_code=422)
 
 
 def _require_proxy_key(provided: str | None) -> None:
