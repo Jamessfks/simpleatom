@@ -7,7 +7,7 @@
  * `{status:"error", message, error:{code, message, field}}` (lib/server/backend.ts).
  */
 
-import type { CalculationResult } from "@/types/mace";
+import type { CalculationResult, SmilesToXyzResponse } from "@/types/mace";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -73,12 +73,12 @@ export function isSmilesGenerated(file: File): boolean {
  */
 export async function smilesToFile(smiles: string, signal?: AbortSignal): Promise<File> {
   const trimmed = smiles.trim();
-  const data = await postJson<{
-    status?: string;
-    message?: string;
-    xyz?: string;
-    smiles_canonical?: string;
-  }>("/api/smiles-to-xyz", { smiles: trimmed }, signal);
+  // Untrusted JSON: every field optional, checked before use.
+  const data = await postJson<Partial<SmilesToXyzResponse> & { status?: string; message?: string }>(
+    "/api/smiles-to-xyz",
+    { smiles: trimmed },
+    signal,
+  );
   if (data.status === "error" || typeof data.xyz !== "string") {
     throw new ApiRequestError(data.message || "Conversion failed", 502, "conversion_failed");
   }
