@@ -55,6 +55,23 @@ export function warningsBeyondOutcome(result: CalculationResult): string[] {
   return warnings.filter((w) => !/^Optimization not converged\b/i.test(w));
 }
 
+/**
+ * What to tell the user before they publish this result: a run that did not
+ * finish what was asked, and the warnings that go out with it. Both are part of
+ * the stored result, so a link that hides them would show a worse result as a
+ * better one.
+ */
+export function shareCaveats(result: CalculationResult): string[] {
+  const out: string[] = [];
+  const detail = runOutcome(result).detail;
+  if (detail) out.push(detail);
+  const n = warningsBeyondOutcome(result).length;
+  if (n > 0) {
+    out.push(`${n} warning${n === 1 ? "" : "s"} from the calculation ${n === 1 ? "is" : "are"} published with the result.`);
+  }
+  return out;
+}
+
 function requestedSteps(params: Partial<CalculationParams> | undefined): number | undefined {
   if (params?.calculationType === "geometry-opt") return params.maxOptSteps;
   if (params?.calculationType === "molecular-dynamics") return params.mdSteps;

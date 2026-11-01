@@ -31,7 +31,7 @@ import { ApiRequestError, isSmilesGenerated, runCalculationJob, type JobView } f
 import { checkCalculationParams, DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
-import { runOutcome, type RunOutcome } from "@/components/calculate/run-outcome";
+import { runOutcome, shareCaveats, type RunOutcome } from "@/components/calculate/run-outcome";
 import {
   STAGES,
   completionAnnouncement,
@@ -247,6 +247,7 @@ function CalculatePageInner() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [confirmShareOpen, setConfirmShareOpen] = useState(false);
+  const keepPrivateRef = useRef<HTMLButtonElement>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareCopyFailed, setShareCopyFailed] = useState(false);
   const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
@@ -824,7 +825,12 @@ function CalculatePageInner() {
       </main>
 
       <Sheet open={confirmShareOpen} onOpenChange={setConfirmShareOpen}>
-        <SheetContent side="bottom" className="mx-auto w-full max-w-xl rounded-t-2xl">
+        {/* A bottom sheet on a phone, a centred dialog from 768 px up. Publishing
+            is public and permanent, so the safe choice gets focus. */}
+        <SheetContent
+          side="bottom" className="mx-auto w-full max-w-xl rounded-t-2xl md:top-0 md:my-auto md:h-fit md:rounded-2xl md:border"
+          onOpenAutoFocus={(event) => { event.preventDefault(); keepPrivateRef.current?.focus(); }}
+        >
           <SheetHeader>
             <SheetTitle className="font-serif text-xl">Publish this result?</SheetTitle>
             <SheetDescription>{SHARE_DISCLOSURE}</SheetDescription>
@@ -835,8 +841,16 @@ function CalculatePageInner() {
               <span className="font-mono text-text-primary">{lastRun.filename}</span>
             </p>
           )}
+          {result && shareCaveats(result).length > 0 && (
+            <div role="note" className="mx-4 space-y-1 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+              <p className="font-semibold">Check before you publish</p>
+              {shareCaveats(result).map((caveat) => (
+                <p key={caveat}>{caveat}</p>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end">
-            <Button
+            <Button ref={keepPrivateRef}
               variant="outline"
               className="min-h-11"
               onClick={() => setConfirmShareOpen(false)}
