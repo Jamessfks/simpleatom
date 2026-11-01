@@ -280,9 +280,13 @@ def structure_canonical_bytes(atoms) -> bytes:
     """
     Format-independent canonical serialisation of a structure.
 
-    The same molecule written as XYZ, CIF or PDB — and uploaded through a
-    randomly-named temp file — produces the same bytes here, so the digest
-    identifies the *structure*, not the file that carried it.
+    The same atoms, cell, pbc and constraints produce the same bytes whatever
+    file carried them (extended XYZ, CIF and POSCAR round-trip identically) and
+    whatever the temp file was called, so the digest identifies the structure,
+    not the file. It is not more forgiving than that (D76): positions count to
+    10 decimals, so a PDB (3 decimals) matches only coordinates that agree at
+    that precision, and a molecule written as CIF gains a cell and periodicity,
+    which makes it a different input. test_provenance.TestStructureHashAcrossFormats.
 
     Atom order is deliberately significant: forces are returned per atom in
     input order, so two orderings are genuinely different inputs.

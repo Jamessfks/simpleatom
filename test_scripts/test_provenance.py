@@ -105,6 +105,40 @@ def _sha256_of(path) -> str:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+class TestStructureHashAcrossFormats(unittest.TestCase):
+    """
+    D76: the structure hash is format-independent for the same atoms, cell and
+    pbc. It is not magic: PDB keeps 3 decimals, and a molecule written as CIF
+    gains a cell and periodicity, so both are different inputs.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def _round_trip(self, atoms, fmt, ext):
+        from ase.io import read, write
+        path = os.path.join(self.tmp, f"s.{ext}")
+        write(path, atoms, format=fmt)
+        return hashlib.sha256(provenance.structure_canonical_bytes(read(path, format=fmt))).hexdigest()
+
+    def test_a_crystal_hashes_the_same_as_extxyz_cif_and_poscar(self):
+        from ase.io import read
+        si = read(str(REPO_ROOT / "public" / "demo" / "silicon.cif"))
+        hashes = {self._round_trip(si, f, e) for f, e in (("extxyz", "xyz"), ("cif", "cif"), ("vasp", "vasp"))}
+        self.assertEqual(len(hashes), 1)
+
+    def test_pdb_matches_only_at_its_own_precision(self):
+        import numpy as np
+        from ase.io import read
+        ethanol = read(str(REPO_ROOT / "public" / "demo" / "ethanol.xyz"))
+        self.assertNotEqual(self._round_trip(ethanol, "extxyz", "xyz"),
+                            self._round_trip(ethanol, "proteindatabank", "pdb"))
+        ethanol.positions = np.round(ethanol.positions, 3)
+        self.assertEqual(self._round_trip(ethanol, "extxyz", "xyz"),
+                         self._round_trip(ethanol, "proteindatabank", "pdb"))
+
+
 class TestProvenanceUnits(unittest.TestCase):
     """Manifest primitives. No model, no network, no GPU."""
 
