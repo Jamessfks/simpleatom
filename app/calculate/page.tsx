@@ -63,7 +63,7 @@ import type {
   CalculationResult,
   CalculationType,
 } from "@/types/mace";
-import { saveResult } from "@/lib/share";
+import { SHARE_DISCLOSURE, saveResult } from "@/lib/share";
 import {
   addHistory,
   clearHistory,
@@ -248,6 +248,7 @@ function CalculatePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [confirmShareOpen, setConfirmShareOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
 
@@ -473,13 +474,17 @@ function CalculatePageInner() {
 
   const handleCancel = () => runAbort.current?.abort();
 
+  // Called only from the confirmation sheet: the user has just been told the
+  // link is public and permanent (SHARE_DISCLOSURE), and agreeing is the
+  // consent the server requires.
   const handleShare = async () => {
+    setConfirmShareOpen(false);
     if (!result || result.status !== "success") return;
     setIsSharing(true);
     try {
       // Share the effective params off the result, not the request — a shared
       // result should describe the run that happened.
-      const { url } = await saveResult(result, lastRun?.filename);
+      const { url } = await saveResult(result, lastRun?.filename, true);
       setShareUrl(url);
       if (lastHistoryId) updateHistoryShareUrl(lastHistoryId, url);
     } catch (err) {
@@ -726,7 +731,7 @@ function CalculatePageInner() {
                       actions={
                         !shareUrl ? (
                           <Button
-                            onClick={handleShare}
+                            onClick={() => setConfirmShareOpen(true)}
                             disabled={isSharing || result.status !== "success"}
                             variant="outline"
                             size="sm"
@@ -785,6 +790,33 @@ function CalculatePageInner() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Sheet open={confirmShareOpen} onOpenChange={setConfirmShareOpen}>
+        <SheetContent side="bottom" className="mx-auto w-full max-w-xl rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="font-serif text-xl">Publish this result?</SheetTitle>
+            <SheetDescription>{SHARE_DISCLOSURE}</SheetDescription>
+          </SheetHeader>
+          {lastRun?.filename && (
+            <p className="px-4 text-sm text-text-secondary">
+              File name that will be published:{" "}
+              <span className="font-mono text-text-primary">{lastRun.filename}</span>
+            </p>
+          )}
+          <div className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setConfirmShareOpen(false)}
+            >
+              Keep private
+            </Button>
+            <Button className="min-h-11" onClick={handleShare}>
+              Publish public link
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Demo guided overlay */}
       {demoStep != null && demoStep < DEMO_STEPS.length && (

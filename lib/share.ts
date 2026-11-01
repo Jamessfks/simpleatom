@@ -18,8 +18,19 @@ import type { CalculationResult, SharedResult } from "@/types/mace";
 export const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/;
 
 /**
+ * What the user is told before a result is published. Shown by the calculator's
+ * confirmation step; the server stores exactly this much (coordinates, forces,
+ * the file name and the results) and cannot delete it from the app.
+ */
+export const SHARE_DISCLOSURE =
+  "Anyone with the link can see this structure's atomic coordinates, its file name and the full results. " +
+  "The link is public and permanent: it cannot be deleted from the app.";
+
+/**
  * Publish a calculation result and return its shareable URL.
  *
+ * `consent` is the user's answer to SHARE_DISCLOSURE and has no default: the
+ * request is not made without it (the server would refuse it too, ADR-0024).
  * The server validates the payload, stores it, and chooses the id. Only the
  * result's own `params` (what actually ran) are stored — never a second,
  * client-supplied copy that could disagree with it.
@@ -27,7 +38,11 @@ export const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/;
 export async function saveResult(
   result: CalculationResult,
   filename?: string,
+  consent?: boolean,
 ): Promise<{ id: string; url: string }> {
+  if (consent !== true) {
+    throw new ApiRequestError("Confirm that you want to publish this result first.", 400, "consent_required", "consent");
+  }
   const response = await fetch("/api/share", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
