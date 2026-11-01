@@ -1677,8 +1677,19 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     # NVT: Langevin runs with fixcm=False (see below), so the thermostat
     # thermalises all 3N degrees of freedom, the centre-of-mass mode included,
     # and 3N is the right divisor. A single atom keeps 3 either way.
+    #
+    # Fixed atoms (POSCAR selective dynamics, D131): they carry no kinetic
+    # energy, so the divisor is ASE's constraint-aware count (3N minus every
+    # fixed component), and nothing is subtracted for the centre of mass: an
+    # atom held in place exerts forces, so total momentum is not conserved and
+    # Stationary() is skipped below. A slab with half its atoms fixed used to
+    # report ~150 K while the thermostat held the free atoms at 300 K.
     n_atoms = len(atoms)
-    dof = 3 * n_atoms if (ensemble == "NVT" or n_atoms == 1) else 3 * n_atoms - 3
+    constrained = bool(atoms.constraints)
+    if constrained:
+        dof = int(atoms.get_number_of_degrees_of_freedom())
+    else:
+        dof = 3 * n_atoms if (ensemble == "NVT" or n_atoms == 1) else 3 * n_atoms - 3
 
     ctx.effective_params.update({
         "temperature": temp_K,
@@ -1754,7 +1765,8 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     #
     # Applied for every ensemble. Zero total momentum is right for a periodic
     # cell too; ASE's NPT already does this for itself and logs it.
-    Stationary(atoms, preserve_temperature=False)
+    if not constrained:
+        Stationary(atoms, preserve_temperature=False)
     # NOT ZeroRotation(): net angular momentum is real physics for an isolated
     # molecule (a molecule at 300 K genuinely rotates), it does not translate
     # the system out of the viewing box, and it does not accumulate. Zeroing it
@@ -1763,7 +1775,7 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     # subtracting a rigid rotation from the contents is not a symmetry
     # operation — and this backend cannot tell the two cases apart from the
     # ensemble alone.
-    ctx.effective_params["comMomentumRemoved"] = True
+    ctx.effective_params["comMomentumRemoved"] = not constrained
 
     if ensemble == "NVT":
         from ase.md.langevin import Langevin
