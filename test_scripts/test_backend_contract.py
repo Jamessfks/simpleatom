@@ -679,6 +679,21 @@ class TestCiGates(unittest.TestCase):
                       "the manifest commit must be the commit under test, not just truthy")
 
 
+class TestHardwareClaims(unittest.TestCase):
+    """D104: every place that names the hosted hardware names the same hardware."""
+
+    def test_the_hosted_cpu_count_is_stated_once_and_agrees(self):
+        import calculate
+        claims = {
+            "contract.json hosted description": contract.profile("hosted")["description"],
+            "calculate.device_report": calculate.device_report("hosted")["unavailableReason"],
+            "lib/contract.ts": (REPO_ROOT / "lib" / "contract.ts").read_text(),
+        }
+        for where, text in claims.items():
+            self.assertIn("2 shared vCPUs", text, where)
+            self.assertNotIn("one shared CPU", text, where)
+
+
 class TestHourlyCap(unittest.TestCase):
     """
     D42: every (model, structure) pair of a benchmark is one admission, and the
