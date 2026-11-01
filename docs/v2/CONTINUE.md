@@ -14,8 +14,8 @@ The plan is `~/.claude/plans/run-it-overnight-auto-mode-zesty-pond.md`, Steps 4�
 | 4.1 release blockers | D40, D41, D43, D57 fixed |
 | 4.2 Track 1, device honesty | done; parent verdict PASS |
 | 4.3 D51 | done; parent verdict PASS (batch 1, `6ee0c31`) |
-| 4.4 owner-free defects | batch 2 (`3ee1d64`): 12 of 16 PASS; D55, D62, D64, D67 reopened, then refixed except D62 (with the frontend writer) |
-| 4.5 D72–D144 | in [`defects.json`](defects.json). Open: D30, D32 (owner), D62, D69 (F27 viewer effects), D119 (see its note). Batch 3 (`23e2339`) is with three verifiers |
+| 4.4 owner-free defects | batch 2 (`3ee1d64`): 12 of 16 PASS; the four reopened rows refixed |
+| 4.5 D72–D162 | in [`defects.json`](defects.json). Batch 3 (`23e2339`) verified 49 rows; batch 4 (`1270bf4`) is with two verifiers. Open: D30, D32 (owner), D69 (F27 viewer effects), D86 and D158 (backend writer) |
 | 4.6 permanent gates | done: zero-test runs fail, the validator gate can fail, MPA-0/D3 goldens, the lock recompiled in CI, docker-smoke offline MPA-0, the invariant suite (D78/D80), every `test_scripts` suite in CI and the daily gate (a test enforces it) |
 
 **Release note for the owner (no code needed).** `main` and `v2.2` still ship the broken
@@ -33,17 +33,20 @@ and the two phone-layout faults are fixed (`e761cf3`, `f9ee76f`). Its other note
 restyle, out of scope: a neutral "waiting for structure" pill, an amber-tinted warning card,
 and plainer device wording.
 
-**Who has what.** The backend writer has finished (its report is in the lead's transcript).
-The frontend writer has D62 (cross-site CIF dedupe), the new result types and error codes,
-and `public/demo/silicon.cif` rewritten as P1 (removes the origin-choice warning from every
-demo run). The lead owns the contract, routes, CI, Dockerfile, staging, `main.py`,
-`safe_load.py`, `jobs.py`, the validator and the docs.
+**Who has what.** Both writers of the first round have finished. A second backend writer
+has D86 (optimizer tests through `_run_geometry_opt`), the D158 wording and the D130 evidence
+(D151 and D154 are in). The lead owns the contract, routes, CI, Dockerfile, staging,
+`main.py`, `safe_load.py`, `jobs.py`, the validator and the docs.
 
-**Decision for the owner (raised with the parent).** MD timestep with hydrogen: relaxed
-ethanol and water under MACE-OFF NVT diverge at 2 fs (steps 587/902) and within 75 steps at
-2.5 fs; every run at 1.5 fs or less stayed bound. The engine now stops a diverging run
-(`md_diverged`) and warns above 1.5 fs when H is present; the contract still allows 4 fs.
-Lowering the cap is a user-visible limit change, so it waits for a decision.
+**D119 done.** The demo and hero are trans ethanol relaxed with MACE-OFF23 medium in float64,
+matching CCCBDB's C–C and C–C–O
+(`evidence/2026-11-01/demo-ethanol`). The strained file is `test/fixtures/ethanol-golden.xyz`,
+pinned by hash; every golden, docker-smoke run, gate guard and science suite reads it.
+
+**MD timestep (decided with the parent, under the approved plan).** Keep the 4 fs cap: the
+verified divergence stop (`md_diverged`, D130) is the control. Relaxed ethanol and water under
+MACE-OFF NVT diverge at 2 fs (steps 587/902); every run at ≤ 1.5 fs stayed bound. An
+H-aware warning above 1 fs is an option for the morning report, not a change.
 
 **How this branch is pushed.** Only an explicit SHA where every committed test has its fix:
 `git push origin <sha>:refs/heads/audit-next-feature`. A writer commits its failing test

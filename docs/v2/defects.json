@@ -1120,10 +1120,10 @@
       "source": "CI/docs review, 2026-10-31 (~/.cache/simpleatom/overnight/review/ci-docs.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixedIn": "5bfc578 + 61d0b1d",
+      "status": "fixed-unverified",
+      "fixedIn": "5bfc578 + 61d0b1d + a8dc61e + 664c5b5 + 0532eb4",
       "fixedOn": "2026-11-01",
-      "fixNote": "Batch 3 residuals: README fixed (a8dc61e), Model step subtitle fixed (0532eb4); app/docs/page.tsx and app/docs/calculations/page.tsx are with the frontend writer."
+      "fixNote": "Batch-3 residuals fixed: README (a8dc61e), docs home and parameter table (664c5b5, test bade131), Model step subtitle (0532eb4). Awaiting the parent session's independent verdict."
     },
     {
       "id": "D85",
@@ -1261,7 +1261,7 @@
       "status": "fixed-unverified",
       "fixedIn": "cc3727b + 2405d4f",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: a205e14, e5f3bef. Reopened by batch 3 (X-Forwarded-Host: localhost from a LAN Host passed). The loopback check reads Host only and refuses non-loopback forwarded hosts and X-Forwarded-For; binding to 127.0.0.1 stays the boundary. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: a205e14, e5f3bef. Reopened by batch 3 (X-Forwarded-Host: localhost from a LAN Host passed). The loopback check reads Host only and refuses non-loopback forwarded hosts and X-Forwarded-For; binding to 127.0.0.1 stays the boundary. Docs state that custom models must run only on a loopback-bound server and that the header checks are defence in depth (3edd7ea). Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D95",
@@ -1608,8 +1608,10 @@
       "source": "structure audit, 2026-10-31 (docs/v2/evidence/2026-10-31/structure-audit)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "Open by choice: public/demo/ethanol.xyz carries the MACE-OFF golden energies (test_provenance), docker-smoke's MACE-OFF check and the validator's optimisation self-test, which needs a strained start. Replacing it needs a separate fixture for those, then a cited or documented-relaxed demo geometry."
+      "status": "fixed-unverified",
+      "fixNote": "Open by choice: public/demo/ethanol.xyz carries the MACE-OFF golden energies (test_provenance), docker-smoke's MACE-OFF check and the validator's optimisation self-test, which needs a strained start. Replacing it needs a separate fixture for those, then a cited or documented-relaxed demo geometry.",
+      "fixedIn": "b7e02ab + 72eb9da + 4697059 + bae970e",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D120",
@@ -2054,8 +2056,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "With the backend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 9eb1149, b9da855. RDKit's embedding timeout inside a 20 s budget; refused as smiles_embedding_timeout. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "cf2266c",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D152",
@@ -2066,8 +2070,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "With the frontend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: de1bac4. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "28e3fe1",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D153",
@@ -2078,8 +2084,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "Contract value and engine/validator done in a2caa12 (test before it); the preview's 0.4 Å is with the frontend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 980249a, af2bc8a, ff842ac. structureChecks.minInteratomicDistanceA = 0.5 in the contract, read by the engine, the validator and the preview. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "a2caa12 + b0898b8 + f704ff0 + 03917d9",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D154",
@@ -2090,8 +2098,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "With the backend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 7cdf74e. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "2873719",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D155",
@@ -2156,8 +2166,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "With the frontend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 246bc2f. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "d3450ea",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D160",
@@ -2196,8 +2208,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "With the frontend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Doc comment moved. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "d3450ea",
+      "fixedOn": "2026-11-01"
     }
   ]
 }
