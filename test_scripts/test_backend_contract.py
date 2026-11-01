@@ -683,6 +683,37 @@ class TestLocalStack(unittest.TestCase):
         self.assertEqual(calculate_local.stack_drift(dict(pins), pins), [])
 
 
+class TestHarnessDocFacts(unittest.TestCase):
+    """
+    D39: the harness docs carried stale facts — Matbench ranks 34/21 (36/22 of
+    43 on 2026-10-28) and "calculate_local.py exits 0" on refusal (it exits 1).
+    The ranks now have one source, app/v2/bars.ts; the docs must agree with it.
+    """
+
+    def setUp(self):
+        import re
+        bars = (REPO_ROOT / "app" / "v2" / "bars.ts").read_text()
+        self.ranks = {m: int(r) for m, r in re.findall(r'"(MACE-MPA?-0)":\s*(\d+)', bars)}
+        self.retrieved = re.search(r'retrieved:\s*"([\d-]+)"', bars).group(1)
+        self.criteria = (REPO_ROOT / "docs" / "v2" / "SUCCESS-CRITERIA.md").read_text()
+
+    def test_success_criteria_ranks_match_the_single_source(self):
+        import re
+        for model, rank in self.ranks.items():
+            row = re.search(rf"\|\s*\**{re.escape(model)}\**[^|]*\|\s*(\d+)\s*\|", self.criteria)
+            self.assertIsNotNone(row, model)
+            self.assertEqual(int(row.group(1)), rank, model)
+        self.assertIn(self.retrieved, self.criteria)
+
+    def test_progress_board_does_not_repeat_stale_ranks(self):
+        progress = (REPO_ROOT / "docs" / "v2" / "progress.json").read_text()
+        self.assertNotIn("MACE-MP-0 ranks 34", progress)
+        self.assertNotIn("offers it nowhere", progress)
+
+    def test_no_doc_says_refusals_exit_zero(self):
+        self.assertNotIn("exits 0 and reports refusal", self.criteria)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
