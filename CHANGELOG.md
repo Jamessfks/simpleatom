@@ -3,7 +3,10 @@
 All notable changes to SimpleAtom. Versions follow [semantic versioning](https://semver.org/);
 `package.json` and `mace-api/contract.json` carry the same version (CI checks).
 
-## [2.2.0] — 2026-10-20
+## [2.2.0] — tagged 2026-10-20, not deployed
+
+The `v2.2.0` tag exists in the development repository only; production still ran 1.3.0 on
+2026-10-31 (see docs/audits/2026-10-28.md).
 
 The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.md)).
 
@@ -12,7 +15,8 @@ The result of a full audit ([docs/audits/2026-10-20.md](docs/audits/2026-10-20.m
   `torch.load(weights_only=False)` patch, public custom-model uploads, and an unvalidated
   `modelSize` (which upstream treats as a URL or path to download and unpickle) are gone. Only
   checkpoints whose SHA-256 is pinned in `mace-api/contract.json` are ever unpickled; custom
-  checkpoints are refused on the public instance and remain available locally
+  checkpoints are refused on the public instance, and locally they are opt-in
+  (`ALLOW_CUSTOM_MODELS=1`, loopback only; see Unreleased)
   ([ADR-0020](docs/adr/0020-trusted-checkpoint-loading.md)).
 - Next.js 16.1.6 → 16.4.2 (critical request-smuggling advisory), Ketcher 3.18, nanoid 5.1.16:
   0 advisories in production dependencies (27 before).

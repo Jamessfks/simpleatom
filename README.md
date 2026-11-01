@@ -50,8 +50,9 @@ python3 -m pip install -r mace-api/requirements.txt
 npm run dev            # http://localhost:3000/calculate?demo=true
 ```
 
-Local mode needs no configuration and also accepts your own fine-tuned
-`.model` checkpoints. On macOS, export `KMP_DUPLICATE_LIB_OK=TRUE` before
+Local mode needs no configuration. It accepts your own fine-tuned `.model`
+checkpoints only after you opt in with `ALLOW_CUSTOM_MODELS=1`, because loading one
+runs code from the file; the public site never loads them. On macOS, export `KMP_DUPLICATE_LIB_OK=TRUE` before
 running Python yourself. Details: [Install](docs/how-to/install.md) ·
 [Deploy](docs/how-to/deploy.md) · [Troubleshoot](docs/how-to/troubleshoot.md).
 

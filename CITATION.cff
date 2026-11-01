@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use SimpleAtom in published work, please cite it, and cite MACE and the foundation model you used."
 title: "SimpleAtom: a web interface to MACE machine-learning interatomic potentials"
 version: 2.2.0
-date-released: 2026-10-20
+# date-released omitted: 2.2.0 is tagged but not yet released or deployed (D87).
 license: MIT
 repository-code: "https://github.com/Jamessfks/simpleatom"
 url: "https://mace-lake.vercel.app"

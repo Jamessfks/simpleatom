@@ -200,7 +200,9 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 2. PyTorch 2.6+ refuses to unpickle MACE checkpoints by default, and importing `mace` sets
    `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` process-wide. Load checkpoints only through
    `safe_load.trusted_checkpoints()`, which passes `weights_only` explicitly
-3. The MACE-MP family is PBE-level — ~0.1–0.5 eV/atom overbinding vs experiment
+3. The MACE-MP family is PBE-level: it inherits PBE's differences from experiment, which depend on the
+   material and the property (silicon: MPA-0 relaxes to a = 5.467 Å vs 5.4309 Å measured, COD 9011998).
+   Never quote a single eV/atom error band; none has a source (D85)
 4. Don't enable D3 dispersion with MACE-OFF (double-counting)
 5. Devices (ADR-0031): the hosted profile refuses `cuda` (`device_unavailable`); a local run
    asking for CUDA that PyTorch cannot see falls back to CPU **with a warning and
@@ -226,7 +228,7 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 
 ## Testing & Validation
 
-CI (`.github/workflows/ci.yml`) runs everything below on every push and PR; the HF Space
+CI (`.github/workflows/ci.yml`) runs everything below on every PR and on pushes to `main`, `daily` and `v*`; the HF Space
 deploys only after it passes on `main`. Run it locally before pushing.
 
 ### Before Merging Any Scientific Code Change
