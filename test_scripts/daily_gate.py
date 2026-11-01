@@ -49,7 +49,7 @@ DEFECTS = ROOT / "docs" / "v2" / "defects.json"
 # Errors and warnings are counted separately (D88): with one total, a new error
 # passed whenever a warning was fixed in the same change. Measured 2026-11-01:
 # 13 errors (react-hooks compiler rules in six components) and 1 warning.
-LINT_ERROR_BASELINE = 13
+LINT_ERROR_BASELINE = 11
 LINT_WARNING_BASELINE = 1
 
 # public/demo/silicon.cif — correct nearest-neighbour is a*sqrt(3)/4. If

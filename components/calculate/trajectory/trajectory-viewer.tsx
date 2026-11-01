@@ -52,7 +52,7 @@
  *   - ./energy-chart.tsx — SVG energy-vs-step chart
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -66,6 +66,7 @@ import {
 import type { GLViewer } from "3dmol";
 import type { CalculationResult } from "@/types/mace";
 import { EnergyChart } from "@/components/calculate/trajectory/energy-chart";
+import { advanceFrame, buildTrajectoryXYZ } from "@/components/calculate/trajectory/trajectory-frames";
 import { DATA_COLORS } from "@/components/calculate/charts/chart-config";
 
 // ---------------------------------------------------------------------------
@@ -88,47 +89,6 @@ const SPEEDS = [0.5, 1, 2, 4] as const;
 const BASE_INTERVAL_MS = 150;
 
 // ---------------------------------------------------------------------------
-// Helper: build multi-frame XYZ string for 3Dmol.js addModelsAsFrames
-// ---------------------------------------------------------------------------
-
-/**
- * Concatenate all trajectory frames into a single multi-frame XYZ string.
- * 3Dmol.js `addModelsAsFrames` expects this format: each frame is a
- * complete XYZ block (atom count + comment + atom lines) back-to-back.
- *
- * The comment line names the quantity it carries (`E_pot=` / `E_tot=`)
- * rather than a bare `E =`, because these frames are the same bytes a user
- * can copy out of the viewer.
- */
-function buildTrajectoryXYZ(
-  symbols: string[],
-  positions: number[][][],
-  potentialEnergies: number[],
-  totalEnergies: number[]
-): string {
-  const atomCount = symbols.length;
-  let xyz = "";
-
-  for (let f = 0; f < positions.length; f++) {
-    const parts: string[] = [`Frame ${f}`];
-    if (potentialEnergies[f] != null) {
-      parts.push(`E_pot=${potentialEnergies[f].toFixed(6)} eV`);
-    }
-    if (totalEnergies[f] != null) {
-      parts.push(`E_tot=${totalEnergies[f].toFixed(6)} eV`);
-    }
-    xyz += `${atomCount}\n`;
-    xyz += `${parts.join(" | ")}\n`;
-    for (let a = 0; a < atomCount; a++) {
-      const [x, y, z] = positions[f][a];
-      xyz += `${symbols[a]} ${x.toFixed(6)} ${y.toFixed(6)} ${z.toFixed(6)}\n`;
-    }
-  }
-
-  return xyz;
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -142,8 +102,11 @@ export function TrajectoryViewer({ result }: TrajectoryViewerProps) {
   if (!result.trajectory || !result.symbols) {
     return <div className="p-4 text-sm text-text-muted">No trajectory data available.</div>;
   }
+  // A different trajectory is a different player: its viewer, frame, speed and
+  // playback all start over, instead of the old frames staying on screen.
   return (
     <TrajectoryPlayer
+      key={trajectoryKey(result.trajectory)}
       traj={result.trajectory}
       symbols={result.symbols}
       targetTemperature={result.params?.temperature}
@@ -152,6 +115,19 @@ export function TrajectoryViewer({ result }: TrajectoryViewerProps) {
 }
 
 type Trajectory = NonNullable<CalculationResult["trajectory"]>;
+
+const trajectoryKeys = new WeakMap<object, number>();
+let nextTrajectoryKey = 0;
+
+/** A stable key for a trajectory object: the same object always maps to the same key. */
+function trajectoryKey(traj: Trajectory): number {
+  let key = trajectoryKeys.get(traj);
+  if (key === undefined) {
+    key = nextTrajectoryKey++;
+    trajectoryKeys.set(traj, key);
+  }
+  return key;
+}
 
 function TrajectoryPlayer({
   traj,
@@ -193,20 +169,23 @@ function TrajectoryPlayer({
   const lastTickRef = useRef<number>(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
-  // Pre-build the multi-frame XYZ string (memoized via ref to avoid recompute)
-  const xyzDataRef = useRef<string>("");
-  if (!xyzDataRef.current) {
-    xyzDataRef.current = buildTrajectoryXYZ(
-      symbols,
-      traj.positions,
-      potentialEnergies,
-      totalEnergies
-    );
-  }
+  // The multi-frame XYZ string, rebuilt when the trajectory or the symbols change
+  const xyz = useMemo(() => buildTrajectoryXYZ(symbols, traj), [symbols, traj]);
+
+  // The frame the animation loop is on, readable there without going through a state updater
+  const frameRef = useRef(0);
+  useEffect(() => {
+    frameRef.current = currentFrame;
+  }, [currentFrame]);
 
   // ── Initialize 3Dmol.js viewer with trajectory frames ──
   useEffect(() => {
     if (!viewerRef.current) return;
+
+    // The import is async: if the effect is cleaned up before it resolves
+    // (unmount, a new trajectory), it must not create a viewer or an observer
+    // that nothing will ever tear down.
+    let cancelled = false;
 
     const resize = () => {
       viewerInstance.current?.resize?.();
@@ -214,7 +193,7 @@ function TrajectoryPlayer({
     };
 
     import("3dmol").then(($3Dmol) => {
-      if (!viewerRef.current) return;
+      if (cancelled || !viewerRef.current) return;
 
       viewerRef.current.innerHTML = "";
       const viewer = $3Dmol.createViewer(viewerRef.current, {
@@ -223,7 +202,7 @@ function TrajectoryPlayer({
       viewerInstance.current = viewer;
 
       // Load all frames at once — 3Dmol manages frame switching internally
-      viewer.addModelsAsFrames(xyzDataRef.current, "xyz");
+      viewer.addModelsAsFrames(xyz, "xyz");
 
       viewer.setStyle(
         {},
@@ -241,10 +220,12 @@ function TrajectoryPlayer({
     });
 
     return () => {
+      cancelled = true;
       resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       viewerInstance.current?.clear?.();
     };
-  }, []);
+  }, [xyz]);
 
   // ── Sync 3Dmol frame when currentFrame changes ──
   useEffect(() => {
@@ -263,15 +244,15 @@ function TrajectoryPlayer({
     const tick = (timestamp: number) => {
       if (timestamp - lastTickRef.current >= interval) {
         lastTickRef.current = timestamp;
-        setCurrentFrame((prev) => {
-          const next = prev + 1;
-          // Stop at last frame
-          if (next >= totalFrames) {
-            setPlaying(false);
-            return totalFrames - 1;
-          }
-          return next;
-        });
+        // Stop at the last frame. Both setters are called here, not one inside
+        // the other's updater.
+        const { frame, done } = advanceFrame(frameRef.current, totalFrames);
+        frameRef.current = frame;
+        setCurrentFrame(frame);
+        if (done) {
+          setPlaying(false);
+          return;
+        }
       }
       animFrameRef.current = requestAnimationFrame(tick);
     };
