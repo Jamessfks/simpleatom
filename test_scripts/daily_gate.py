@@ -58,7 +58,6 @@ LINT_WARNING_BASELINE = 1
 SILICON_NN_ANGSTROM = 2.3516
 SILICON_NN_TOLERANCE = 0.002
 
-PROVENANCE_TEST_COUNT = 40
 
 # Daily work accumulates here and is never auto-merged. `main` auto-deploys to
 # Vercel, so anything landing there is live; this branch lets a month of daily
@@ -174,108 +173,44 @@ def gate_validator() -> Result:
                   "A scientific gate is red. Nothing cosmetic matters today.")
 
 
-def gate_provenance() -> Result:
-    try:
-        p = run([sys.executable, "-m", "unittest", "discover",
-                 "-s", "test_scripts", "-p", "test_provenance.py"], timeout=900)
-    except subprocess.TimeoutExpired:
-        return Result("provenance-tests", False, "provenance suite timed out")
-    out = p.stdout + p.stderr
-    m = re.search(r"Ran (\d+) tests?", out)
-    ran = int(m.group(1)) if m else 0
-    passed = "\nOK" in out or out.rstrip().endswith("OK")
-    if not passed:
-        fails = re.findall(r"^(FAIL|ERROR): (\S+)", out, re.M)
-        return Result("provenance-tests", False,
-                      f"{ran} tests, FAILED: " + ", ".join(n for _, n in fails[:4]))
-    if ran < PROVENANCE_TEST_COUNT:
-        return Result("provenance-tests", False,
-                      f"only {ran} tests ran, expected {PROVENANCE_TEST_COUNT} — tests were deleted or skipped")
-    return Result("provenance-tests", True, f"{ran} tests OK")
+# The Python suites are exactly the run_suite.py commands in .github/workflows/ci.yml,
+# with CI's own --min floors (D145). A second hand-kept list here drifted (contract 20
+# against CI's 60) and its backend-unit check had no floor at all.
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
-# Minimum test counts for the suites added in v2.2.0. Like the provenance
-# count, a drop below these is a regression (deleted or skipped tests).
-SUITES = [
-    ("contract-tests", "test_backend_contract.py", 20),
-    ("science-regressions", "test_science_regressions.py", 9),
-    ("geometry-opt-tests", "test_geometry_opt.py", 10),
-    ("validator-tests", "test_validator.py", 12),
-    ("parser-reference", "test_parser_reference.py", 3),
-    ("model-coverage", "test_model_coverage.py", 5),
-    ("input-handling", "test_input_handling.py", 32),
-    ("md-stability", "test_md_stability.py", 7),
-    ("invariants", "test_invariants.py", 10),
-]
+def ci_suites() -> list[list[str]]:
+    """Each `python test_scripts/run_suite.py ARGS` line in ci.yml, as an argument list."""
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    return [line.split() for line in re.findall(r"python test_scripts/run_suite\.py ([^\n]+)", text)]
+
 
 # The frontend half of CI's checks: (gate name, command, minimum test count or None).
 # Without these the gate could be green while CI's frontend job was red.
 FRONTEND_CHECKS = [
-    ("vitest", ["npx", "vitest", "run"], 139),
+    ("vitest", ["npx", "vitest", "run"], 340),
     ("typecheck", ["npm", "run", "typecheck"], None),
     ("contract-sync", ["npm", "run", "check:contract"], None),
 ]
 
-# The unit tests that live next to the backend (CI: python-unit, cwd mace-api).
-BACKEND_UNIT_MODULES = ["test_geometry_opt", "test_smiles_to_xyz"]
-
-
-def gate_frontend_checks() -> list[Result]:
-    results = []
-    for name, cmd, minimum in FRONTEND_CHECKS:
-        try:
-            p = run(cmd, timeout=900)
-        except subprocess.TimeoutExpired:
-            results.append(Result(name, False, f"{' '.join(cmd)} timed out"))
-            continue
-        out = p.stdout + p.stderr
-        if p.returncode != 0:
-            results.append(Result(name, False, f"{' '.join(cmd)} failed (rc={p.returncode})"))
-            continue
-        if minimum is not None:
-            m = re.search(r"Tests\s+(\d+) passed", out)
-            ran = int(m.group(1)) if m else 0
-            if ran < minimum:
-                results.append(Result(name, False, f"only {ran} tests passed, expected at least {minimum}"))
-                continue
-            results.append(Result(name, True, f"{ran} tests OK"))
-        else:
-            results.append(Result(name, True, "OK"))
-    return results
-
-
-def gate_backend_units() -> Result:
-    try:
-        p = subprocess.run([sys.executable, "-m", "unittest", *BACKEND_UNIT_MODULES],
-                           cwd=ROOT / "mace-api", capture_output=True, text=True, timeout=900,
-                           env={**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE"})
-    except subprocess.TimeoutExpired:
-        return Result("backend-unit-tests", False, "timed out")
-    out = p.stdout + p.stderr
-    m = re.search(r"Ran (\d+) tests?", out)
-    ran = int(m.group(1)) if m else 0
-    if p.returncode != 0:
-        return Result("backend-unit-tests", False, f"{ran} tests, FAILED")
-    return Result("backend-unit-tests", True, f"{ran} tests OK")
-
-
 def gate_suites() -> list[Result]:
     results = []
-    for name, pattern, minimum in SUITES:
+    for args in ci_suites():
+        args = [a.strip('"') for a in args]
+        name = args[0] if "--start-dir" not in args else f"{args[args.index('--start-dir') + 1]}/{args[0]}"
         try:
-            p = run([sys.executable, "-m", "unittest", "discover",
-                     "-s", "test_scripts", "-p", pattern], timeout=1800)
+            p = run([sys.executable, str(ROOT / "test_scripts" / "run_suite.py"), *args], timeout=1800)
         except subprocess.TimeoutExpired:
-            results.append(Result(name, False, f"{pattern} timed out"))
+            results.append(Result(name, False, "timed out"))
             continue
         out = p.stdout + p.stderr
         m = re.search(r"Ran (\d+) tests?", out)
         ran = int(m.group(1)) if m else 0
         if p.returncode != 0:
             fails = re.findall(r"^(FAIL|ERROR): (\S+)", out, re.M)
-            results.append(Result(name, False, f"{ran} tests, FAILED: " + ", ".join(n for _, n in fails[:4])))
-        elif ran < minimum:
-            results.append(Result(name, False, f"only {ran} tests ran, expected at least {minimum}"))
+            floor = re.search(r"run_suite: .*", out)
+            detail = ", ".join(n for _, n in fails[:4]) or (floor.group(0) if floor else f"rc={p.returncode}")
+            results.append(Result(name, False, f"{ran} tests, FAILED: {detail}"))
         else:
             results.append(Result(name, True, f"{ran} tests OK"))
     return results
@@ -508,9 +443,7 @@ def main() -> int:
         gates.append(gate_build())
     gates.append(gate_lint())
     gates.append(gate_validator())
-    gates.append(gate_provenance())
     gates.extend(gate_suites())
-    gates.append(gate_backend_units())
     gates.extend(gate_frontend_checks())
     gates.extend(gate_guards())
     gates.append(gate_silicon_fixture())

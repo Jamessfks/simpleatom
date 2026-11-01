@@ -25,9 +25,11 @@ def main() -> int:
     sys.path.insert(0, str(start))
     suite = unittest.defaultTestLoader.discover(str(start), pattern=args.pattern, top_level_dir=str(start))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
-    if result.testsRun < max(1, args.min):
-        print(f"run_suite: {result.testsRun} tests ran from {args.pattern}, expected at least "
-              f"{max(1, args.min)} — tests were deleted, skipped or not discovered.", file=sys.stderr)
+    # A skipped test proved nothing (D146): a broken mace import skips per test.
+    ran = result.testsRun - len(result.skipped)
+    if ran < max(1, args.min):
+        print(f"run_suite: {ran} tests ran from {args.pattern} ({len(result.skipped)} skipped), expected at "
+              f"least {max(1, args.min)} — tests were deleted, skipped or not discovered.", file=sys.stderr)
         return 1
     return 0 if result.wasSuccessful() else 1
 
