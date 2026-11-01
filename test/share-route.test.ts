@@ -41,6 +41,18 @@ describe("POST /api/share refuses a malformed trajectory with a 400, never a 500
     expect((await post(result({ trajectory: {} }))).status).toBe(400);
   });
 
+  it("answers in the common error shape, with a code a client can act on", async () => {
+    for (const trajectory of [null, {}, [], "x", { energies: [1] }]) {
+      const res = await post(result({ trajectory }));
+      expect(res.status, JSON.stringify(trajectory)).toBe(400);
+      const body = await res.json();
+      expect(body.status).toBe("error");
+      expect(typeof body.message).toBe("string");
+      expect(body.error).toMatchObject({ code: "invalid_result", field: "result.trajectory" });
+      expect(typeof body.error.message).toBe("string");
+    }
+  });
+
   it("a well-formed trajectory is stored", async () => {
     const res = await post(result({ trajectory: { energies: [1, 2], step: [0, 1], positions: [frame, frame] } }));
     expect(res.status).toBe(201);
