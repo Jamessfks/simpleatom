@@ -1,0 +1,54 @@
+{
+  "start": "test/fixtures/ethanol-golden.xyz",
+  "model": "MACE-OFF23 medium",
+  "dtype": "float64",
+  "optimizer": "BFGS",
+  "fmax_target_eV_per_A": 0.001,
+  "trans": {
+    "converged": true,
+    "steps": 59,
+    "energy_start_eV": -4221.356531866214,
+    "energy_relaxed_eV": -4221.603036566237,
+    "max_force_start_eV_per_A": 1.663598194705789,
+    "max_force_relaxed_eV_per_A": 0.000551213257566455,
+    "geometry": {
+      "r_CC": 1.5116,
+      "r_CO": 1.425,
+      "r_OH": 0.9577,
+      "angle_CCO": 107.9845,
+      "angle_HOC": 108.8232,
+      "dihedral_CCOH": 179.994
+    }
+  },
+  "gauche": {
+    "converged": true,
+    "steps": 70,
+    "energy_start_eV": -4221.305884843532,
+    "energy_relaxed_eV": -4221.602047035373,
+    "max_force_start_eV_per_A": 2.042359105768552,
+    "max_force_relaxed_eV_per_A": 0.0008376829740623019,
+    "geometry": {
+      "r_CC": 1.517,
+      "r_CO": 1.4228,
+      "r_OH": 0.9588,
+      "angle_CCO": 112.6748,
+      "angle_HOC": 108.3695,
+      "dihedral_CCOH": 60.1126
+    }
+  },
+  "trans_minus_gauche_eV": -0.0009895308639897848,
+  "cccbdb_experimental_trans": {
+    "r_CC": 1.512,
+    "r_CO": 1.431,
+    "r_OH": 0.971,
+    "angle_CCO": 107.8,
+    "angle_HOC": 105.4
+  },
+  "trans_difference_vs_cccbdb": {
+    "r_CC": -0.0004,
+    "r_CO": -0.006,
+    "r_OH": -0.0133,
+    "angle_CCO": 0.1845,
+    "angle_HOC": 3.4232
+  }
+}
