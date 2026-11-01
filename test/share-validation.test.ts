@@ -85,6 +85,25 @@ describe("shared result metadata is checked on the server (D64)", () => {
   });
 });
 
+// D64 remainder: validateResult answered 500 for `trajectory: null` and stored
+// `trajectory: {}`, after which the shared page threw on every render of that
+// link (it read `trajectory.positions.length`).
+describe("a shared trajectory has the arrays the page reads (D64)", () => {
+  it("refuses an empty or non-object trajectory", () => {
+    expect(problem({ trajectory: {} })).toBe("result.trajectory");
+    expect(problem({ trajectory: null })).toBe("result.trajectory");
+    expect(problem({ trajectory: [] })).toBe("result.trajectory");
+    expect(problem({ trajectory: "x" })).toBe("result.trajectory");
+    expect(problem({ trajectory: { energies: [1] } })).toBe("result.trajectory");
+  });
+
+  it("accepts what the calculator produces, and a result with no trajectory", () => {
+    const frame = [[0, 0, 0], [1, 0, 0], [0, 1, 0]];
+    expect(problem({ trajectory: { energies: [1, 2], step: [0, 1], positions: [frame, frame] } })).toBeNull();
+    expect(problem({})).toBeNull();
+  });
+});
+
 describe("rendered table rows are capped (D64)", () => {
   it("shows every row of an ordinary result", () => {
     const rows = Array.from({ length: 50 }, (_, i) => i);
