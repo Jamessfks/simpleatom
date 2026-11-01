@@ -12,6 +12,8 @@ import { Loader2, FlaskConical, Sparkles, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { smilesToFile } from "@/lib/api-client";
+import { useCapabilities } from "@/lib/use-capabilities";
 
 interface SmilesInputProps {
   onFilesChange: (files: File[]) => void;
@@ -40,6 +42,7 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
   const [smiles, setSmiles] = useState("");
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const caps = useCapabilities();
 
   const handleConvert = useCallback(async () => {
     const trimmed = smiles.trim();
@@ -52,26 +55,7 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
     setError(null);
 
     try {
-      const response = await fetch("/api/smiles-to-xyz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ smiles: trimmed }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(
-          data?.error || `Conversion failed (HTTP ${response.status})`
-        );
-      }
-
-      const data = await response.json();
-      if (data.error || data.status === "error") {
-        throw new Error(data.error || data.message || "Conversion failed");
-      }
-
-      const filename = `smiles_${sanitizeFilename(data.smiles_canonical || trimmed)}.xyz`;
-      const file = new File([data.xyz], filename, { type: "text/plain" });
+      const file = await smilesToFile(trimmed);
       onFilesChange([file]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "SMILES conversion failed");
@@ -114,6 +98,7 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="Enter SMILES (e.g., CCO for ethanol)"
             disabled={isConverting}
+            maxLength={caps.limits.maxSmilesLength}
             className="pl-9 font-mono text-sm"
           />
         </div>
@@ -168,10 +153,4 @@ export function SmilesInput({ onFilesChange }: SmilesInputProps) {
       </div>
     </div>
   );
-}
-
-function sanitizeFilename(s: string): string {
-  return s
-    .replace(/[^a-zA-Z0-9_\-()[\]=#+.@]/g, "_")
-    .slice(0, 60);
 }

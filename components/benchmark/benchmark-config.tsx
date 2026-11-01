@@ -36,6 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { ModelType, ModelSize } from "@/types/mace";
 import { Formula } from "@/components/ui/formula";
+import { useCapabilities } from "@/lib/use-capabilities";
 
 export interface SelectedModel {
   type: ModelType;
@@ -151,6 +152,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
   const [selectedStructures, setSelectedStructures] = useState<Set<string>>(
     new Set(ALL_CATEGORIES.flatMap((c) => c.entries.map((e) => e.id)))
   );
+  const caps = useCapabilities();
   const [customModel, setCustomModel] = useState<File | null>(null);
   const [userStructures, setUserStructures] = useState<File[]>([]);
 
@@ -411,39 +413,43 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           ))}
 
           {/* Custom model upload */}
-          <div className="mb-3">
-            <p className="mb-1.5 text-sm text-text-secondary">
-              Custom model
-            </p>
-            {customModel ? (
-              <div className="flex items-center gap-2 rounded-lg border border-accent-primary/50 bg-accent-primary/10 px-3 py-1.5">
-                <Upload className="h-3 w-3 text-accent-strong" />
-                <span className="min-w-0 truncate font-mono text-xs text-accent-strong">
-                  {customModel.name}
-                </span>
-                <Button
-                  onClick={() => setCustomModel(null)}
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ml-auto text-text-muted hover:text-text-primary"
-                  aria-label="Remove custom model"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : (
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary">
-                <Upload className="h-3 w-3" />
-                Upload .model file
-                <input
-                  type="file"
-                  accept=".model"
-                  className="hidden"
-                  onChange={(e) => setCustomModel(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            )}
-          </div>
+          {/* Hidden on a deployment that refuses custom checkpoints (hosted):
+              the server would answer 403, so the control is not offered. */}
+          {caps.customModels && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-sm text-text-secondary">
+                Custom model
+              </p>
+              {customModel ? (
+                <div className="flex items-center gap-2 rounded-lg border border-accent-primary/50 bg-accent-primary/10 px-3 py-1.5">
+                  <Upload className="h-3 w-3 text-accent-strong" />
+                  <span className="min-w-0 truncate font-mono text-xs text-accent-strong">
+                    {customModel.name}
+                  </span>
+                  <Button
+                    onClick={() => setCustomModel(null)}
+                    variant="ghost"
+                    size="icon-xs"
+                    className="ml-auto text-text-muted hover:text-text-primary"
+                    aria-label="Remove custom model"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary">
+                  <Upload className="h-3 w-3" />
+                  Upload .model file
+                  <input
+                    type="file"
+                    accept=".model"
+                    className="hidden"
+                    onChange={(e) => setCustomModel(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+            </div>
+          )}
 
           {totalModels > 3 && (
             <div role="status" className="mt-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">

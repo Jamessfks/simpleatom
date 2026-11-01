@@ -25,6 +25,7 @@ import type { StructServiceProvider } from "ketcher-core";
 import { StandaloneStructServiceProvider } from "ketcher-standalone";
 import "ketcher-react/dist/index.css";
 import "./ketcher-overrides.css";
+import { smilesToFile } from "@/lib/api-client";
 
 interface KetcherEditorProps {
   onStructureReady: (files: File[]) => void;
@@ -32,10 +33,6 @@ interface KetcherEditorProps {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type KetcherInstance = any;
-
-function sanitizeFilename(s: string): string {
-  return s.replace(/[^a-zA-Z0-9_\-()[\]=#+.@]/g, "_").slice(0, 60);
-}
 
 // Instantiate once — lives for the lifetime of the module (browser tab).
 const structServiceProvider = new StandaloneStructServiceProvider() as unknown as StructServiceProvider;
@@ -71,26 +68,7 @@ export function KetcherEditorInner({ onStructureReady }: KetcherEditorProps) {
         throw new Error("No molecule drawn. Please draw a structure first.");
       }
 
-      const response = await fetch("/api/smiles-to-xyz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ smiles: smiles.trim() }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(
-          data?.error || `Conversion failed (HTTP ${response.status})`
-        );
-      }
-
-      const data = await response.json();
-      if (data.error || data.status === "error") {
-        throw new Error(data.error || data.message || "Conversion failed");
-      }
-
-      const filename = `smiles_${sanitizeFilename(data.smiles_canonical || smiles)}.xyz`;
-      const file = new File([data.xyz], filename, { type: "text/plain" });
+      const file = await smilesToFile(smiles);
       onStructureReady([file]);
     } catch (err) {
       setError(

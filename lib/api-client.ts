@@ -52,6 +52,33 @@ export async function postJson<T>(url: string, body: unknown, signal?: AbortSign
   return response.json() as Promise<T>;
 }
 
+/** Make a SMILES string safe to put in a file name. */
+function sanitizeFilename(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_\-()[\]=#+.@]/g, "_").slice(0, 60);
+}
+
+/**
+ * Convert a SMILES string to a 3D structure through /api/smiles-to-xyz.
+ *
+ * The SMILES box and the molecule editor both end here, so a rejected string
+ * reads the same in both: the server's own message, never the raw envelope.
+ */
+export async function smilesToFile(smiles: string, signal?: AbortSignal): Promise<File> {
+  const trimmed = smiles.trim();
+  const data = await postJson<{
+    status?: string;
+    message?: string;
+    xyz?: string;
+    smiles_canonical?: string;
+  }>("/api/smiles-to-xyz", { smiles: trimmed }, signal);
+  if (data.status === "error" || typeof data.xyz !== "string") {
+    throw new ApiRequestError(data.message || "Conversion failed", 502, "conversion_failed");
+  }
+  return new File([data.xyz], `smiles_${sanitizeFilename(data.smiles_canonical || trimmed)}.xyz`, {
+    type: "text/plain",
+  });
+}
+
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 /** Real progress from the backend: the phase, and the BFGS / MD step when there is one. */
