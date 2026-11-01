@@ -1,0 +1,352 @@
+{
+ "defect": "D130",
+ "command": "KMP_DUPLICATE_LIB_OK=TRUE python docs/v2/evidence/2026-11-01/md-divergence/run_divergence.py",
+ "settings": {
+  "model": "MACE-OFF small",
+  "precision": "float64",
+  "seed": 42,
+  "temperatureK": 300.0,
+  "friction": "contract default (NVT only)",
+  "mdSteps": 1000,
+  "profile": "local",
+  "divergenceLimits": {
+   "temperatureK": 5000.0,
+   "nveDriftEvPerAtom": 0.1
+  },
+  "relaxation": "SimpleAtom geometry-opt: BFGS, fmax 0.005 eV/\u00c5, float64"
+ },
+ "inputs": {
+  "ethanol": {
+   "path": "test/fixtures/ethanol-golden.xyz",
+   "sha256": "d670288bc0fa424c5585bd5e2d0d5106029a26b6124d8ff3ccad6437be1413fc"
+  },
+  "water": {
+   "path": "public/demo/water.xyz",
+   "sha256": "9ead5e400eb9e805d0cd6fd76182deb84ab253a481f99a3b6c5a8e94adf04f3c"
+  }
+ },
+ "relaxed": {
+  "ethanol": {
+   "optSteps": 66,
+   "finalFmaxEvPerA": 0.004966402379898694,
+   "energyEv": -4221.602335420725,
+   "cpuSeconds": 3.8,
+   "positions": [
+    [
+     -0.7882270844215644,
+     0.018085468884917497,
+     0.0007311116375028996
+    ],
+    [
+     0.7251838108572365,
+     0.10279452064634809,
+     0.05768861240013429
+    ],
+    [
+     1.2893507789250687,
+     -0.7942413612473206,
+     1.0071642410618642
+    ],
+    [
+     -1.1857422006492047,
+     0.7561035357001271,
+     -0.6954542794620299
+    ],
+    [
+     -1.1122779424061797,
+     -0.9674630874187035,
+     -0.33599742140682964
+    ],
+    [
+     -1.21749473100154,
+     0.19991673925748782,
+     0.9840819053785484
+    ],
+    [
+     1.0370536218883444,
+     1.0947945501151533,
+     0.3776423328147853
+    ],
+    [
+     1.1539778264850025,
+     -0.07152990432462972,
+     -0.9333095189038919
+    ],
+    [
+     1.0536799203228726,
+     -1.6887404616134347,
+     0.7558950164799119
+    ]
+   ],
+   "symbols": [
+    "C",
+    "C",
+    "O",
+    "H",
+    "H",
+    "H",
+    "H",
+    "H",
+    "H"
+   ]
+  },
+  "water": {
+   "optSteps": 4,
+   "finalFmaxEvPerA": 0.0006530814419722364,
+   "energyEv": -2081.1211685004296,
+   "cpuSeconds": 0.1,
+   "positions": [
+    [
+     2.606970374624553e-23,
+     -1.2147614123892899e-18,
+     0.1154538086255834
+    ],
+    [
+     3.331549759254904e-20,
+     0.7604131867998488,
+     -0.4685219043127918
+    ],
+    [
+     3.802647320943671e-20,
+     -0.7604131867998487,
+     -0.46852190431279167
+    ]
+   ],
+   "symbols": [
+    "O",
+    "H",
+    "H"
+   ]
+  }
+ },
+ "scan": [
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 1.5,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 320.5918303819459,
+   "maxTemperatureK": 582.3,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 26.9
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 2.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 587,
+   "message": "MD diverged at step 587 of 1000 (NVT, timeStep 2 fs, ethanol-relaxed.xyz): the kinetic temperature reached 196663 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 196663.0,
+   "firstStepAbove3000K": 587,
+   "cpuSeconds": 14.3
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 2.5,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 75,
+   "message": "MD diverged at step 75 of 1000 (NVT, timeStep 2.5 fs, ethanol-relaxed.xyz): the kinetic temperature reached 13364888512127934464 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 1.3364888512127934e+19,
+   "firstStepAbove3000K": 75,
+   "cpuSeconds": 1.8
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 3.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 7,
+   "message": "MD diverged at step 7 of 1000 (NVT, timeStep 3 fs, ethanol-relaxed.xyz): the kinetic temperature reached 1795685733161869246464 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 1.7956857331618692e+21,
+   "firstStepAbove3000K": 7,
+   "cpuSeconds": 0.4
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 4.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 3,
+   "message": "MD diverged at step 3 of 1000 (NVT, timeStep 4 fs, ethanol-relaxed.xyz): the kinetic temperature reached 465067017824622550385164288 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 4.6506701782462255e+26,
+   "firstStepAbove3000K": 3,
+   "cpuSeconds": 0.2
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 1.5,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 260.0552013484965,
+   "maxTemperatureK": 627.3,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 11.3
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 2.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 902,
+   "message": "MD diverged at step 902 of 1000 (NVT, timeStep 2 fs, water-relaxed.xyz): the kinetic temperature reached 892593 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 892593.0,
+   "firstStepAbove3000K": 894,
+   "cpuSeconds": 10.2
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 2.5,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 35,
+   "message": "MD diverged at step 35 of 1000 (NVT, timeStep 2.5 fs, water-relaxed.xyz): the kinetic temperature reached 11423 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 11423.0,
+   "firstStepAbove3000K": 35,
+   "cpuSeconds": 0.4
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 3.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 6,
+   "message": "MD diverged at step 6 of 1000 (NVT, timeStep 3 fs, water-relaxed.xyz): the kinetic temperature reached 298338 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 298338.0,
+   "firstStepAbove3000K": 6,
+   "cpuSeconds": 0.1
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 4.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 3,
+   "message": "MD diverged at step 3 of 1000 (NVT, timeStep 4 fs, water-relaxed.xyz): the kinetic temperature reached 17919326434 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 17919326434.0,
+   "firstStepAbove3000K": 3,
+   "cpuSeconds": 0.1
+  }
+ ],
+ "controls": [
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 0.5,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 292.41401333035145,
+   "maxTemperatureK": 581.2,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 20.0
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 1.0,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 311.5392667357671,
+   "maxTemperatureK": 545.5,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 20.1
+  },
+  {
+   "structure": "ethanol (relaxed)",
+   "ensemble": "NVE",
+   "timeStepFs": 1.0,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 104.63307848104957,
+   "maxTemperatureK": 190.5,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 20.0
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 0.5,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 234.87641293986962,
+   "maxTemperatureK": 659.6,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 9.5
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVT",
+   "timeStepFs": 1.0,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 305.78943213388425,
+   "maxTemperatureK": 739.2,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 9.5
+  },
+  {
+   "structure": "water (relaxed)",
+   "ensemble": "NVE",
+   "timeStepFs": 1.0,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 204.97925130986573,
+   "maxTemperatureK": 274.7,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 9.3
+  },
+  {
+   "structure": "ethanol (strained demo)",
+   "ensemble": "NVT",
+   "timeStepFs": 1.0,
+   "mdSteps": 1000,
+   "outcome": "completed",
+   "divergedAtStep": null,
+   "meanTemperatureK": 293.9123453876457,
+   "maxTemperatureK": 474.3,
+   "firstStepAbove3000K": null,
+   "cpuSeconds": 21.1
+  },
+  {
+   "structure": "ethanol (strained demo)",
+   "ensemble": "NVT",
+   "timeStepFs": 2.0,
+   "mdSteps": 1000,
+   "outcome": "md_diverged",
+   "divergedAtStep": 218,
+   "message": "MD diverged at step 218 of 1000 (NVT, timeStep 2 fs, ethanol-golden.xyz): the kinetic temperature reached 62221 K, above the 5000 K limit (10 \u00d7 the 300 K target, and at least 5000 K)",
+   "maxTemperatureK": 62221.0,
+   "firstStepAbove3000K": 218,
+   "cpuSeconds": 4.8
+  }
+ ],
+ "environment": {
+  "python": "3.11.15",
+  "machine": "arm64",
+  "system": "Darwin",
+  "torch": "2.10.0",
+  "maceTorch": "0.3.16",
+  "ase": "3.27.0",
+  "torchThreads": 8
+ },
+ "totalCpuSeconds": 184.1
+}
