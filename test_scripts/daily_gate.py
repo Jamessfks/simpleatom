@@ -75,12 +75,14 @@ RUN_TOKEN_BUDGET = 2_500_000
 # a calculation or model that never ran. Note the contract: calculate_local.py
 # exits 0 and reports refusal as {"status": "error"} on stdout, so checking the
 # exit code alone would pass every one of these while they were broken.
+# (name, params, the refusal code it must produce, why). D88: any error used to
+# count, so a crash would have passed as a refusal.
 GUARDS = [
-    ("guard:phonon", '{"calculationType":"phonon"}',
+    ("guard:phonon", '{"calculationType":"phonon"}', "unsupported_calculation",
      "an unimplemented calculationType must be refused, not run as single-point"),
-    ("guard:custom-no-ckpt", '{"modelType":"custom"}',
+    ("guard:custom-no-ckpt", '{"modelType":"custom"}', "custom_model_missing",
      "custom with no checkpoint must be refused, not answered with MACE-MP-0 numbers"),
-    ("guard:bad-model", '{"modelType":"MACE-MP"}',
+    ("guard:bad-model", '{"modelType":"MACE-MP"}', "unsupported_model",
      "an unrecognised modelType must be refused, not coerced to MACE-MP-0"),
 ]
 
@@ -270,7 +272,7 @@ def gate_guards() -> list[Result]:
     results = []
     demo = ROOT / "public" / "demo" / "ethanol.xyz"
     cli = ROOT / "mace-api" / "calculate_local.py"
-    for name, params, why in GUARDS:
+    for name, params, expected, why in GUARDS:
         if not demo.exists() or not cli.exists():
             results.append(Result(name, False, "fixture or CLI missing"))
             continue
@@ -279,18 +281,22 @@ def gate_guards() -> list[Result]:
         except subprocess.TimeoutExpired:
             results.append(Result(name, False, "timed out — a refusal should be instant"))
             continue
-        refused = False
+        code = None
         for line in p.stdout.splitlines():
             line = line.strip()
             if not line.startswith("{"):
                 continue
             try:
-                if json.loads(line).get("status") == "error":
-                    refused = True
+                doc = json.loads(line)
             except json.JSONDecodeError:
-                pass
-        if refused:
-            results.append(Result(name, True, "refused loudly"))
+                continue
+            if doc.get("status") == "error":
+                code = (doc.get("error") or {}).get("code")
+        if code == expected:
+            results.append(Result(name, True, f"refused loudly ({code})"))
+        elif code is not None:
+            results.append(Result(name, False, f"refused with {code}, expected {expected} — {why}",
+                                  "A different failure is not the refusal this guard protects."))
         else:
             results.append(Result(name, False, f"NO LONGER REFUSED — {why}",
                                   "A silent fallthrough is back. This returns invented "

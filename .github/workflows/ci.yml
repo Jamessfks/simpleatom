@@ -80,10 +80,11 @@ jobs:
       - name: Install the exact locked backend
         run: pip install --require-hashes --no-deps -r mace-api/requirements.lock.txt
       - name: Contract, checkpoint trust, CLI refusal guards, shared fixtures
-        run: python -m unittest discover -s test_scripts -p "test_backend_contract.py" -v
+        run: python test_scripts/run_suite.py test_backend_contract.py --min 60
       - name: Optimizer and SMILES unit tests
-        working-directory: mace-api
-        run: python -m unittest test_geometry_opt test_smiles_to_xyz
+        run: |
+          python test_scripts/run_suite.py "test_*.py" --start-dir mace-api --min 31
+          python test_scripts/run_suite.py test_geometry_opt.py --min 10
       - name: Deploy staging ships every tracked backend file
         run: |
           scripts/stage-hf-space.sh "$RUNNER_TEMP/stage"
@@ -113,9 +114,9 @@ jobs:
           python test_scripts/validate_calculation.py --test | tee validator.json
           python -c "import json,sys; t=open('validator.json').read(); d=json.loads(t[t.index('{'):]); sys.exit(0 if d['all_passed'] else 1)"
       - name: Provenance (golden energies, manifest, 40 tests)
-        run: python -m unittest discover -s test_scripts -p "test_provenance.py" -v
+        run: python test_scripts/run_suite.py test_provenance.py --min 41
       - name: Science regressions (D5, D6, D16, D18, MPA-0 pin, translation invariance)
-        run: python -m unittest discover -s test_scripts -p "test_science_regressions.py" -v
+        run: python test_scripts/run_suite.py test_science_regressions.py --min 12
 
   docker-smoke:
     runs-on: ubuntu-latest
