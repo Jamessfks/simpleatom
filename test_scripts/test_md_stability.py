@@ -231,5 +231,60 @@ class TestNptCellOrientation(unittest.TestCase):
         loader.assert_not_called()
 
 
+class TestMdSummary(unittest.TestCase):
+    """
+    D53: the MD summary called last-minus-first total energy the "drift"
+    (opposite in sign to the fitted drift on the NVE golden) and printed it for
+    NVT/NPT too, and the "mean temperature" averaged every frame, warm-up
+    included, with no uncertainty. D54: the pressure reported after MD was the
+    virial alone (ASE's get_stress default), unlabelled.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.free = _cu_slab_poscar(False)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.unlink(cls.free)
+
+    def test_nve_drift_is_the_fitted_slope_per_atom_per_ps(self):
+        import numpy as np
+        r = _md(self.free, mdEnsemble="NVE", mdSteps=200, timeStep=1.0)
+        tr = r["trajectory"]
+        t_ps = np.array(tr["step"]) * 1.0 / 1000.0
+        slope = np.polyfit(t_ps, np.array(tr["totalEnergies"]) / len(r["symbols"]), 1)[0] * 1000
+        summary = r["mdSummary"]
+        self.assertAlmostEqual(summary["nveDriftMeVPerAtomPerPs"], slope, places=6)
+        self.assertIn("meV/atom/ps", r["message"])
+
+    def test_thermostatted_runs_report_no_drift(self):
+        r = _md(self.free, mdEnsemble="NVT", mdSteps=50)
+        self.assertNotIn("nveDriftMeVPerAtomPerPs", r["mdSummary"])
+        self.assertNotIn("drift", r["message"])
+
+    def test_mean_temperature_discards_warm_up_and_carries_a_block_error(self):
+        import numpy as np
+        r = _md(self.free, mdEnsemble="NVT", temperature=300, friction=0.02, mdSteps=500)
+        summary = r["mdSummary"]
+        temps = np.array(r["trajectory"]["temperatures"])
+        kept = temps[summary["warmupFrames"]:]
+        self.assertGreater(summary["warmupFrames"], 0)
+        self.assertAlmostEqual(summary["meanTemperature"], float(kept.mean()), places=6)
+        self.assertGreater(summary["temperatureStdError"], 0)
+        self.assertIn("±", r["message"])
+
+    def test_md_pressure_includes_the_kinetic_term(self):
+        from ase import units
+        # The scripted calculator's virial stress is zero, so the pressure is
+        # exactly the ideal-gas term 2 KE / 3V: positive, in GPa.
+        r = _md(self.free, mdEnsemble="NVT", mdSteps=20)
+        ke = r["trajectory"]["kineticEnergies"][-1]
+        expected = 2.0 * ke / (3.0 * r["properties"]["volume"]) / units.GPa
+        self.assertGreater(expected, 0)
+        self.assertAlmostEqual(r["properties"]["pressure"], expected, places=9)
+        self.assertTrue(r["properties"]["stressIncludesKineticTerm"])
+
+
 if __name__ == "__main__":
     unittest.main()
