@@ -1278,6 +1278,49 @@ class TestErrorShape(unittest.TestCase):
         status, payload = self._call("/smiles-to-xyz", json.dumps({"smiles": 5}).encode(), "application/json")
         self._assert_shape(status, payload, "smiles")
 
+    def _raw(self, method, path, body=b"", content_type="application/json"):
+        import asyncio
+        import main
+        scope = {"type": "http", "method": method, "path": path, "raw_path": path.encode(),
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", content_type.encode()),
+                             (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.44", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+
+        with mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        return status, json.loads(b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body"))
+
+    def test_unknown_routes_and_wrong_methods_use_the_common_shape(self):
+        # D148: Starlette's own 404/405 bypassed the HTTPException handler.
+        for method, path, code in (("GET", "/no-such-route", 404), ("DELETE", "/calculate", 405)):
+            with self.subTest(path=path):
+                status, payload = self._raw(method, path)
+                self.assertEqual(status, code, payload)
+                self.assertNotIn("detail", payload)
+                self.assertEqual(payload["status"], "error")
+                self.assertIn("code", payload["error"])
+
+    def test_a_lone_surrogate_in_a_refused_value_still_gets_a_json_answer(self):
+        # D149: echoing "\ud800" in the refusal message made the response unencodable.
+        body = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"w.xyz\"\r\n\r\n"
+                b"1\n\nH 0 0 0\n\r\n--x\r\nContent-Disposition: form-data; name=\"params\"\r\n\r\n"
+                b'{"modelType": "\\ud800"}\r\n--x--\r\n')
+        status, payload = self._raw("POST", "/calculate", body, "multipart/form-data; boundary=x")
+        self.assertEqual(status, 400, payload)
+        self.assertEqual(payload["status"], "error")
+
     def test_a_missing_params_field_is_refused_in_the_common_shape(self):
         body = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"w.xyz\"\r\n"
                 b"Content-Type: text/plain\r\n\r\n1\n\nH 0 0 0\n\r\n--x--\r\n")
