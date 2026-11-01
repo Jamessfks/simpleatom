@@ -730,6 +730,23 @@ class TestUnitLabels(unittest.TestCase):
         self.assertIn("2.3516", text)
 
 
+class TestDailyGateCoverage(unittest.TestCase):
+    """
+    The daily gate is "every gate at once", but it ran neither vitest, the
+    typecheck, the contract-sync check, the mace-api/ unit tests nor
+    test_scripts/test_geometry_opt.py, so a red CI job could hide behind a
+    green gate.
+    """
+
+    def test_every_ci_check_has_a_gate(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        frontend = {name for name, _cmd, _min in daily_gate.FRONTEND_CHECKS}
+        self.assertTrue({"vitest", "typecheck", "contract-sync"} <= frontend, frontend)
+        self.assertEqual(set(daily_gate.BACKEND_UNIT_MODULES), {"test_geometry_opt", "test_smiles_to_xyz"})
+        self.assertIn("test_geometry_opt.py", {pattern for _n, pattern, _m in daily_gate.SUITES})
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
