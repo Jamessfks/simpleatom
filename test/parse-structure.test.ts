@@ -100,6 +100,47 @@ describe("CIF symmetry expansion (D62)", () => {
   });
 });
 
+// The demo lists all 8 atoms of the conventional cell, so it is a P1 file. It
+// used to say 'F d -3 m' with no operations, which made every demo run carry the
+// backend's "two origin choices" warning and the preview show an "H-M symbol
+// without operations" note for a structure that needed neither.
+describe("public/demo/silicon.cif is written in P1", () => {
+  const text = readFileSync("public/demo/silicon.cif", "utf8");
+  const parsed = parseStructureText(text, "silicon.cif") as ReturnType<typeof parseStructureText> & { notes?: string[] };
+
+  it("names space group P 1, not Fd-3m with no operations", () => {
+    expect(text).toMatch(/_symmetry_space_group_name_H-M\s+'P 1'/);
+    expect(text).not.toMatch(/F d -3 m/);
+  });
+
+  it("explains in its comment that the diamond-cubic (Fd-3m) cell is written out in full", () => {
+    const comment = text.split("\n").filter((l) => l.startsWith("#")).join(" ").replace(/\s+/g, " ");
+    expect(comment).toMatch(/Fd-3m/);
+    expect(comment).toMatch(/P1/);
+    expect(comment).toMatch(/every atom/i);
+    expect(comment).toMatch(/no symmetry expansion or origin choice/i);
+    // The existing guard on the stated neighbour distance (test_backend_contract.py).
+    expect(comment).toContain("2.3516");
+  });
+
+  it("raises no symmetry note, because none is needed", () => {
+    expect(parsed.notes ?? []).toEqual([]);
+  });
+
+  it("keeps the same 8 atoms in the same cell (the golden energies depend on them)", () => {
+    const a = 5.4309;
+    const fractional = [
+      [0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],
+      [0.25, 0.25, 0.25], [0.75, 0.75, 0.25], [0.75, 0.25, 0.75], [0.25, 0.75, 0.75],
+    ];
+    expect(parsed.symbols).toEqual(Array(8).fill("Si"));
+    expect(parsed.lattice).toEqual([[a, 0, 0], [0, a, 0], [0, 0, a]].map((r) => r.map((v) => expect.closeTo(v, 8))));
+    fractional.forEach((f, i) =>
+      f.forEach((v, k) => expect(parsed.positions[i][k]).toBeCloseTo(v * a, 8)),
+    );
+  });
+});
+
 // D69 (F13 related): the POSCAR scale factor applies to Cartesian coordinates
 // as well as to the cell.
 describe("POSCAR scale factor (D69)", () => {

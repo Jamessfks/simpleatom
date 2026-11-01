@@ -85,15 +85,6 @@ const SYMMETRY_FROM_SYMBOL: Record<string, string> = {
  */
 const PLACEHOLDER_CELL = "adversarial/pdb_cryst1_placeholder";
 
-/**
- * ASE expands a symbol-only CIF by walking the space group's operations from
- * the first site, so it lists the same atoms in the orbit's order; the browser
- * keeps the order of the file. The atoms must be the same set.
- */
-const SAME_ATOMS_OTHER_ORDER: Record<string, string> = {
-  "demo/silicon.cif": "Fd-3m listed with all 8 sites and no symmetry operations",
-};
-
 /** Which defect a fixture pins, so a failure names it. */
 const DEFECT: Record<string, string> = {
   "adversarial/pdb_cryst1_placeholder": "D89",
@@ -167,20 +158,13 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
       const parsed = parse(entry);
 
       expect(parsed.atomCount, "atom count").toBe(ase.symbols!.length);
-      if (entry.name in SAME_ATOMS_OTHER_ORDER) {
-        const key = (symbol: string, p: number[]) => `${symbol} ${p.map((v) => v.toFixed(4)).join(" ")}`;
-        const mine = parsed.symbols.map((s, i) => key(s, parsed.positions[i])).sort();
-        const theirs = ase.symbols!.map((s, i) => key(s, ase.positions![i])).sort();
-        expect(mine, "the same atoms, in any order").toEqual(theirs);
-      } else {
-        expect(parsed.symbols, "species, in order").toEqual(ase.symbols);
-        for (let i = 0; i < ase.symbols!.length; i++)
-          for (let k = 0; k < 3; k++)
-            expect(
-              close(parsed.positions[i][k], ase.positions![i][k]),
-              `atom ${i} ${"xyz"[k]}: ${parsed.positions[i][k]} vs ${ase.positions![i][k]}`,
-            ).toBe(true);
-      }
+      expect(parsed.symbols, "species, in order").toEqual(ase.symbols);
+      for (let i = 0; i < ase.symbols!.length; i++)
+        for (let k = 0; k < 3; k++)
+          expect(
+            close(parsed.positions[i][k], ase.positions![i][k]),
+            `atom ${i} ${"xyz"[k]}: ${parsed.positions[i][k]} vs ${ase.positions![i][k]}`,
+          ).toBe(true);
 
       if (ase.cell) expectMatrix(parsed.lattice, ase.cell, "cell");
       else expect(parsed.lattice, "no cell").toBeUndefined();
