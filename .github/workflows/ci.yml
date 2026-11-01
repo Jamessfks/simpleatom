@@ -159,7 +159,7 @@ jobs:
           docker run -d --name api -p 7860:7860 simpleatom-api
           for i in $(seq 1 60); do curl -fsS localhost:7860/health && break; sleep 5; done
           curl -fsS localhost:7860/health | python -c "import json,os,sys; d=json.load(sys.stdin); assert d['gitCommit']==os.environ['GITHUB_SHA'], d"
-          curl -fsS -F files=@public/demo/ethanol.xyz -F 'params={"modelType":"MACE-OFF","modelSize":"small"}' \
+          curl -fsS -F files=@test/fixtures/ethanol-golden.xyz -F 'params={"modelType":"MACE-OFF","modelSize":"small"}' \
             localhost:7860/calculate > result.json
           python - <<'PY'
           import json, os

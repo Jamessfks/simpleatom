@@ -70,7 +70,7 @@ import provenance  # noqa: E402  (needs the sys.path line above)
 # float noise.
 GOLDEN = {
     "ethanol": {
-        "file": "public/demo/ethanol.xyz",
+        "file": "test/fixtures/ethanol-golden.xyz",  # the strained pre-D119 demo, kept for its goldens
         "params": {"calculationType": "single-point",
                    "modelType": "MACE-OFF", "modelSize": "small"},
         "energy": -4221.322391557846,   # eV, float64
@@ -131,7 +131,7 @@ class TestStructureHashAcrossFormats(unittest.TestCase):
     def test_pdb_matches_only_at_its_own_precision(self):
         import numpy as np
         from ase.io import read
-        ethanol = read(str(REPO_ROOT / "public" / "demo" / "ethanol.xyz"))
+        ethanol = read(str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz"))
         self.assertNotEqual(self._round_trip(ethanol, "extxyz", "xyz"),
                             self._round_trip(ethanol, "proteindatabank", "pdb"))
         ethanol.positions = np.round(ethanol.positions, 3)

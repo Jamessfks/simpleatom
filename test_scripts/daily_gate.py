@@ -218,7 +218,7 @@ def gate_suites() -> list[Result]:
 
 def gate_guards() -> list[Result]:
     results = []
-    demo = ROOT / "public" / "demo" / "ethanol.xyz"
+    demo = ROOT / "test" / "fixtures" / "ethanol-golden.xyz"
     cli = ROOT / "mace-api" / "calculate_local.py"
     for name, params, expected, why in GUARDS:
         if not demo.exists() or not cli.exists():
