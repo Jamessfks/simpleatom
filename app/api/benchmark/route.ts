@@ -26,9 +26,11 @@ import {
   assertSameOrigin,
   calculate,
   checkUploadSize,
+  checkUploadTotal,
   displayName,
   errorResponse,
   structureSuffix,
+  uniqueUploadIds,
 } from "@/lib/server/backend";
 import { clientIp } from "@/lib/server/jobs";
 import { computeRmsForce } from "@/lib/utils";
@@ -125,6 +127,7 @@ function validate(
     structureSuffix(upload.name);
     checkUploadSize(upload, upload.name, caps.maxUploadBytes, "structures");
   }
+  checkUploadTotal(uploads, caps.maxBenchmarkUploadBytes);
   for (const m of models) {
     const violation = checkCalculationParams(
       { modelType: m.type, modelSize: m.type === "custom" ? undefined : m.size, calculationType },
@@ -150,6 +153,7 @@ export async function POST(request: NextRequest) {
     const { models, structureIds, calculationType } = validate(body, uploads, model, profileName);
     if (model && profileName === "local") assertLoopbackHost(request);
 
+    const uploadIds = uniqueUploadIds(uploads.map((f) => f.name));
     const structures: RunnableStructure[] = [
       ...getBenchmarkStructuresByIds(structureIds).map((entry) => ({
         id: entry.id,
@@ -162,10 +166,10 @@ export async function POST(request: NextRequest) {
         expectsPeriodic: entry.expectsPeriodic,
         reference: entry.reference,
       })),
-      ...uploads.map((file) => {
+      ...uploads.map((file, i) => {
         const name = displayName(file.name);
         return {
-          id: `user-${name.replace(/\.[^.]+$/, "")}`,
+          id: uploadIds[i],
           name,
           category: "uploaded",
           formula: name,

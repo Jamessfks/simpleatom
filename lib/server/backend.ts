@@ -129,8 +129,43 @@ function apiErrorFrom(body: unknown, fallbackStatus: number): ApiError {
 /** Bare, printable basename for display (messages, manifest). Never a path. */
 export function displayName(name: string | undefined | null, fallback = "structure"): string {
   const base = (name ?? "").split(/[\\/]/).pop() ?? "";
-  const printable = Array.from(base).filter((ch) => ch >= " " && ch !== "\u007f").join("").trim();
+  // The same set Python's str.isprintable() keeps (calculate._display_name):
+  // letters, marks, numbers, punctuation, symbols and the ASCII space. Format
+  // controls such as U+202E used to survive, so a MACE Link name could display
+  // reversed (D100).
+  const printable = Array.from(base).filter((ch) => PRINTABLE.test(ch)).join("").trim();
   return printable.slice(0, 120) || fallback;
+}
+
+const PRINTABLE = /^[\p{L}\p{M}\p{N}\p{P}\p{S} ]$/u;
+
+/** Benchmark ids for uploaded files: `user-<stem>`, made distinct when stems collide (D99). */
+export function uniqueUploadIds(names: string[]): string[] {
+  const seen = new Map<string, number>();
+  return names.map((name) => {
+    const base = `user-${displayName(name).replace(/\.[^.]+$/, "")}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return n === 1 ? base : `${base}-${n}`;
+  });
+}
+
+/**
+ * Refuse a set of uploads whose total exceeds `cap` (D96): the hosted profile's
+ * per-file caps allowed 10 MB of benchmark uploads, past Vercel's 4.5 MB
+ * request-body limit, which answers with an HTML 413 the page cannot parse.
+ */
+export function checkUploadTotal(files: Blob[], cap: number): void {
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  if (total > cap) {
+    throw new ApiError(
+      `These uploads total ${(total / 1e6).toFixed(1)} MB; this deployment accepts at most ` +
+        `${(cap / 1e6).toFixed(1)} MB per benchmark. Upload fewer or smaller files.`,
+      413,
+      "too_large",
+      "structures",
+    );
+  }
 }
 
 /**

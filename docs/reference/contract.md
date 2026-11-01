@@ -49,6 +49,7 @@ Every number must be finite; booleans are not numbers; step counts must be whole
 | `maxSmilesLength` | 500 | 2,000 |
 | `maxBenchmarkStructures` | 30 | 100 |
 | `maxBenchmarkUploads` | 5 | 20 |
+| `maxBenchmarkUploadBytes` | 4,000,000 | 200,000,000 |
 | `maxCalculationsPerHour` | 120 | 10,000 |
 | `trajectoryFloatBudget` | 150,000 | 1,500,000 |
 | `maxTrajectoryFrames` | 500 | 2,000 |
