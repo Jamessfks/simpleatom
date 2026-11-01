@@ -64,6 +64,21 @@ NPT_THERMOSTAT_TIME_FS = 25.0
 NPT_BAROSTAT_TIME_FS = 75.0
 NPT_BULK_MODULUS_GPA = 100.0
 
+# MD divergence (D130). A run whose kinetic temperature passes
+# max(10 × target, 5000 K), or whose NVE total energy has moved more than
+# 0.1 eV/atom from its start, has blown up: it stops with md_diverged instead
+# of being reported as completed. Measured on the pinned stack (MACE-OFF small
+# float64, 300 K, 1000 steps, seed 42; ethanol relaxed and as shipped, water
+# relaxed; dt 0.5–4 fs): the worst NVE drift of any run that stayed bound was
+# 0.0146 eV/atom (shipped ethanol, 2.0 fs; relaxed molecules ≤ 0.004), and
+# every run that came apart passed 0.1 eV/atom at or before its temperature
+# limit. NVT and NPT exchange energy with a bath, so only the temperature
+# test applies to them. Silicon (MACE-MPA-0, 300/1500 K, 1–4 fs) stays far
+# inside both limits.
+MD_DIVERGENCE_TEMPERATURE_FACTOR = 10.0
+MD_DIVERGENCE_TEMPERATURE_FLOOR_K = 5000.0
+MD_NVE_DRIFT_LIMIT_EV_PER_ATOM = 0.1
+
 
 class RunCancelled(Exception):
     """The caller withdrew the request; the partial run is discarded."""
@@ -1747,6 +1762,15 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
             "nptBulkModulusGPa": NPT_BULK_MODULUS_GPA,
         })
 
+    if dt_fs > 1.5 and "H" in atoms.get_chemical_symbols():
+        # D130 measurements (see MD_DIVERGENCE_*): with MACE-OFF small at 300 K,
+        # ethanol and water stayed bound for 1000 steps up to 1.5 fs, and every
+        # NVT run at 2.0 fs came apart (steps 218-902).
+        ctx.warnings.append(
+            f"timeStep {dt_fs:g} fs with hydrogen present: in SimpleAtom's own tests, ethanol and "
+            "water stayed stable up to 1.5 fs and NVT runs at 2 fs came apart within 1000 steps. "
+            "0.5–1 fs is the usual choice for bonds to hydrogen.")
+
     # Dedicated RNG stream so the run does not depend on (or disturb) numpy's
     # global random state. Feeds both stochastic sources in an MD run: the
     # initial Maxwell-Boltzmann velocities and the Langevin random forces.
@@ -1769,12 +1793,37 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
             "temperatures": kinetic_temperature(kinetic, dof),
         }
 
+    t_limit = max(MD_DIVERGENCE_TEMPERATURE_FACTOR * temp_K, MD_DIVERGENCE_TEMPERATURE_FLOOR_K)
+    start_energy: list[float] = []
+
+    def diverged(step: int, reason: str) -> ContractError:
+        return ContractError(
+            f"MD diverged at step {step} of {md_steps} ({ensemble}, timeStep {dt_fs:g} fs, "
+            f"{ctx.filename}): {reason}. The trajectory is no longer physical, so nothing is "
+            "reported. The usual cause is a timestep too long for the fastest vibration (bonds "
+            "to hydrogen need about 0.5–1 fs) or a strained starting geometry: reduce timeStep "
+            "or relax the structure first.",
+            code="md_diverged", field="timeStep", status=422)
+
     def write_frame():
         step = int(dyn.get_number_of_steps())
         values = frame_values()
         # Every step, so a blow-up stops the run where it happened (D129).
         require_finite(atoms, values["totalEnergies"], atoms.get_forces(),
                        f"at MD step {step} of {md_steps} for {ctx.filename}")
+        # D130: a run that has come apart is not a completed run.
+        if values["temperatures"] > t_limit:
+            raise diverged(step, f"the kinetic temperature reached {values['temperatures']:.0f} K, "
+                                 f"above the {t_limit:.0f} K limit ({MD_DIVERGENCE_TEMPERATURE_FACTOR:g} × "
+                                 f"the {temp_K:g} K target, and at least "
+                                 f"{MD_DIVERGENCE_TEMPERATURE_FLOOR_K:.0f} K)")
+        if not start_energy:
+            start_energy.append(values["totalEnergies"])
+        drift = abs(values["totalEnergies"] - start_energy[0]) / n_atoms
+        if ensemble == "NVE" and drift > MD_NVE_DRIFT_LIMIT_EV_PER_ATOM:
+            raise diverged(step, f"the total energy moved {drift:.3f} eV/atom from its starting "
+                                 f"value, more than the {MD_NVE_DRIFT_LIMIT_EV_PER_ATOM:g} eV/atom an "
+                                 "energy-conserving NVE run may drift")
         frames.offer(step, atoms.get_positions(), **values)
         ctx.hooks.tick("molecular-dynamics", step, md_steps,
                        temperature=values["temperatures"], energy=values["totalEnergies"])
