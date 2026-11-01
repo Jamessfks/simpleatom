@@ -10,6 +10,7 @@ Deploy: uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1
 """
 
 import asyncio
+import time
 import hmac
 import json
 import logging
@@ -91,27 +92,41 @@ def _error(status: int, code: str, message: str, field=None, headers=None) -> HT
 _BODY_ROUTES = ("/v1/jobs", "/calculate")
 
 
-@app.middleware("http")
-async def _check_before_the_body_is_read(request: Request, call_next):
+class _CheckBeforeTheBodyIsRead:
     """
     The proxy key and the declared size are checked before the multipart body
     is parsed (D44): Starlette reads and spools the whole form before a route
     runs, so a 30 MB upload used to be received in full before its 413 — or,
     from an unauthenticated caller, its 401. A body sent without a declared
     length is still capped per file by `_save_capped`.
+
+    Plain ASGI rather than @app.middleware("http"): BaseHTTPMiddleware wraps
+    `receive` and hides http.disconnect from the routes, which the synchronous
+    /calculate needs to see to cancel an abandoned job (D45).
     """
-    if request.method == "POST" and request.url.path in _BODY_ROUTES:
-        try:
-            _require_proxy_key(request.headers.get("x-simpleatom-proxy-key"))
-            declared = request.headers.get("content-length", "")
-            cap = LIMITS["maxUploadBytes"] + LIMITS["maxModelUploadBytes"] + (1 << 20)
-            if declared.isdigit() and int(declared) > cap:
-                raise _error(413, "upload_too_large",
-                             f"This request declares {int(declared) / 1e6:.1f} MB; this deployment "
-                             f"accepts at most {cap / 1e6:.1f} MB per calculation.", field="files")
-        except HTTPException as exc:
-            return await _http_error(request, exc)
-    return await call_next(request)
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["method"] == "POST" and scope["path"] in _BODY_ROUTES:
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+            try:
+                _require_proxy_key(headers.get("x-simpleatom-proxy-key"))
+                declared = headers.get("content-length", "")
+                cap = LIMITS["maxUploadBytes"] + LIMITS["maxModelUploadBytes"] + (1 << 20)
+                if declared.isdigit() and int(declared) > cap:
+                    raise _error(413, "upload_too_large",
+                                 f"This request declares {int(declared) / 1e6:.1f} MB; this deployment "
+                                 f"accepts at most {cap / 1e6:.1f} MB per calculation.", field="files")
+            except HTTPException as exc:
+                response = await _http_error(None, exc)
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(_CheckBeforeTheBodyIsRead)
 
 
 @app.exception_handler(HTTPException)
@@ -305,9 +320,21 @@ async def calculate(
     _require_proxy_key(x_simpleatom_proxy_key)
     run, workdir = await _intake(files, params, model)
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
-    wait = LIMITS["timeBudgetSeconds"] + 120
-    finished = await asyncio.to_thread(job.done.wait, wait)
-    if not finished:
+    budget = LIMITS["timeBudgetSeconds"]
+    while True:
+        outcome = await asyncio.to_thread(_await_job, job, run_budget=budget + 120,
+                                          queue_budget=budget, poll=1.0, max_wait=1.0)
+        if outcome != "pending":
+            break
+        if await request.is_disconnected():
+            # D45: the caller is gone; free the single worker for the next visitor.
+            JOBS.cancel(job.id)
+            raise _error(499, "cancelled", "The caller disconnected, so the calculation was cancelled.")
+    if outcome == "queue_timeout":
+        JOBS.cancel(job.id)
+        raise _error(503, "busy", "The calculation waited too long in the queue and never started. "
+                                  "Nothing was computed; try again shortly.")
+    if outcome == "run_timeout":
         JOBS.cancel(job.id)
         raise _error(504, "timeout", "The calculation did not finish in time and was cancelled.")
     if job.status == "succeeded":
@@ -315,6 +342,29 @@ async def calculate(
     err = job.error or {"code": "cancelled", "message": "The calculation was cancelled.", "status": 499}
     raise _error(err.get("status", 500), err.get("code", "calculation_failed"),
                  err.get("message", "Calculation failed"), field=err.get("field"))
+
+
+def _await_job(job, *, run_budget: float, queue_budget: float, poll: float = 1.0,
+               max_wait: float | None = None) -> str:
+    """
+    Wait for a job: "done", "queue_timeout" (it never started within
+    queue_budget), "run_timeout" (it ran longer than run_budget, counted from
+    its start — D45: queue time used to count against the run), or "pending"
+    when max_wait elapsed first, so the caller can check for a disconnect.
+    """
+    # From the job's creation, not this call: the route polls in short calls.
+    queued_since = getattr(job, "created", None) or time.time()
+    waited = 0.0
+    while not job.done.wait(poll):
+        waited += poll
+        now = time.time()
+        if job.started is None and now - queued_since > queue_budget:
+            return "queue_timeout"
+        if job.started is not None and now - job.started > run_budget:
+            return "run_timeout"
+        if max_wait is not None and waited >= max_wait:
+            return "pending"
+    return "done"
 
 
 class SmilesRequest(BaseModel):

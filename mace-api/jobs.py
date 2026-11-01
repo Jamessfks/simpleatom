@@ -162,8 +162,14 @@ class JobStore:
             try:
                 result = job.run(job)
                 with self._lock:
-                    job.result = result
-                    self._finish_locked(job, "succeeded")
+                    if job.cancel_requested.is_set():
+                        # D45: a cancel that arrived during a phase with no step
+                        # hook (a single point) used to end "succeeded"; the
+                        # caller asked for nothing, so nothing is reported.
+                        self._finish_locked(job, "cancelled")
+                    else:
+                        job.result = result
+                        self._finish_locked(job, "succeeded")
             except Exception as exc:  # noqa: BLE001 — a job must never kill the worker
                 with self._lock:
                     if job.cancel_requested.is_set():
