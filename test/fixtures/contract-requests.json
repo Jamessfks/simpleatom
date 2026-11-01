@@ -232,6 +232,76 @@
         "device": "cpu"
       },
       "expect": "ok"
+    },
+    {
+      "name": "D48: a fractional seed is refused, not truncated",
+      "profile": "local",
+      "params": {
+        "seed": 3.7
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D48: an infinite seed string is refused",
+      "profile": "local",
+      "params": {
+        "seed": "1e999"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D48: a seed above 2^32-1 is out of range",
+      "profile": "local",
+      "params": {
+        "seed": 4294967296
+      },
+      "expect": "out_of_range"
+    },
+    {
+      "name": "parity: a hexadecimal number string is refused on both sides",
+      "profile": "local",
+      "params": {
+        "seed": "0x10"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "parity: an underscored number string is refused on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": "1_0"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "parity: a decimal number string is accepted on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": " 0.5 "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "parity: enumerated choices are trimmed on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "device": " cpu ",
+        "precision": " float64",
+        "mdEnsemble": "NVT "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "parity: the step cap applies to a padded calculationType",
+      "profile": "hosted",
+      "params": {
+        "calculationType": " molecular-dynamics ",
+        "mdSteps": 20000
+      },
+      "expect": "limit_exceeded"
     }
   ]
 }

@@ -233,6 +233,25 @@ class TestCliGuards(unittest.TestCase):
                            env={"SIMPLEATOM_PROFILE": "hosted"})
 
 
+class TestSeed(unittest.TestCase):
+    """D48: a seed is a finite whole number in range, never coerced; infinity was a 500."""
+
+    def test_non_finite_and_fractional_seeds_are_refused(self):
+        import calculate
+        for raw in (float("inf"), float("nan"), 3.7, "3.7", True):
+            with self.subTest(raw=raw), self.assertRaises(ContractError) as ctx:
+                calculate.resolve_seed(raw)
+            self.assertEqual(ctx.exception.code, "invalid_number")
+            self.assertEqual(ctx.exception.status, 400)
+
+    def test_whole_seeds_pass_through(self):
+        import calculate
+        self.assertEqual(calculate.resolve_seed(None), 42)
+        self.assertEqual(calculate.resolve_seed(7), 7)
+        self.assertEqual(calculate.resolve_seed("7"), 7)
+        self.assertEqual(calculate.resolve_seed(7.0), 7)
+
+
 class TestDevice(unittest.TestCase):
     """
     ADR-0031 (D33-D35): the device asked for and the device used never differ
