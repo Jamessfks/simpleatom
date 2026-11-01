@@ -53,16 +53,21 @@ def _embed(mol, smiles: str) -> None:
         params = AllChem.ETKDGv3()
         params.randomSeed = 42
         params.useRandomCoords = random_coords
-        params.timeout = max(1, int(remaining // fragments))
+        params.timeout = limit = max(1, int(remaining // fragments))
         params.trackFailures = True
         if remaining > 0 and AllChem.EmbedMolecule(mol, params) != -1:
             return
         # Empty when RDKit made no attempt (a bounds-smoothing failure, say).
         counts = params.GetFailureCounts() if remaining > 0 else ()
         if remaining <= 0 or (len(counts) > timed_out and counts[timed_out]):
+            # State the limit that stopped it: per fragment, RDKit's timeout is the remaining
+            # budget shared out, so a stop can come well before the whole budget (D167).
+            elapsed = time.monotonic() - started
             raise ContractError(
-                f"Generating 3D coordinates for '{smiles}' did not finish within {budget} s "
-                "(RDKit ETKDG embedding), so it was stopped. Nothing was converted. Cages and "
+                f"Generating 3D coordinates for '{smiles}' was stopped after {elapsed:.1f} s by "
+                f"RDKit's ETKDG time limit of {limit} s per fragment ({fragments} "
+                f"fragment{'s' if fragments != 1 else ''}, {budget} s budget in all). Nothing was "
+                "converted. Cages and "
                 "large fused ring systems embed slowly or not at all; draw the structure in the "
                 "editor or upload a 3D structure file (XYZ, PDB, CIF, POSCAR) instead.",
                 code="smiles_embedding_timeout", field="smiles", status=422)
