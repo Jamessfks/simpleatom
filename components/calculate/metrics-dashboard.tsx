@@ -44,6 +44,7 @@ import { computeRmsForce } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
 import { runOutcome, stopCause } from "./run-outcome";
+import { limitationsFor } from "./limitations";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
 import { EnergyConvergence } from "./charts/energy-convergence";
@@ -683,26 +684,12 @@ function SummaryTab({
           Limitations and uncertainty
         </h4>
         <ul className="space-y-1 text-xs leading-relaxed text-muted-foreground">
-          <li>
-            <span className="font-medium text-text-secondary">ML potential, not QM:</span>{" "}
-            MACE is a machine-learned surrogate for DFT, not a first-principles calculation.
-            Accuracy depends on the training data distribution.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">Out-of-distribution risk:</span>{" "}
-            Structures or chemistries far from the training set (exotic bonding, extreme pressures,
-            charged species) may produce unreliable results with no built-in warning.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">No uncertainty estimates:</span>{" "}
-            These models do not provide prediction confidence intervals. Consider running
-            multiple model sizes (small/medium/large) and comparing results to gauge robustness.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">MACE-OFF scope:</span>{" "}
-            Trained on neutral, closed-shell organic molecules only (H, C, N, O, F, P, S, Cl, Br, I).
-            Not suitable for metals, radicals, ions, or extended solid-state systems.
-          </li>
+          {limitationsFor(result.params?.modelType).map((row) => (
+            <li key={row.title}>
+              <span className="font-medium text-text-secondary">{row.title}:</span>{" "}
+              {row.text}
+            </li>
+          ))}
         </ul>
       </div>
     </div>
