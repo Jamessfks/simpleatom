@@ -78,4 +78,9 @@ describe("cross-site and rebinding guards (D40)", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8"));
     expect(pkg.scripts.dev).toMatch(/--hostname 127\.0\.0\.1\b/);
   });
+
+  it("binds `npm start` to loopback too (D94: the Host header check is spoofable from the LAN)", () => {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(pkg.scripts.start).toMatch(/--hostname 127\.0\.0\.1\b/);
+  });
 });
