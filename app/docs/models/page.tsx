@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
-import { offTypicalBandText } from "@/components/docs/off-energy-band";
+import { offTypicalBandText } from "@/components/docs/energy-bands";
 
 export const metadata: Metadata = {
   title: "Foundation models",

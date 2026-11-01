@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
-import { offEnforcedBandText, offTypicalBandText } from "@/components/docs/off-energy-band";
+import { mpTypicalBandText, offEnforcedBandText, offTypicalBandText } from "@/components/docs/energy-bands";
 
 export const metadata: Metadata = {
   title: "Validation & reproducibility",
   description:
-    "How SimpleAtom validates scientific results — the validator's self-test and what each of its five tests does and does not assert, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
+    "How SimpleAtom validates scientific results — the validator's self-test and what each of its five tests asserts, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
 };
 
 export default function ValidationPage() {
@@ -35,67 +35,77 @@ export default function ValidationPage() {
           <code>python test_scripts/validate_calculation.py --test</code>
         </pre>
         <p>
-          This runs five self-tests with real MACE calculations. It loads
-          MACE-MP-0 (small) and MACE-OFF (small), not the default MACE-MPA-0,
-          so it checks the calculation plumbing and the validator, not the
-          default model&rsquo;s accuracy. Three tests assert something; two
-          only record numbers:
+          This runs five self-tests through SimpleAtom&rsquo;s own calculation
+          engine, the code the calculator calls, with real MACE calculations.
+          It loads the default MACE-MPA-0 (medium) for silicon and MACE-OFF
+          (small) for the molecules. It checks that the calculation plumbing
+          and the validator give physically plausible results, not either
+          model&rsquo;s accuracy against a reference. All five checks assert
+          something, and a run that fails or never finishes fails its check.
+          The command exits with status 1 unless every check passed.
         </p>
         <table>
           <thead>
             <tr>
               <th>Test</th>
               <th>What it does</th>
-              <th>Asserted?</th>
+              <th>Asserted</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>MACE-MP-0 Si bulk</td>
+              <td>MACE-MPA-0 (medium) Si bulk</td>
               <td>
-                Single-point on a 2-atom diamond cell (a = 5.43 &Aring;).
-                Records the energy per atom and the largest force.
+                Single-point on the 8-atom conventional diamond-cubic cell
+                (a = 5.43 &Aring;).
               </td>
               <td>
-                No. It records the energy and the force without checking
-                either, so it cannot fail on physics.
+                The largest force must be below 0.001 eV/&Aring; (it vanishes
+                by symmetry) and the energy per atom must lie in{" "}
+                {mpTypicalBandText()} eV/atom, the MACE-MP family&rsquo;s
+                typical range.
               </td>
             </tr>
             <tr>
-              <td>MACE-OFF H&#8322;O</td>
+              <td>MACE-OFF (small) H&#8322;O</td>
               <td>
-                Single-point on an isolated water molecule. Records the
-                energy and the largest force.
+                Single-point on an isolated water molecule, 5 &Aring; of
+                vacuum, not periodic.
               </td>
-              <td>No. It records the numbers without checking them.</td>
+              <td>
+                The result must name MACE-OFF as its model and its energy
+                must be finite.
+              </td>
             </tr>
             <tr>
               <td>Ethanol geometry optimization</td>
               <td>
-                MACE-OFF, up to 100 BFGS steps with fmax 0.05 eV/&Aring;.
+                MACE-OFF (small), up to 200 BFGS steps with fmax 0.05
+                eV/&Aring;.
               </td>
               <td>
-                Yes, but only that the energy does not rise: the final energy
-                must be no more than 0.001 eV above the starting energy. It
-                does not check that the optimization converged, or that the
-                energy fell at every step.
+                The optimization must have converged, in float64 (read from
+                the precision the result reports). The final energy must be
+                no higher than the starting energy, to within 10&#8315;&#8313;
+                eV, and the final largest force below 0.05 eV/&Aring;. It
+                does not check that the energy fell at every step.
               </td>
             </tr>
             <tr>
               <td>Force conservation</td>
               <td>
-                The net force on the isolated water molecule, a
-                translation-invariance check.
+                The net force on the water result, a translation-invariance
+                check.
               </td>
-              <td>Yes: it must be below 0.01 eV/&Aring;.</td>
+              <td>It must be below 0.01 eV/&Aring;.</td>
             </tr>
             <tr>
               <td>Result validation</td>
               <td>
-                The physical-bounds checks listed below, run on the silicon
-                single-point result.
+                The physical-bounds checks listed below, run on both the
+                silicon and the water results.
               </td>
-              <td>Yes: the validator must report the result valid.</td>
+              <td>The validator must report both results valid.</td>
             </tr>
           </tbody>
         </table>
