@@ -185,7 +185,58 @@ def gate_provenance() -> Result:
 SUITES = [
     ("contract-tests", "test_backend_contract.py", 20),
     ("science-regressions", "test_science_regressions.py", 9),
+    ("geometry-opt-tests", "test_geometry_opt.py", 10),
 ]
+
+# The frontend half of CI's checks: (gate name, command, minimum test count or None).
+# Without these the gate could be green while CI's frontend job was red.
+FRONTEND_CHECKS = [
+    ("vitest", ["npx", "vitest", "run"], 139),
+    ("typecheck", ["npm", "run", "typecheck"], None),
+    ("contract-sync", ["npm", "run", "check:contract"], None),
+]
+
+# The unit tests that live next to the backend (CI: python-unit, cwd mace-api).
+BACKEND_UNIT_MODULES = ["test_geometry_opt", "test_smiles_to_xyz"]
+
+
+def gate_frontend_checks() -> list[Result]:
+    results = []
+    for name, cmd, minimum in FRONTEND_CHECKS:
+        try:
+            p = run(cmd, timeout=900)
+        except subprocess.TimeoutExpired:
+            results.append(Result(name, False, f"{' '.join(cmd)} timed out"))
+            continue
+        out = p.stdout + p.stderr
+        if p.returncode != 0:
+            results.append(Result(name, False, f"{' '.join(cmd)} failed (rc={p.returncode})"))
+            continue
+        if minimum is not None:
+            m = re.search(r"Tests\s+(\d+) passed", out)
+            ran = int(m.group(1)) if m else 0
+            if ran < minimum:
+                results.append(Result(name, False, f"only {ran} tests passed, expected at least {minimum}"))
+                continue
+            results.append(Result(name, True, f"{ran} tests OK"))
+        else:
+            results.append(Result(name, True, "OK"))
+    return results
+
+
+def gate_backend_units() -> Result:
+    try:
+        p = subprocess.run([sys.executable, "-m", "unittest", *BACKEND_UNIT_MODULES],
+                           cwd=ROOT / "mace-api", capture_output=True, text=True, timeout=900,
+                           env={**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE"})
+    except subprocess.TimeoutExpired:
+        return Result("backend-unit-tests", False, "timed out")
+    out = p.stdout + p.stderr
+    m = re.search(r"Ran (\d+) tests?", out)
+    ran = int(m.group(1)) if m else 0
+    if p.returncode != 0:
+        return Result("backend-unit-tests", False, f"{ran} tests, FAILED")
+    return Result("backend-unit-tests", True, f"{ran} tests OK")
 
 
 def gate_suites() -> list[Result]:
@@ -435,6 +486,8 @@ def main() -> int:
     gates.append(gate_validator())
     gates.append(gate_provenance())
     gates.extend(gate_suites())
+    gates.append(gate_backend_units())
+    gates.extend(gate_frontend_checks())
     gates.extend(gate_guards())
     gates.append(gate_silicon_fixture())
 
