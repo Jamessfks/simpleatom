@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import ValidationPage from "@/app/docs/validation/page";
+import { CONTRACT } from "@/lib/contract";
 
 const read = (p: string) => readFileSync(p, "utf8").replace(/\s+/g, " ");
 
@@ -83,7 +86,12 @@ describe("the validation page describes what the validator now checks (D81)", ()
   it("checks distances over every pair at the minimum image, and an overlap is an issue", () => {
     expect(validation).toMatch(/every pair/i);
     expect(validation).toMatch(/minimum image/i);
-    expect(validation).toMatch(/below 0\.4 (Å|&Aring;)[^.]*(issue|error)/i);
+    // The limit is the registry's, the same value the engine refuses at (D153),
+    // so it is read off the rendered page rather than the source.
+    const limit = CONTRACT.structureChecks.minInteratomicDistanceA;
+    const rendered = renderToStaticMarkup(ValidationPage()).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(rendered).toMatch(new RegExp(`below ${limit.toString().replace(".", "\\.")} Å[^.]*(issue|error)`, "i"));
+    expect(rendered).not.toMatch(/below 0\.4 Å/);
   });
 
   it("checks NaN and Inf in the potential, total and temperature series", () => {
