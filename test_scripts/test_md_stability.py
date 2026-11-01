@@ -179,5 +179,57 @@ class TestDivergenceIsNotCompletion(unittest.TestCase):
         self.assertDiverged(ctx)
 
 
+def _si_primitive_poscar(fixed: bool = False) -> str:
+    """ASE's bulk('Si'): the 2-atom primitive FCC cell, whose matrix is not triangular."""
+    from ase.build import bulk
+    from ase.constraints import FixAtoms
+    from ase.io import write
+
+    atoms = bulk("Si", "diamond", a=5.43)
+    if fixed:
+        atoms.set_constraint(FixAtoms(indices=[0]))
+    with tempfile.NamedTemporaryFile("w", suffix=".vasp", delete=False) as fh:
+        path = fh.name
+    write(path, atoms, format="vasp", direct=True)
+    return path
+
+
+class TestNptCellOrientation(unittest.TestCase):
+    """
+    D134: ASE's MelchionnaNPT runs only on a triangular cell matrix. A
+    primitive cell (or any rotated POSCAR) failed after the model had loaded,
+    as a 500 quoting ASE internals. The cell is now rotated rigidly to ASE's
+    standard (lower-triangular) orientation before the run, and the result
+    says so; with constraints attached (whose axes would rotate too) it is
+    refused before any model I/O.
+    """
+
+    def test_npt_runs_on_a_primitive_cell_and_says_it_was_rotated(self):
+        import numpy as np
+        path = _si_primitive_poscar()
+        try:
+            r = _md(path, mdEnsemble="NPT", mdSteps=5, pressure=0.0)
+        finally:
+            os.unlink(path)
+        cell = np.array(r["lattice"])
+        self.assertTrue(np.allclose(np.triu(cell, 1), 0.0), cell)
+        self.assertTrue(any("rotated" in w for w in r.get("warnings", [])), r.get("warnings"))
+
+    def test_constraints_with_a_non_triangular_cell_are_refused_before_loading(self):
+        import calculate
+        from contract import ContractError
+        path = _si_primitive_poscar(fixed=True)
+        try:
+            with mock.patch.object(calculate, "get_mace_calculator") as loader, \
+                    self.assertRaises(ContractError) as ctx:
+                calculate.run_calculation(path, {"modelType": "MACE-MPA-0", "calculationType":
+                                                 "molecular-dynamics", "mdEnsemble": "NPT",
+                                                 "mdSteps": 5}, profile="local")
+        finally:
+            os.unlink(path)
+        self.assertEqual(ctx.exception.code, "npt_requires_triangular_cell")
+        loader.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

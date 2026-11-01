@@ -446,6 +446,34 @@ class TestConstrainedForces(unittest.TestCase):
         self.assertEqual(fixed["structureHashSpec"], "simpleatom-structure-v2")
 
 
+class TestDegenerateCells(_RefusalMixin, unittest.TestCase):
+    """
+    D137: a periodic structure with no cell, or a flat one, reached the model
+    and failed after it loaded, with "You have 0 lattice vectors: volume not
+    defined" or "Singular matrix". It is refused before any model I/O.
+    """
+
+    def _refused_before_loading(self, text):
+        import calculate
+        with mock.patch.object(calculate, "get_mace_calculator") as loader:
+            message = self.assertRefusedWith("invalid_cell", _run_text, text, ".xyz")
+        loader.assert_not_called()
+        return message
+
+    def test_pbc_without_a_lattice_is_refused(self):
+        self._refused_before_loading(
+            '3\nProperties=species:S:1:pos:R:3 pbc="T T T"\nO 0 0 0.119\nH 0 0.763 -0.477\nH 0 -0.763 -0.477\n')
+
+    def test_a_flat_cell_is_refused(self):
+        self._refused_before_loading(
+            '2\nLattice="3 0 0 0 3 0 0 0 0" Properties=species:S:1:pos:R:3 pbc="T T T"\nCu 0 0 0\nCu 1.5 1.5 0\n')
+
+    def test_a_slab_needs_no_third_vector(self):
+        result = _run_text('2\nLattice="3 0 0 0 3 0 0 0 0" Properties=species:S:1:pos:R:3 pbc="T T F"\n'
+                           'Cu 0 0 0\nCu 1.5 1.5 0\n', ".xyz")
+        self.assertEqual(result["status"], "success")
+
+
 class TestCliOutputIsStrictJson(unittest.TestCase):
     """
     D129, end to end: water with one H placed on the O made MACE return NaN,
