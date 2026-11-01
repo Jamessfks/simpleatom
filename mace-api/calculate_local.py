@@ -59,8 +59,22 @@ from calculate import RunHooks, device_report, run_calculation
 
 
 def emit(payload: dict) -> None:
-    """Write the one JSON document this process produces to the real stdout."""
-    print(json.dumps(payload), file=_REAL_STDOUT, flush=True)
+    """
+    Write the one JSON document this process produces to the real stdout.
+
+    Strict JSON only (D129): Python writes NaN and Infinity by default, and
+    Node's JSON.parse rejects them, so a non-finite number used to surface as
+    an unparseable reply. The engine refuses non-finite results itself; this is
+    the last line, and it answers with the same coded refusal.
+    """
+    try:
+        text = json.dumps(payload, allow_nan=False)
+    except ValueError:
+        message = "The result contains a non-finite number (NaN or Infinity). Nothing usable was computed."
+        text = json.dumps({"status": "error", "message": message,
+                           "error": {"code": "non_finite_result", "message": message,
+                                     "field": None, "status": 422}})
+    print(text, file=_REAL_STDOUT, flush=True)
 
 
 def emit_error(message: str, code: str = "calculation_failed", field=None,
