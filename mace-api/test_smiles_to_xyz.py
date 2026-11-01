@@ -211,5 +211,70 @@ class TestForceFieldAndComment(unittest.TestCase):
         self.assertEqual(result["num_atoms"], 11)  # C5H5N
 
 
+# Buckminsterfullerene: ETKDG fails every attempt (600 of them, 10 per atom),
+# 13 s on an M-series Mac before the random-coordinates retry gives up too.
+C60 = ("C12=C3C4=C5C6=C1C7=C8C9=C1C%10=C%11C(=C29)C3=C2C3=C4C4=C5C5=C9C6=C7C6=C7C8=C1C1=C8C%10"
+       "=C%10C%11=C2C2=C3C3=C4C4=C5C5=C%11C%12=C(C6=C95)C7=C1C1=C%12C5=C%11C4=C3C3=C5C(=C81)C%10=C23")
+
+
+class TestEmbeddingTimeLimit(unittest.TestCase):
+    """
+    D151: the RDKit embedding had no time limit, so a SMILES that embeds
+    slowly held the hosted Space's single worker past the 60 s job budget.
+    Every attempt now runs under RDKit's own timeout (EmbedParameters.timeout,
+    RDKit 2026.03), inside one budget, and running out is a coded refusal.
+    """
+
+    def test_a_slow_embedding_is_stopped_with_a_coded_refusal(self):
+        import time
+        from unittest import mock
+        import smiles_to_xyz as module
+        from contract import ContractError
+        started = time.monotonic()
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True):
+            with self.assertRaises(ContractError) as ctx:
+                smiles_to_xyz(C60)
+        self.assertLess(time.monotonic() - started, 6.0)
+        err = ctx.exception
+        self.assertEqual((err.code, err.status, err.field), ("smiles_embedding_timeout", 422, "smiles"))
+        self.assertIn("1 s", str(err))
+
+    def test_every_embedding_attempt_carries_a_time_limit(self):
+        from unittest import mock
+        from rdkit.Chem import AllChem
+        import smiles_to_xyz as module
+        real = AllChem.EmbedMolecule
+        seen = []
+
+        def first_attempt_fails(mol, params):
+            seen.append((params.timeout, params.useRandomCoords, params.randomSeed))
+            return -1 if len(seen) == 1 else real(mol, params)
+
+        with mock.patch.object(AllChem, "EmbedMolecule", first_attempt_fails):
+            result = smiles_to_xyz("CCO")
+        self.assertEqual(result["num_atoms"], 9)
+        self.assertEqual([(random, seed) for _, random, seed in seen], [(False, 42), (True, 42)])
+        for timeout, _, _ in seen:
+            self.assertGreaterEqual(timeout, 1)
+            self.assertLessEqual(timeout, module.EMBED_BUDGET_SECONDS)
+
+    def test_the_command_line_reports_the_code_and_status(self):
+        import contextlib
+        import io
+        import json
+        from unittest import mock
+        import smiles_to_xyz as module
+        out = io.StringIO()
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True), \
+                contextlib.redirect_stdout(out):
+            status = module.main([C60])
+        self.assertEqual(status, 1)
+        body = json.loads(out.getvalue())
+        self.assertEqual(body["status"], "error")
+        self.assertEqual((body["error"]["code"], body["error"]["status"], body["error"]["field"]),
+                         ("smiles_embedding_timeout", 422, "smiles"))
+        self.assertEqual(body["message"], body["error"]["message"])
+
+
 if __name__ == "__main__":
     unittest.main()
