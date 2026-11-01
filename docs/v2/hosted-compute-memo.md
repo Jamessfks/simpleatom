@@ -164,7 +164,7 @@ then switching to 429:
 
 | Rule | Condition | Limit (per IP, fixed window) | Why |
 |---|---|---|---|
-| calc | `POST` on `/api/jobs` or `/api/calculate` | 20 / 10 min | above any human pace, below a script; the backend's 30/h and one-active-job limits stay authoritative |
+| calc | `POST` on `/api/jobs` or `/api/calculate` | 20 / 10 min | above any human pace, below a script; the backend's per-visitor limits (`maxCalculationsPerHour`, one active job) stay authoritative |
 | benchmark | `POST /api/benchmark` | 3 / 10 min | one benchmark fans out to many calculations (D42) |
 | smiles | `POST /api/smiles-to-xyz` | 30 / 10 min | P4: SMILES bypasses the job queue |
 | share | `POST /api/share` | 10 / 10 min | matches the in-code 20/h |

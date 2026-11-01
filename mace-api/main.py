@@ -72,7 +72,9 @@ app = FastAPI(
 # torch already uses both cores for one MACE forward pass, so a second
 # concurrent job halves both instead of doubling throughput, and torch's
 # default dtype and the scoped torch.load guard are process-global.
-JOBS = JobStore()
+# Per-visitor hourly admissions from the contract (D42): a benchmark spends one
+# per (model, structure) pair, and the old fixed 30 was smaller than one benchmark.
+JOBS = JobStore(per_client_hourly=LIMITS["maxCalculationsPerHour"])
 
 try:
     torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "2")))

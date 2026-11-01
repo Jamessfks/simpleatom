@@ -120,6 +120,7 @@ export const CONTRACT = {
       "maxSmilesLength": 500,
       "maxBenchmarkStructures": 30,
       "maxBenchmarkUploads": 5,
+      "maxCalculationsPerHour": 120,
       "trajectoryFloatBudget": 150000,
       "maxTrajectoryFrames": 500
     },
@@ -147,6 +148,7 @@ export const CONTRACT = {
       "maxSmilesLength": 2000,
       "maxBenchmarkStructures": 100,
       "maxBenchmarkUploads": 20,
+      "maxCalculationsPerHour": 10000,
       "trajectoryFloatBudget": 1500000,
       "maxTrajectoryFrames": 2000
     }
