@@ -30,3 +30,42 @@ describe("what the repository's own docs claim", () => {
     expect(critic).not.toMatch(/0\.1[–-]0\.5 eV\/atom/);
   });
 });
+
+describe("batch-5 doc facts (D168-D172)", () => {
+  const claude = read("CLAUDE.md");
+  it("states the overlap threshold the contract enforces (D168)", () => {
+    expect(claude).not.toMatch(/overlap < 0\.4/);
+    expect(claude).toMatch(/overlap < 0\.5 Å/);
+  });
+
+  it("points the unrelaxed and golden ethanol at the fixture, not the demo (D169)", () => {
+    expect(read("docs/adr/0032-molecular-vibrations-thermochemistry.md")).toMatch(/unrelaxed `test\/fixtures\/ethanol-golden\.xyz`/);
+    expect(read(".claude/skills/verify-science/SKILL.md")).toMatch(/test\/fixtures\/ethanol-golden\.xyz/);
+  });
+
+  it("gives the strained file's measured force (D170)", () => {
+    const evidence = read("docs/v2/evidence/2026-11-01/demo-ethanol/README.md");
+    expect(evidence).not.toMatch(/1\.69 eV\/Å/);
+    expect(evidence).toMatch(/2\.04 eV\/Å/);
+  });
+
+  it("binds a local uvicorn to loopback and says custom models never go on another bind (D171)", () => {
+    for (const doc of [claude, read("mace-api/README.md")]) {
+      expect(doc).toMatch(/uvicorn main:app[^\n]*--host 127\.0\.0\.1/);
+      expect(doc).toMatch(/ALLOW_CUSTOM_MODELS[^.]*never[^.]*(non-loopback|0\.0\.0\.0)/i);
+    }
+  });
+
+  it("quotes the demo ethanol's agreement with CCCBDB in full, O-H and H-O-C included", () => {
+    for (const doc of ["docs/v2/CONTINUE.md", "docs/v2/reports/morning-2026-11-01.md"]) {
+      const text = read(doc);
+      if (/CCCBDB/.test(text)) expect(text).toMatch(/O–H/);
+    }
+  });
+
+  it("lists every CLAUDE.md rule change for the owner, the device policy included (D172)", () => {
+    const report = read("docs/v2/reports/morning-2026-11-01.md");
+    for (const topic of [/device/i, /isolated atoms/, /0\.1–0\.5/, /timestep/i, /validator/i]) expect(report).toMatch(topic);
+    expect(report).not.toMatch(/No other rule text changed\./);
+  });
+});
