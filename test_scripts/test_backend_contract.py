@@ -524,6 +524,26 @@ class TestDeployWorkflow(unittest.TestCase):
             self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
 
 
+class TestHourlyCap(unittest.TestCase):
+    """
+    D42: every (model, structure) pair of a benchmark is one admission, and the
+    hosted 30-per-hour cap was smaller than one allowed benchmark (30 x 200,
+    then 429). The cap now lives in the contract and admits the largest one.
+    """
+
+    MAX_BENCHMARK_MODELS = 3  # app/api/benchmark/route.ts accepts 2-3 models
+
+    def test_hourly_cap_admits_the_largest_allowed_benchmark(self):
+        for name in ("hosted", "local"):
+            p = contract.profile(name)
+            largest = self.MAX_BENCHMARK_MODELS * (p["maxBenchmarkStructures"] + p["maxBenchmarkUploads"])
+            self.assertGreaterEqual(p["maxCalculationsPerHour"], largest, name)
+
+    def test_job_store_enforces_the_contract_cap(self):
+        import main
+        self.assertEqual(main.JOBS.per_client_hourly, main.LIMITS["maxCalculationsPerHour"])
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
