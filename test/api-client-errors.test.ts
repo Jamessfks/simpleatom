@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiRequestError, readError, smilesToFile } from "@/lib/api-client";
+import { ApiRequestError, isSmilesGenerated, readError, smilesToFile } from "@/lib/api-client";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -55,5 +55,20 @@ describe("server errors reach the user as sentences (D59)", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>Payload Too Large</html>", { status: 413 })));
     const err = await smilesToFile("CCO").catch((e) => e);
     expect(err.message).toMatch(/too large/i);
+  });
+});
+
+// D69 (F24): a file's NAME must not decide the model. SMILES-generated files
+// are marked by how they were made, not by a "smiles_" prefix.
+describe("SMILES-generated files are marked, not guessed from the name (D69)", () => {
+  it("marks the file smilesToFile makes, and not a user file with the same prefix", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { status: "success", xyz: "1\n\nH 0 0 0\n", smiles_canonical: "[H]" })),
+    );
+    const made = await smilesToFile("[H]");
+    expect(isSmilesGenerated(made)).toBe(true);
+    expect(isSmilesGenerated(new File(["x"], made.name))).toBe(false);
+    expect(isSmilesGenerated(new File(["x"], "smiles_crystal.cif"))).toBe(false);
   });
 });

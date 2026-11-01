@@ -99,3 +99,21 @@ describe("CIF symmetry expansion (D62)", () => {
     expect(parsed.atomCount).toBe(8);
   });
 });
+
+// D69 (F13 related): the POSCAR scale factor applies to Cartesian coordinates
+// as well as to the cell.
+describe("POSCAR scale factor (D69)", () => {
+  const poscar = (mode: string) =>
+    ["cubic", "2.0", "1 0 0", "0 1 0", "0 0 1", "Cu", "1", mode, "0.5 0.0 0.0", ""].join("\n");
+
+  it("scales Cartesian coordinates with the cell", () => {
+    const parsed = parseStructureText(poscar("Cartesian"), "POSCAR");
+    expect(parsed.lattice![0][0]).toBeCloseTo(2, 10);
+    expect(parsed.positions[0][0]).toBeCloseTo(1.0, 10);
+  });
+
+  it("puts a direct coordinate at the same place", () => {
+    const parsed = parseStructureText(poscar("Direct"), "POSCAR");
+    expect(parsed.positions[0][0]).toBeCloseTo(1.0, 10);
+  });
+});

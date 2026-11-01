@@ -59,4 +59,13 @@ describe("job stage announcements (D61)", () => {
       "BFGS step 3 of at most 500 · max force 0.123 eV/Å",
     );
   });
+
+  // D69 (F22): the backend flips a job to "running" when Python is spawned,
+  // before it has read anything. The list must not already tick off stages.
+  it("shows Starting, not Computing, for a running job that has reported no phase", () => {
+    const starting = job({ status: "running", progress: {} });
+    expect(STAGES[stageIndex(starting)].label).toBe("Starting");
+    expect(stageAnnouncement(starting)).toBe("Starting");
+    expect(STAGES[stageIndex(job({ progress: { phase: "reading-structure" } }))].label).toBe("Reading structure");
+  });
 });
