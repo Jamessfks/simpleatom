@@ -6,7 +6,7 @@
 # Also serves as the fractional-coordinate test fixture: every position below
 # is fractional, so a parser that fails to multiply through the cell will place
 # all 8 atoms inside a 1 A box. Correct nearest-neighbour distance is
-# a*sqrt(3)/4 = 2.3517 A.
+# a*sqrt(3)/4 = 2.3516 A.
 data_Si
 _symmetry_space_group_name_H-M   'F d -3 m'
 _cell_length_a                   5.4309

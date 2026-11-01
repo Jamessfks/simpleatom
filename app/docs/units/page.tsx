@@ -55,8 +55,8 @@ export default function UnitsPage() {
             </tr>
             <tr>
               <td>Stress</td>
-              <td>eV/Å³</td>
-              <td>Voigt notation.</td>
+              <td>GPa</td>
+              <td>Voigt order xx, yy, zz, yz, xz, xy; fully periodic cells only. Computed in eV/Å³ and converted with <code>ase.units.GPa</code>.</td>
             </tr>
             <tr>
               <td>Temperature</td>
