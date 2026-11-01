@@ -160,8 +160,11 @@ export default function ModelsPage() {
           (for example, fine-tuned with <code>mace_run_train</code>).
           SimpleAtom loads it with <code>MACECalculator</code>, runs the
           calculation identically to the foundation models, and can compare
-          your model against a foundation model with agreement metrics (MAE,
-          RMSE, R²).
+          your model against a foundation model on the same structure: RMS
+          force for each, and the RMS difference between their forces. An
+          energy difference is shown only when both models use the same energy
+          reference, which a custom checkpoint does not declare, so it is not
+          shown for custom models.
         </p>
         <Callout type="note" title="Not on the public site">
           A <code>.model</code> file is a pickled PyTorch module: loading it

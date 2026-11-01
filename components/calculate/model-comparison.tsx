@@ -5,12 +5,13 @@
  *
  * When a user runs a calculation with a custom model, this component offers
  * a "Compare with Foundation Model" button. It displays:
- *   - Side-by-side energy/force metrics
- *   - Per-atom force difference bar chart
+ *   - Side-by-side energy/force metrics, naming the foundation model that ran
+ *   - The RMS difference between the two models' forces
+ *   - An energy difference only when both energies share a reference convention
  *   - Radar chart comparison (if reference data is present)
  *
  * The comparison runs the same structure through the foundation model
- * and compares results.
+ * and compares results (see ./comparison for what may be compared).
  */
 
 import { useState } from "react";
@@ -19,6 +20,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { computeRmsForce } from "@/lib/utils";
+import { summariseComparison } from "./comparison";
 import { RadarComparison, type ModelMetrics } from "./charts/radar-comparison";
 import { Button } from "@/components/ui/button";
 import type { CalculationResult } from "@/types/mace";
@@ -100,10 +102,8 @@ export function ModelComparison({
   const customRms = computeRmsForce(customResult.forces);
   const foundationRms = computeRmsForce(foundationResult.forces);
 
-  const deltaE =
-    customResult.energy != null && foundationResult.energy != null
-      ? customResult.energy - foundationResult.energy
-      : null;
+  const summary = summariseComparison(customResult, foundationResult);
+  const { foundationLabel } = summary;
 
   const hasRef =
     !!customResult.referenceForces?.length && !!customResult.referenceEnergy;
@@ -120,7 +120,7 @@ export function ModelComparison({
         }}
       >
         <h3 className="mb-4 font-sans text-sm font-bold text-text-primary">
-          Model Comparison: {customModelName} vs. Foundation Model
+          Model Comparison: {customModelName} vs. {foundationLabel}
         </h3>
 
         {/* Side-by-side metrics */}
@@ -149,7 +149,7 @@ export function ModelComparison({
           {/* Foundation model */}
           <div className="rounded border border-data-purple/30 bg-data-purple/5 p-4">
             <h4 className="mb-2 font-mono text-xs font-bold text-data-purple">
-              Foundation Model
+              {foundationLabel}
             </h4>
             <div className="space-y-1 font-mono text-xs">
               <div className="flex justify-between">
@@ -168,18 +168,41 @@ export function ModelComparison({
           </div>
         </div>
 
-        {/* Delta row */}
-        {deltaE != null && (
-          <div className="mt-3 flex items-center gap-2 font-mono text-xs">
-            <span className="text-text-muted">&Delta;E =</span>
-            <span className="font-bold text-text-primary">
-              {(deltaE * 1000).toFixed(1)} meV
-            </span>
-            <span className="text-text-muted">
-              ({deltaE > 0 ? "custom higher" : deltaE < 0 ? "foundation higher" : "equal"})
-            </span>
-          </div>
-        )}
+        {/* What can be compared. Forces have no offset, so their difference is
+            always shown; an energy difference only when both energies share a
+            reference convention — otherwise the reason is stated. */}
+        <div className="mt-3 space-y-1 font-mono text-xs">
+          {summary.forceRmsd != null && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-text-muted">RMS force difference =</span>
+              <span className="font-bold text-text-primary">
+                {summary.forceRmsd.toFixed(4)} eV/Å
+              </span>
+            </div>
+          )}
+          {summary.deltaEnergyPerAtom != null && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-text-muted">&Delta;E per atom =</span>
+              <span className="font-bold text-text-primary">
+                {(summary.deltaEnergyPerAtom * 1000).toFixed(1)} meV/atom
+              </span>
+              <span className="text-text-muted">
+                (
+                {summary.deltaEnergyPerAtom > 0
+                  ? "custom higher"
+                  : summary.deltaEnergyPerAtom < 0
+                    ? "foundation higher"
+                    : "equal"}
+                )
+              </span>
+            </div>
+          )}
+          {summary.energyNote && (
+            <p className="font-sans text-xs leading-relaxed text-text-secondary">
+              {summary.energyNote}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Radar chart (if reference data) */}
@@ -187,7 +210,7 @@ export function ModelComparison({
         <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
           <RadarComparison
             modelA={buildRadarMetrics(customModelName, customResult)}
-            modelB={buildRadarMetrics("Foundation", foundationResult)}
+            modelB={buildRadarMetrics(foundationLabel, foundationResult)}
             title="Multi-Metric Comparison"
           />
         </div>

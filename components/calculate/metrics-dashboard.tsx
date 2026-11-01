@@ -4,8 +4,8 @@
  * MetricsDashboard — Tabbed scientific analysis dashboard for MACE results.
  *
  * Replaces the flat results layout with a rich, tabbed interface that
- * MACE researchers actually need. Prioritizes Force/Energy MAE, RMSE,
- * and R² when reference data is available.
+ * MACE researchers actually need. Prioritizes Force/Energy MAE and RMSE
+ * when reference data is available.
  *
  * Tabs:
  *   1. Summary   — key metrics cards + accuracy metrics (if reference data)
@@ -152,11 +152,9 @@ interface AccuracyMetrics {
   forceMAE: number | null;
   forceRMSE: number | null;
   energyMAE: number | null;
-  /** R² of predicted vs. reference energy. Only meaningful with ≥2 pairs. */
-  energyR2: number | null;
   /**
-   * Signed energy error (predicted − reference), eV. This is what's shown
-   * instead of R² when only a single reference energy is available.
+   * Signed energy error (predicted − reference), eV. A run carries a single
+   * (predicted, reference) energy pair, so no R² is defined or computed.
    */
   energyError: number | null;
   /** Signed energy error per atom, eV/atom. */
@@ -168,7 +166,6 @@ function computeAccuracyMetrics(result: CalculationResult): AccuracyMetrics {
     forceMAE: null,
     forceRMSE: null,
     energyMAE: null,
-    energyR2: null,
     energyError: null,
     energyErrorPerAtom: null,
   };
@@ -211,9 +208,6 @@ function computeAccuracyMetrics(result: CalculationResult): AccuracyMetrics {
       metrics.energyMAE = (Math.abs(energyError) / atomCount) * 1000;
       metrics.energyErrorPerAtom = energyError / atomCount;
     }
-    // energyR2 intentionally stays null: fewer than 2 energy pairs are
-    // available. If a future result shape supplies multiple predicted/
-    // reference energy pairs, compute R² from those here instead.
   }
 
   return metrics;
@@ -534,9 +528,7 @@ function SummaryTab({
   if (accuracy.energyMAE != null) {
     accuracyRows.push({ label: "Energy MAE", value: `${accuracy.energyMAE.toFixed(MEV_DECIMALS)} meV/atom` });
   }
-  if (accuracy.energyR2 != null) {
-    accuracyRows.push({ label: "Energy R²", value: accuracy.energyR2.toFixed(4) });
-  } else if (accuracy.energyError != null) {
+  if (accuracy.energyError != null) {
     accuracyRows.push({
       label: "Energy error vs. reference",
       value: (
