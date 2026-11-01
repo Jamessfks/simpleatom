@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { computeRmsForce } from "@/lib/utils";
 import { summariseComparison } from "./comparison";
+import { referenceAccuracy } from "./reference-accuracy";
 import { RadarComparison, type ModelMetrics } from "./charts/radar-comparison";
 import { Button } from "@/components/ui/button";
 import type { CalculationResult } from "@/types/mace";
@@ -105,8 +106,10 @@ export function ModelComparison({
   const summary = summariseComparison(customResult, foundationResult);
   const { foundationLabel } = summary;
 
-  const hasRef =
-    !!customResult.referenceForces?.length && !!customResult.referenceEnergy;
+  const radarA = buildRadarMetrics(customModelName, customResult);
+  const radarB = buildRadarMetrics(foundationLabel, foundationResult);
+  const hasReference =
+    !!customResult.referenceForces?.length && customResult.referenceEnergy != null;
 
   return (
     <div className="space-y-4">
@@ -205,59 +208,44 @@ export function ModelComparison({
         </div>
       </div>
 
-      {/* Radar chart (if reference data) */}
-      {hasRef && (
+      {/* Radar chart (single point with reference data) */}
+      {radarA && radarB && (
         <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
           <RadarComparison
-            modelA={buildRadarMetrics(customModelName, customResult)}
-            modelB={buildRadarMetrics(foundationLabel, foundationResult)}
+            modelA={radarA}
+            modelB={radarB}
             title="Multi-Metric Comparison"
           />
         </div>
+      )}
+      {hasReference && !(radarA && radarB) && (
+        <p className="text-xs leading-relaxed text-text-secondary">
+          The uploaded reference data describes the input geometry, and this run ended at a
+          different one, so neither model is scored against it. Run a single point to compare
+          each model with the reference.
+        </p>
       )}
     </div>
   );
 }
 
-/** Build radar chart metrics from a CalculationResult. */
+/**
+ * Radar metrics against the uploaded reference data. Only a single point is
+ * scored: the reference describes the input geometry, and an optimisation or MD
+ * run ends somewhere else (D90), so this returns null for those and the radar
+ * is not drawn.
+ */
 function buildRadarMetrics(
   label: string,
   result: CalculationResult
-): ModelMetrics {
-  const atomCount = result.symbols?.length ?? 1;
-  let forceMAE = 0;
-  let forceRMSE = 0;
-  let maxForceError = 0;
-  let energyMAE = 0;
-
-  if (result.referenceForces && result.forces) {
-    const n = Math.min(result.forces.length, result.referenceForces.length);
-    let sumAbsErr = 0;
-    let sumSqErr = 0;
-    let count = 0;
-    let maxErr = 0;
-
-    for (let i = 0; i < n; i++) {
-      for (let c = 0; c < 3; c++) {
-        const err = Math.abs(result.forces[i][c] - result.referenceForces[i][c]);
-        sumAbsErr += err;
-        sumSqErr += err * err;
-        if (err > maxErr) maxErr = err;
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      forceMAE = (sumAbsErr / count) * 1000;
-      forceRMSE = Math.sqrt(sumSqErr / count) * 1000;
-      maxForceError = maxErr * 1000;
-    }
-  }
-
-  if (result.referenceEnergy != null && result.energy != null) {
-    energyMAE =
-      (Math.abs(result.energy - result.referenceEnergy) / atomCount) * 1000;
-  }
-
-  return { label, energyMAE, forceMAE, forceRMSE, maxForceError };
+): ModelMetrics | null {
+  const acc = referenceAccuracy(result);
+  if (acc.basis !== "final-geometry" || acc.forceMAE == null) return null;
+  return {
+    label,
+    energyMAE: acc.energyMAE ?? 0,
+    forceMAE: acc.forceMAE,
+    forceRMSE: acc.forceRMSE ?? 0,
+    maxForceError: acc.maxForceError ?? 0,
+  };
 }

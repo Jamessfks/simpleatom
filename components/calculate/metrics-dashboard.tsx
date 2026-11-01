@@ -44,6 +44,7 @@ import { computeRmsForce } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
 import { runOutcome, stopCause } from "./run-outcome";
+import { referenceAccuracy, type ReferenceAccuracy } from "./reference-accuracy";
 import { limitationsFor } from "./limitations";
 import { GIT_COMMIT_PATTERN, visibleRows } from "@/lib/share";
 import { ParityPlot } from "./charts/parity-plot";
@@ -145,75 +146,6 @@ function energyConventionFor(
 }
 
 // ---------------------------------------------------------------------------
-// Accuracy metric computation
-// ---------------------------------------------------------------------------
-
-interface AccuracyMetrics {
-  forceMAE: number | null;
-  forceRMSE: number | null;
-  energyMAE: number | null;
-  /**
-   * Signed energy error (predicted − reference), eV. A run carries a single
-   * (predicted, reference) energy pair, so no R² is defined or computed.
-   */
-  energyError: number | null;
-  /** Signed energy error per atom, eV/atom. */
-  energyErrorPerAtom: number | null;
-}
-
-function computeAccuracyMetrics(result: CalculationResult): AccuracyMetrics {
-  const metrics: AccuracyMetrics = {
-    forceMAE: null,
-    forceRMSE: null,
-    energyMAE: null,
-    energyError: null,
-    energyErrorPerAtom: null,
-  };
-
-  const refForces = result.referenceForces;
-  const predForces = result.forces;
-
-  if (refForces && predForces && refForces.length === predForces.length) {
-    let sumAbsErr = 0;
-    let sumSqErr = 0;
-    let count = 0;
-
-    for (let i = 0; i < refForces.length; i++) {
-      for (let c = 0; c < 3; c++) {
-        const err = predForces[i][c] - refForces[i][c];
-        sumAbsErr += Math.abs(err);
-        sumSqErr += err * err;
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      metrics.forceMAE = (sumAbsErr / count) * 1000;
-      metrics.forceRMSE = Math.sqrt(sumSqErr / count) * 1000;
-    }
-  }
-
-  const refEnergy = result.referenceEnergy;
-  const predEnergy = result.energy;
-  const atomCount = result.symbols?.length ?? 0;
-
-  // CalculationResult only ever carries a single (predicted, reference)
-  // energy pair per run — never an array of points — so R² (variance
-  // explained across ≥2 points) is not statistically defined here.
-  // Report the signed error instead of a fabricated R² = 1.0.
-  if (refEnergy != null && predEnergy != null) {
-    const energyError = predEnergy - refEnergy;
-    metrics.energyError = energyError;
-    if (atomCount > 0) {
-      metrics.energyMAE = (Math.abs(energyError) / atomCount) * 1000;
-      metrics.energyErrorPerAtom = energyError / atomCount;
-    }
-  }
-
-  return metrics;
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -225,9 +157,14 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
     !!result.trajectory &&
     result.trajectory.positions.length > 1 &&
     !!result.symbols?.length;
-  const hasRefForces = !!result.referenceForces?.length;
-  const hasRefEnergy = result.referenceEnergy != null;
-  const hasRef = hasRefForces || hasRefEnergy;
+  // The reference data in an uploaded file describes the input geometry. Parity
+  // plots and error histograms compare it with the run's final energy and
+  // forces, which is fair only for a single point (D90); an optimisation or MD
+  // run gets one honest energy comparison at step 0 and a sentence saying why.
+  const accuracy = useMemo(() => referenceAccuracy(result), [result]);
+  const hasRef = !!result.referenceForces?.length || result.referenceEnergy != null;
+  const hasRefForces = accuracy.basis === "final-geometry" && !!result.referenceForces?.length;
+  const hasRefEnergy = accuracy.basis === "final-geometry" && result.referenceEnergy != null;
 
   const atomCount = result.symbols?.length ?? 0;
   const ePerAtom =
@@ -248,7 +185,6 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
     });
   }
 
-  const accuracy = useMemo(() => computeAccuracyMetrics(result), [result]);
   const outcome = runOutcome(result);
 
   const tabs: Tab[] = [
@@ -474,7 +410,7 @@ function SummaryTab({
   maxForce: number;
   maxForceIdx: number;
   atomCount: number;
-  accuracy: AccuracyMetrics;
+  accuracy: ReferenceAccuracy;
   hasRef: boolean;
 }) {
   const modelType = result.params?.modelType;
@@ -632,7 +568,7 @@ function SummaryTab({
 
 
       {/* Accuracy metrics (when reference data is present) */}
-      {hasRef && accuracyRows.length > 0 && (
+      {hasRef && (accuracyRows.length > 0 || accuracy.note) && (
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">
             <CardTitle className="font-serif text-sm font-semibold text-accent-strong">
@@ -640,7 +576,10 @@ function SummaryTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <PropertyRows rows={accuracyRows} />
+            {accuracyRows.length > 0 && <PropertyRows rows={accuracyRows} />}
+            {accuracy.note && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{accuracy.note}</p>
+            )}
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               Reference values are taken from the uploaded file&rsquo;s energy and force
               keys (energy, REF_energy, REF_forces and similar). They are comparable only if
@@ -832,7 +771,9 @@ function ForcesTab({
             Per-Atom Force Magnitudes (eV/Å)
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Upload a structure with reference forces (REF_forces in extxyz) for parity plots and error analysis.
+            {result.referenceForces?.length && !hasRefForces
+              ? "The uploaded reference forces describe the input geometry, not the structure this run ended at, so there is no parity plot. Run a single point to compare."
+              : "Upload a structure with reference forces (REF_forces in extxyz) for parity plots and error analysis."}
           </p>
         </CardHeader>
         <CardContent className="px-4">
