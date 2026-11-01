@@ -205,6 +205,7 @@ SUITES = [
     ("model-coverage", "test_model_coverage.py", 5),
     ("input-handling", "test_input_handling.py", 32),
     ("md-stability", "test_md_stability.py", 7),
+    ("invariants", "test_invariants.py", 10),
 ]
 
 # The frontend half of CI's checks: (gate name, command, minimum test count or None).
