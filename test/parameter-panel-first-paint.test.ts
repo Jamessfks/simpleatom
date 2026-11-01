@@ -37,3 +37,29 @@ describe("the parameter panel before the deployment answers (D104, D84)", () => 
     expect(firstPaint()).not.toMatch(/or upload a fine-tuned checkpoint/i);
   });
 });
+
+// A slab has a cell, so "has no periodic cell" was false for it. NPT needs every
+// direction periodic, and the reason says so.
+describe("the NPT-unavailable reason is true for a slab as well as a molecule", () => {
+  const reason = (): string => {
+    const panel = createElement(ParameterPanel, {
+      params: { ...params, calculationType: "molecular-dynamics", mdEnsemble: "NVT" } as CalculationParams,
+      onChange: () => {},
+      customModelFile: null,
+      onCustomModelChange: () => {},
+      isPeriodic: false,
+    });
+    return renderToString(createElement(TooltipProvider, null, panel))
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&#x27;/g, "'")
+      .replace(/\s+/g, " ");
+  };
+
+  it("says the structure is not periodic in all three directions", () => {
+    expect(reason()).toMatch(/NPT is unavailable[^.]*not periodic in all three directions/);
+  });
+
+  it("does not say the structure has no periodic cell", () => {
+    expect(reason()).not.toMatch(/has no periodic cell/);
+  });
+});
