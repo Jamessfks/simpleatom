@@ -957,6 +957,18 @@ class TestLocalStack(unittest.TestCase):
         self.assertEqual(calculate_local.stack_drift(dict(pins), pins), [])
 
 
+class TestOneOverlapThreshold(unittest.TestCase):
+    """D153: the engine refused below 0.5 Å while the preview and the validator said 0.4 Å."""
+
+    def test_engine_and_validator_read_the_contract_value(self):
+        import calculate
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import validate_calculation
+        value = contract.load_contract()["structureChecks"]["minInteratomicDistanceA"]
+        self.assertEqual(calculate.MIN_INTERATOMIC_DISTANCE_A, value)
+        self.assertEqual(validate_calculation.MIN_INTERATOMIC_DIST, value)
+
+
 class TestFixturePeriodicity(unittest.TestCase):
     """D120: an extended-XYZ Lattice= with no pbc= is read as periodic by ASE."""
 
