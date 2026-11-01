@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { barText } from "./bars";
 
 // Always re-read the manifest from disk so the page reflects the live run.
 export const dynamic = "force-dynamic";
@@ -46,7 +47,7 @@ const SEV_STYLE: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<Piece["status"], string> = {
-  pending: "bg-bg-secondary text-[#8A8478] border-[#E4DFD3]",
+  pending: "bg-bg-secondary text-text-muted border-[#E4DFD3]",
   building: "bg-[#FFF6E5] text-[#8A6A1F] border-[#EBD9AE]",
   judging: "bg-[#EAF1FB] text-[#2F5C93] border-[#CBDDF2]",
   won: "bg-[#EAF4EB] text-accent-strong border-[#C6E0C8]",
@@ -65,7 +66,7 @@ export default async function V2ProgressPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">
-        <p className="font-mono text-xs uppercase tracking-widest text-[#8A8478]">
+        <p className="font-mono text-xs uppercase tracking-widest text-text-muted">
           {data.branch} · gauntlet loop
         </p>
         <h1 className="mt-3 font-serif text-4xl leading-none text-text-primary">
@@ -83,7 +84,7 @@ export default async function V2ProgressPage() {
             <span className="text-sm font-medium text-text-primary">
               {won} of {total} pieces winning blind
             </span>
-            <span className="font-mono text-sm text-[#8A8478]">{pct}%</span>
+            <span className="font-mono text-sm text-text-muted">{pct}%</span>
           </div>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-bg-secondary">
             <div
@@ -91,7 +92,7 @@ export default async function V2ProgressPage() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="mt-3 font-mono text-xs text-[#8A8478]">
+          <p className="mt-3 font-mono text-xs text-text-muted">
             updated {new Date(data.updated).toLocaleString()}
           </p>
           <p className="mt-3 border-t border-bg-secondary pt-3 text-sm text-text-secondary">
@@ -129,7 +130,7 @@ export default async function V2ProgressPage() {
                   </span>
                   <div>
                     <p className="text-sm text-text-primary">{d.what}</p>
-                    <p className="mt-1 font-mono text-xs text-[#8A8478]">
+                    <p className="mt-1 font-mono text-xs text-text-muted">
                       {d.where}
                     </p>
                   </div>
@@ -156,7 +157,7 @@ export default async function V2ProgressPage() {
                 </a>
               </div>
               <p className="mt-1 text-sm text-text-secondary">{b.role}</p>
-              <p className="mt-3 text-xs leading-relaxed text-[#8A8478]">{b.fetchable}</p>
+              <p className="mt-3 text-xs leading-relaxed text-text-muted">{barText(b)}</p>
             </div>
           ))}
         </div>
@@ -174,17 +175,17 @@ export default async function V2ProgressPage() {
                 </span>
                 <span className="font-medium text-text-primary">{p.name}</span>
                 {p.rounds > 0 && (
-                  <span className="font-mono text-xs text-[#8A8478]">
+                  <span className="font-mono text-xs text-text-muted">
                     round {p.rounds}
                   </span>
                 )}
               </div>
               <p className="mt-3 text-sm text-text-secondary">
-                <span className="text-[#8A8478]">bar · </span>
+                <span className="text-text-muted">bar · </span>
                 {p.bar}
               </p>
               <p className="mt-1 text-sm text-text-secondary">
-                <span className="text-[#8A8478]">judged on · </span>
+                <span className="text-text-muted">judged on · </span>
                 {p.judge}
               </p>
               {p.gap && (
@@ -206,7 +207,7 @@ export default async function V2ProgressPage() {
         <ul className="mt-4 space-y-2">
           {data.notes.map((n) => (
             <li key={n} className="flex gap-3 text-sm text-text-secondary">
-              <span className="text-[#8A8478]">—</span>
+              <span className="text-text-muted">—</span>
               <span>{n}</span>
             </li>
           ))}
