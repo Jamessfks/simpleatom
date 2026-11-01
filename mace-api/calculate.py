@@ -1967,10 +1967,10 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
         # D130 measurements (see MD_DIVERGENCE_*; reproduced by
         # docs/v2/evidence/2026-11-01/md-divergence), MACE-OFF small, float64,
         # seed 42, NVT 300 K, 1000 steps. Different inputs, stated apart: the
-        # strained demo ethanol at 2.0 fs went past 3000 K at step 218; relaxed
+        # strained golden ethanol (test/fixtures/ethanol-golden.xyz, the pre-D119 demo) at 2.0 fs went past 3000 K at step 218; relaxed
         # ethanol diverges at step 587 and relaxed water at step 902. Both
         # relaxed molecules stay bound at 1.5 fs, and nothing false-triggers at
-        # 1.0 fs NVT or NVE, at 0.5 fs, or on the strained demo at 1 fs.
+        # 1.0 fs NVT or NVE, at 0.5 fs, or on the strained golden ethanol at 1 fs.
         ctx.warnings.append(
             f"timeStep {dt_fs:g} fs with hydrogen present: in SimpleAtom's own tests, ethanol and "
             "water stayed stable up to 1.5 fs and NVT runs at 2 fs came apart within 1000 steps. "

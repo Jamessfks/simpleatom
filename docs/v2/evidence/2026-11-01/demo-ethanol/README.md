@@ -1,7 +1,7 @@
 # Demo ethanol (D119)
 
-The demo and hero ethanol was strained: C–C 1.478 Å, max |F| 1.69 eV/Å under MACE-OFF23
-medium (2.04 eV/Å under small), and 0.296 eV above its relaxed geometry. That file now lives
+The demo and hero ethanol was strained: C–C 1.478 Å, max |F| 2.04 eV/Å under MACE-OFF23
+medium (2.00 eV/Å under small), and 0.296 eV above its relaxed geometry. That file now lives
 at `test/fixtures/ethanol-golden.xyz`. It still carries the golden energies, docker-smoke and
 the science regressions, so no golden number changed. `public/demo/ethanol.xyz` becomes the
 relaxed trans conformer below.

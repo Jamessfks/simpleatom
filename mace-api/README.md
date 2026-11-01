@@ -44,12 +44,15 @@ because loading one executes code from the file.
 ```bash
 pip install --require-hashes --no-deps -r requirements.lock.txt   # Linux x86_64, CPU
 # or, anywhere: pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1
+uvicorn main:app --host 127.0.0.1 --port 7860 --workers 1
 python calculate_local.py ethanol.xyz '{"modelType":"MACE-OFF","modelSize":"small"}'
 ```
 
 Set `SIMPLEATOM_PROFILE=local` for local limits and custom models, and
-`MACE_API_TOKEN` to require the front end's proxy key.
+`MACE_API_TOKEN` to require the front end's proxy key. Bind to 127.0.0.1 for local or
+self-hosted use: the server itself has no loopback check, so ALLOW_CUSTOM_MODELS must never be
+combined with a non-loopback bind such as 0.0.0.0 (an uploaded checkpoint runs code). The
+Dockerfile's 0.0.0.0 is right inside the Space's container, where uploads are refused.
 
 Units: energy eV, forces eV/Å, distances Å, time fs, temperature K, stress and
 pressure GPa.

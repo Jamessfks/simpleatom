@@ -41,7 +41,7 @@ has D86 (optimizer tests through `_run_geometry_opt`), the D158 wording and the 
 `main.py`, `safe_load.py`, `jobs.py`, the validator and the docs.
 
 **D119 done.** The demo and hero are trans ethanol relaxed with MACE-OFF23 medium in float64,
-matching CCCBDB's C–C and C–C–O
+against CCCBDB: C–C 1.512 Å and C–C–O 108.0° agree, O–H is 0.013 Å short and H–O–C 3.4° wide
 (`evidence/2026-11-01/demo-ethanol`). The strained file is `test/fixtures/ethanol-golden.xyz`,
 pinned by hash; every golden, docker-smoke run, gate guard and science suite reads it.
 

@@ -60,7 +60,7 @@ Golden cases (run these whenever the engine changes):
 
 | Case | Structure | Params |
 |---|---|---|
-| Molecule, OFF | `public/demo/ethanol.xyz`, a water XYZ | `MACE-OFF`, `small` |
+| Molecule, OFF | `test/fixtures/ethanol-golden.xyz` (the golden input; the demo is relaxed since D119), a water XYZ | `MACE-OFF`, `small` |
 | Crystal, MPA-0 | `public/demo/silicon.cif` | `MACE-MPA-0`, `medium` |
 | Crystal, MP-0 | `public/demo/silicon.cif` | `MACE-MP-0`, `medium` |
 | MD, one per ensemble | ethanol (NVE, NVT), silicon (NPT) | seed 42, 1 fs, ≥ 200 steps |

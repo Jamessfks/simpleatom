@@ -73,7 +73,7 @@ npm run gen:contract # after editing mace-api/contract.json (CI: npm run check:c
 
 # Backend
 cd mace-api && pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 7860
+uvicorn main:app --reload --host 127.0.0.1 --port 7860   # loopback; ALLOW_CUSTOM_MODELS must never run on a non-loopback bind
 
 # Validation (export KMP_DUPLICATE_LIB_OK=TRUE on macOS)
 python test_scripts/validate_calculation.py --test    # Full scientific validation suite
@@ -247,7 +247,7 @@ deploys only after it passes on `main`. Run it locally before pushing.
 ### Automated Validator Checks
 - Energy bounds (model-aware, from the registry: MACE-MP family vs MACE-OFF; skipped for custom)
 - Force magnitude and conservation (net force ≈ 0 for molecules)
-- Interatomic distances over every pair, minimum image in a cell (overlap < 0.4 Å is an issue)
+- Interatomic distances over every pair, minimum image in a cell (overlap < 0.5 Å is an issue; `contract.json` structureChecks)
 - Lattice validity (positive volume, 3x3 matrix)
 - MD: NaN/Inf; NVE total-energy excursion per atom (> 0.05 eV/atom is an issue) and fitted drift;
   NVT/NPT second-half mean temperature against the target (> 2× is an issue)

@@ -124,7 +124,7 @@ the hosted slowdown factor stays at or below 4× relative to the 74-atom 37 s fi
 ### Confirmation
 
 * Guards: `vibrations` with `precision: "float32"`, with `public/demo/silicon.cif`, and with
-  unrelaxed `public/demo/ethanol.xyz` (fmax > 0.005) must each return `status: "error"` with
+  unrelaxed `test/fixtures/ethanol-golden.xyz` (fmax > 0.005; the demo file is relaxed since D119) must each return `status: "error"` with
   the codes above.
 * `test_scripts/test_vibrations.py`:
   * the mode count is 3N−6 for water and ethanol, and 3N−5 for CO₂;
