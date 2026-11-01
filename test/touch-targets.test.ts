@@ -31,3 +31,18 @@ describe("the status pill is shown at every width", () => {
     expect(page).toMatch(/mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between/);
   });
 });
+
+// D69: the footer's links dropped to their text height (15-20 px) from 640 px up.
+describe("footer links are 44 px targets at every width (D69)", () => {
+  const footer = read("components/site-footer.tsx");
+
+  it("the product and resource lists keep min-h-11 on desktop", () => {
+    expect(footer).not.toMatch(/sm:min-h-0/);
+    expect(footer.match(/className="flex min-h-11 items-center text-sm/g)).toHaveLength(2);
+  });
+
+  it("the attribution links reach 44 px with padding that does not move the text", () => {
+    expect(footer.match(/underline-offset-2 hover:underline/g)).toHaveLength(2);
+    expect(footer.match(/py-3\.5 text-text-secondary underline-offset-2/g)).toHaveLength(2);
+  });
+});
