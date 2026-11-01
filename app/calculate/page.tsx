@@ -553,7 +553,7 @@ function CalculatePageInner() {
 
       {/* Page sub-header */}
       <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
               Calculator
@@ -763,6 +763,7 @@ function CalculatePageInner() {
                             disabled={isSharing || result.status !== "success"}
                             variant="outline"
                             size="sm"
+                            className="min-h-11"
                           >
                             {isSharing ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -941,7 +942,7 @@ function StatusPill({
 
   return (
     // Presentational: the persistent status region above announces state.
-    <span className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex">
+    <span className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium">
       <span className={`h-2 w-2 rounded-full ${state.dot}`} aria-hidden />
       <span className={state.text}>{state.label}</span>
     </span>

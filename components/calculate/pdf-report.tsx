@@ -43,7 +43,7 @@ export function PDFReportButton({ result }: PDFReportButtonProps) {
 
   return (
     <div className="flex flex-col gap-1">
-      <Button onClick={handleDownload} disabled={loading} variant="outline" size="sm">
+      <Button onClick={handleDownload} disabled={loading} variant="outline" size="sm" className="min-h-11">
         <FileText className="h-3.5 w-3.5" aria-hidden="true" />
         {loading ? "Generating…" : (
           <>

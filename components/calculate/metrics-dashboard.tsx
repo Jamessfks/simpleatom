@@ -309,6 +309,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             disabled={!result.forces}
             variant="outline"
             size="sm"
+            className="min-h-11"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> CSV
           </Button>
@@ -316,6 +317,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             onClick={downloadJSON}
             variant="outline"
             size="sm"
+            className="min-h-11"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> JSON
           </Button>
