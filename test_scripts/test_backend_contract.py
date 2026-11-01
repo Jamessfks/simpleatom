@@ -246,6 +246,23 @@ class TestCliGuards(unittest.TestCase):
                                           profile="local")
         self.assertEqual(ctx.exception.code, "unsupported_element")
 
+    def test_the_mp_family_refuses_elements_outside_its_table_before_loading(self):
+        # D135: MPA-0 and MP-0 cover Z 1-94 except Po, At, Rn, Fr and Ra; the
+        # registry said null, so radon failed only after the model loaded.
+        import calculate
+        with tempfile.NamedTemporaryFile("w", suffix=".xyz", delete=False) as handle:
+            handle.write("2\nRnH\nRn 0 0 0\nH 1.8 0 0\n")
+        self.addCleanup(os.unlink, handle.name)
+        boom = AssertionError("a model was built before the element check")
+        for model, size in (("MACE-MPA-0", "medium"), ("MACE-MP-0", "small")):
+            with self.subTest(model=model), \
+                 mock.patch.object(calculate, "get_mace_calculator", side_effect=boom):
+                with self.assertRaises(ContractError) as ctx:
+                    calculate.run_calculation(handle.name, {"modelType": model, "modelSize": size},
+                                              profile="local")
+                self.assertEqual(ctx.exception.code, "unsupported_element")
+                self.assertIn("Rn", str(ctx.exception))
+
     def test_mace_off_refuses_elements_outside_its_training_set(self):
         # D47: the registry lists MACE-OFF's ten elements, and nothing enforced
         # them: NaCl failed only after the model loaded, with
