@@ -98,6 +98,12 @@ describe("upload names and benchmark uploads (D96, D99, D100)", () => {
     expect(uniqueUploadIds(["a.xyz", "a.cif", "b.xyz", "a.pdb"])).toEqual(["user-a", "user-a-2", "user-b", "user-a-3"]);
   });
 
+  it("never gives a suffixed id that a later stem already uses (D99)", async () => {
+    const { uniqueUploadIds } = await import("@/lib/server/backend");
+    const ids = uniqueUploadIds(["a.xyz", "a.cif", "a-2.xyz", "a-2.cif"]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("keeps a hosted benchmark's uploads under Vercel's 4.5 MB request limit", async () => {
     const { profile } = await import("@/lib/contract");
     const { checkUploadTotal } = await import("@/lib/server/backend");
