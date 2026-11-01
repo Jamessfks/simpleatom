@@ -24,6 +24,8 @@ export interface Capabilities {
   customModels: boolean;
   limits: Omit<Profile, "description">;
   devices: DeviceReport;
+  /** True until this deployment has answered: say nothing profile-specific yet. */
+  pending?: boolean;
 }
 
 export const HOSTED_DEFAULT: Capabilities = {
@@ -41,6 +43,7 @@ export const HOSTED_DEFAULT: Capabilities = {
 const PENDING: Capabilities = {
   ...HOSTED_DEFAULT,
   devices: { available: ["cpu"], unavailableReason: "Checking this deployment…" },
+  pending: true,
 };
 
 const UNREACHABLE: Capabilities = {

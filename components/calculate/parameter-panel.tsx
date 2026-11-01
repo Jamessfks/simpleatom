@@ -221,7 +221,7 @@ export function ParameterPanel({
         <CardHeader>
           <StepTitle step={2}>Model</StepTitle>
           <CardDescription>
-            Choose a MACE foundation model or upload a fine-tuned checkpoint.
+            Choose a MACE foundation model.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -450,7 +450,9 @@ export function ParameterPanel({
                   ))}
                 </SelectContent>
               </Select>
-              {caps.devices.unavailableReason && (
+              {caps.pending ? (
+                <p className="text-xs leading-relaxed text-text-muted">{caps.devices.unavailableReason}</p>
+              ) : caps.devices.unavailableReason && (
                 <p className="text-xs leading-relaxed text-text-muted">
                   GPU unavailable: {caps.devices.unavailableReason}{" "}
                   {caps.profile === "hosted" && (
