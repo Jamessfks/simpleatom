@@ -24,7 +24,7 @@ export interface Capabilities {
   customModels: boolean;
   limits: Omit<Profile, "description">;
   devices: DeviceReport;
-  /** True until this deployment has answered: say nothing profile-specific yet. */
+  /** True while this deployment has not answered (pending or unreachable): say nothing profile-specific. */
   pending?: boolean;
 }
 
@@ -52,6 +52,8 @@ const UNREACHABLE: Capabilities = {
     available: ["cpu"],
     unavailableReason: "Could not reach this deployment to ask which devices it can use.",
   },
+  // It has not answered, so nothing profile-specific may show (D160): no hosted-only link.
+  pending: true,
 };
 
 /** Map a GET /api/calculate payload onto Capabilities, trusting nothing in it. */
