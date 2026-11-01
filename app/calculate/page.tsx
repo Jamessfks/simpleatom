@@ -243,6 +243,7 @@ function CalculatePageInner() {
   const [job, setJob] = useState<JobView | null>(null);
   const caps = useCapabilities();
   const runAbort = useRef<AbortController | null>(null);
+  const compareAbort = useRef<AbortController | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -391,8 +392,25 @@ function CalculatePageInner() {
       lastRun.files.forEach((file) => formData.append("files", file));
       formData.append("params", JSON.stringify(foundationParamsFor(lastRun)));
 
-      return runCalculationJob(formData);
+      const abort = new AbortController();
+      compareAbort.current = abort;
+      return runCalculationJob(formData, { signal: abort.signal });
     }, [lastRun]);
+
+  // Leaving the page (route change, tab close, reload) stops the jobs it
+  // started. The abort event itself sends the DELETE, with keepalive, so the
+  // shared CPU is not left computing for a page nobody is looking at.
+  useEffect(() => {
+    const stop = () => {
+      runAbort.current?.abort();
+      compareAbort.current?.abort();
+    };
+    window.addEventListener("pagehide", stop);
+    return () => {
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, []);
 
   const handleCalculate = async () => {
     if (isCalculating) return;
