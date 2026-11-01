@@ -98,7 +98,7 @@ export const CONTRACT = {
   },
   "profiles": {
     "hosted": {
-      "description": "The public Hugging Face Space behind mace-lake.vercel.app: one shared CPU, anonymous callers.",
+      "description": "The public Hugging Face Space behind mace-lake.vercel.app: 2 shared vCPUs (cpu-basic), anonymous callers.",
       "customModels": false,
       "devices": [
         "cpu"

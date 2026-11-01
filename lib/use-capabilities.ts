@@ -33,6 +33,24 @@ export const HOSTED_DEFAULT: Capabilities = {
   devices: profileDeviceReport("hosted"),
 };
 
+/**
+ * Until this deployment answers, run with the strictest (hosted) limits but say
+ * nothing about hardware: a local page must not first describe the public server
+ * (D104). The same holds when the deployment cannot be reached at all.
+ */
+const PENDING: Capabilities = {
+  ...HOSTED_DEFAULT,
+  devices: { available: ["cpu"], unavailableReason: "Checking this deployment…" },
+};
+
+const UNREACHABLE: Capabilities = {
+  ...HOSTED_DEFAULT,
+  devices: {
+    available: ["cpu"],
+    unavailableReason: "Could not reach this deployment to ask which devices it can use.",
+  },
+};
+
 /** Map a GET /api/calculate payload onto Capabilities, trusting nothing in it. */
 export function capabilitiesFrom(d: Record<string, unknown>): Capabilities {
   const name: ProfileName = d.profile === "local" ? "local" : "hosted";
@@ -64,19 +82,19 @@ export function deviceChoices(caps: Capabilities): DeviceChoice[] {
 
 let cached: Promise<Capabilities> | null = null;
 
-function loadCapabilities(): Promise<Capabilities> {
+export function loadCapabilities(): Promise<Capabilities> {
   cached ??= fetch("/api/calculate")
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then(capabilitiesFrom)
     .catch(() => {
       cached = null;
-      return HOSTED_DEFAULT;
+      return UNREACHABLE;
     });
   return cached;
 }
 
 export function useCapabilities(): Capabilities {
-  const [caps, setCaps] = useState<Capabilities>(HOSTED_DEFAULT);
+  const [caps, setCaps] = useState<Capabilities>(PENDING);
   useEffect(() => {
     let live = true;
     loadCapabilities().then((c) => live && setCaps(c));
