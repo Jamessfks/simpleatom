@@ -92,3 +92,18 @@ describe("the two entries whose names mislead (D107, D108)", () => {
     expect(mpEntryNote(entry("mp-30"))).toBeNull();
   });
 });
+
+// "PBE itself inherits PBE's differences from experiment" says nothing: nothing
+// can inherit from itself. The point is that PBE differs from experiment.
+describe("the PBE caveat is not circular", () => {
+  const caveat = MP_CAVEATS.find((c) => /PBE, not with experiment/.test(c.title))!;
+
+  it("says PBE itself differs from experiment, by amounts that depend on the material and the property", () => {
+    expect(caveat.body).toMatch(/PBE itself differs from experiment, by amounts that depend on the material and the property/);
+    expect(caveat.body).not.toMatch(/PBE itself inherits/);
+  });
+
+  it("the module's own comment says the same", () => {
+    expect(readFileSync("lib/mp-reference.ts", "utf8").replace(/\s+/g, " ")).not.toMatch(/PBE itself inherits/);
+  });
+});
