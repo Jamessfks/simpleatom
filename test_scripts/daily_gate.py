@@ -45,8 +45,12 @@ DEFECTS = ROOT / "docs" / "v2" / "defects.json"
 # Re-measured 2026-10-20: eslint-config-next 16.4.2 added React-compiler rules
 # that scored the unchanged code at 40; fixing real defects among them (a
 # conditional hook, a component recreated each render, untyped Plotly code)
-# brought it to 15. A number that only ever goes down.
-LINT_BASELINE = 15
+# brought it to 15. Numbers that only ever go down.
+# Errors and warnings are counted separately (D88): with one total, a new error
+# passed whenever a warning was fixed in the same change. Measured 2026-11-01:
+# 13 errors (react-hooks compiler rules in six components) and 1 warning.
+LINT_ERROR_BASELINE = 13
+LINT_WARNING_BASELINE = 1
 
 # public/demo/silicon.cif — correct nearest-neighbour is a*sqrt(3)/4. If
 # parseCIF stops converting fractional coordinates this collapses to ~0.43 A
@@ -133,14 +137,17 @@ def gate_lint() -> Result:
         if p.returncode == 0:
             return Result("lint", True, "0 problems")
         return Result("lint", False, f"could not parse eslint output (rc={p.returncode})")
-    total = int(m.group(1))
-    if total > LINT_BASELINE:
-        return Result("lint", False,
-                      f"{total} problems, baseline {LINT_BASELINE} — {total - LINT_BASELINE} new",
+    errors, warnings = int(m.group(2)), int(m.group(3))
+    over = [f"{n} {kind}, baseline {base}" for n, kind, base in
+            ((errors, "errors", LINT_ERROR_BASELINE), (warnings, "warnings", LINT_WARNING_BASELINE))
+            if n > base]
+    if over:
+        return Result("lint", False, "; ".join(over),
                       "You added these today. Clear them or raise the baseline deliberately.")
-    note = f"{total} problems (baseline {LINT_BASELINE})"
-    if total < LINT_BASELINE:
-        note += f" — {LINT_BASELINE - total} fewer; lower LINT_BASELINE to {total} to lock it in"
+    note = (f"{errors} errors (baseline {LINT_ERROR_BASELINE}), "
+            f"{warnings} warnings (baseline {LINT_WARNING_BASELINE})")
+    if errors < LINT_ERROR_BASELINE or warnings < LINT_WARNING_BASELINE:
+        note += " — below baseline; lower the constants to lock it in"
     return Result("lint", True, note)
 
 

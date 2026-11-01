@@ -34,7 +34,7 @@ Run by `python3 test_scripts/daily_gate.py`. Every number here was measured, not
 | Gate | Bar | Notes |
 |---|---|---|
 | `npm run build` | compiles | A type error blocks every other piece |
-| `npx eslint .` | **≤ 15 problems** | Re-measured 2026-10-20 under eslint-config-next 16.4.2 (`LINT_BASELINE`). Monotonically non-increasing |
+| `npx eslint .` | **≤ 13 errors and ≤ 1 warning** | Counted separately since 2026-11-01 (D88; `LINT_ERROR_BASELINE`, `LINT_WARNING_BASELINE`), so a new error cannot hide behind a fixed warning. Monotonically non-increasing |
 | `validate_calculation.py --test` | `all_passed: true` | The scientific gate |
 | `test_provenance.py` | **40 tests, OK** | Count is part of the gate; deletions are regressions |
 | `test_backend_contract.py` | **≥ 20 tests, OK** | Contract, checkpoint trust, CLI guards, shared fixtures (v2.2.0) |

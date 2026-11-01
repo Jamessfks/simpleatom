@@ -14,7 +14,7 @@ Python 3.11.
 ```bash
 npm run check:contract      # generated contract types and docs are fresh
 npm run typecheck
-node scripts/lint-baseline.mjs   # never above test_scripts/daily_gate.py LINT_BASELINE
+node scripts/lint-baseline.mjs   # never above LINT_ERROR_BASELINE / LINT_WARNING_BASELINE in test_scripts/daily_gate.py
 npm test
 npm run build
 export KMP_DUPLICATE_LIB_OK=TRUE

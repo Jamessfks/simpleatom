@@ -66,7 +66,7 @@ Backend (Python 3.11)
 # Frontend
 npm run dev          # Next.js dev server (localhost:3000)
 npm run build        # Production build (catches type errors)
-npm run lint         # ESLint (CI: node scripts/lint-baseline.mjs — never above LINT_BASELINE)
+npm run lint         # ESLint (CI: node scripts/lint-baseline.mjs — never above LINT_ERROR_BASELINE / LINT_WARNING_BASELINE)
 npm run typecheck    # tsc --noEmit
 npm test             # vitest (contract fixtures, parser, upload names, share)
 npm run gen:contract # after editing mace-api/contract.json (CI: npm run check:contract)
@@ -239,7 +239,7 @@ deploys only after it passes on `main`. Run it locally before pushing.
 
 ### Before Merging Any Frontend Change
 1. `npm run check:contract && npm run typecheck && npm test && npm run build`
-2. `node scripts/lint-baseline.mjs` — never above `LINT_BASELINE` (lower it when you fix things)
+2. `node scripts/lint-baseline.mjs` — never above `LINT_ERROR_BASELINE` or `LINT_WARNING_BASELINE` (lower them when you fix things)
 3. Test the affected page in the browser — on the dev server of the branch under test
 
 ### Automated Validator Checks
