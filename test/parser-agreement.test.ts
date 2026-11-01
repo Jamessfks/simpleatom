@@ -53,15 +53,24 @@ function textOf(entry: Entry): string {
 }
 
 /**
- * Cases where ASE itself is wrong, so agreeing with it would be agreeing with
- * a defect. The backend refuses them (D113-D115); the preview must refuse or
- * flag them too instead of drawing a structure that will not run.
+ * CIFs the server REFUSES although ASE reads them without complaint (D115, D62):
+ * a disordered or vacant site is a different material, and two different
+ * elements on one position is hidden disorder. The preview must refuse them too
+ * instead of drawing a structure that will not run.
  */
-const ASE_IS_WRONG: Record<string, string> = {
-  "adversarial/cif_uppercase_symbols": "D113: ASE reads NA, CL as C, N",
-  "adversarial/cif_diamond_origin2_colon2": "D114: ASE ignores the ':2' origin choice",
+const SERVER_REFUSES: Record<string, string> = {
   "adversarial/cif_partial_occupancy_mixed": "D115: ASE drops the occupancy",
   "adversarial/cif_partial_occupancy_vacancy": "D115: ASE drops the occupancy",
+  "adversarial/cif_two_elements_one_site": "D62: ASE keeps the first element and warns",
+};
+
+/**
+ * CIFs the server reads differently from raw ASE, on purpose (e2a3fcd). The
+ * reference file holds what raw ASE makes of them, so the preview is held to
+ * the server's reading in the "D152" tests below instead.
+ */
+const SERVER_NORMALISES: Record<string, string> = {
+  "adversarial/cif_uppercase_symbols": "D113: ASE reads NA, CL as N, C; the server reads Na, Cl",
 };
 
 /**
@@ -72,10 +81,12 @@ const ASE_IS_WRONG: Record<string, string> = {
 const SYMMETRY_FROM_SYMBOL: Record<string, string> = {
   "adversarial/cif_nacl_asym_hm_only": "no symmetry operations, only a Hermann-Mauguin symbol",
   "adversarial/cif_diamond_origin1_hm_only": "no symmetry operations, only a Hermann-Mauguin symbol",
-  // D114: coordinates in origin choice 2 are expanded by ASE with origin-1
-  // operators (16 atoms instead of 8). Without a ":2" the symbol cannot tell
-  // the two apart, so the preview flags the file and says which origin ASE assumes.
+  // D114, D152: a two-origin group given by symbol alone. The server tries both
+  // origins and uses the one that gives fewer atoms, with a warning. The
+  // preview cannot, so it draws the listed sites and describes that rule.
   "adversarial/cif_diamond_origin2_hm_only": "D114: two origin choices, the symbol alone does not say which",
+  // An explicit ':2' (or ':1') is honoured by the server: the origin is built as written.
+  "adversarial/cif_diamond_origin2_colon2": "D152: an explicit origin choice, honoured by the server",
 };
 
 /**
@@ -148,7 +159,7 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
 
   const agreeing = reference.structures.filter(
     (e) =>
-      !(e.name in ASE_IS_WRONG) && !(e.name in SYMMETRY_FROM_SYMBOL) && e.name !== PLACEHOLDER_CELL && !e.ase.error,
+      !(e.name in SERVER_REFUSES) && !(e.name in SERVER_NORMALISES) && !(e.name in SYMMETRY_FROM_SYMBOL) && e.name !== PLACEHOLDER_CELL && !e.ase.error,
   );
 
   for (const entry of agreeing) {
@@ -182,10 +193,10 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
     });
   }
 
-  // D113-D115: ASE reads these wrongly and the backend now refuses them. The
+  // D115, D62: ASE reads these and the backend refuses them. The
   // preview must not present a structure the run will not compute.
-  for (const entry of reference.structures.filter((e) => e.name in ASE_IS_WRONG)) {
-    it(`refuses ${entry.name} (${ASE_IS_WRONG[entry.name]})`, () => {
+  for (const entry of reference.structures.filter((e) => e.name in SERVER_REFUSES)) {
+    it(`refuses ${entry.name} (${SERVER_REFUSES[entry.name]})`, () => {
       expect(() => parse(entry)).toThrow(/.{20,}/);
     });
   }
@@ -240,6 +251,98 @@ describe("D62 CIF symmetry expansion drops an image that repeats any earlier ato
     expect(note).toMatch(/preview cannot expand it/);
     expect(note).toMatch(/shows only the 2 listed sites/);
     expect(note).toMatch(/atom count may be larger/);
+  });
+});
+
+// D152: since e2a3fcd the server reads a CIF's element symbols case-blind (NA, na
+// and Na1+ are sodium; an all-capitals label that could be two elements is
+// refused), honours an explicit ':1' or ':2' after the H-M symbol, and for a
+// bare symbol of a two-origin group reads the origin that gives fewer atoms,
+// with a warning. The preview used to refuse the first two and to say that the
+// calculation "assumes origin 1".
+describe("D152 the preview reads CIF elements and origin choices as the server does", () => {
+  const entry = (name: string) => reference.structures.find((e) => e.name === `adversarial/${name}`)!;
+  const p1 = (rows: string[], head = "") =>
+    [
+      "data_t", "_symmetry_space_group_name_H-M 'P 1'", head,
+      "_cell_length_a 5", "_cell_length_b 5", "_cell_length_c 5",
+      "_cell_angle_alpha 90", "_cell_angle_beta 90", "_cell_angle_gamma 90",
+      "loop_", "_atom_site_type_symbol", "_atom_site_fract_x", "_atom_site_fract_y", "_atom_site_fract_z",
+      ...rows, "",
+    ].join("\n");
+  const labelOnly = (labels: string[]) =>
+    [
+      "data_t", "_cell_length_a 5", "_cell_length_b 5", "_cell_length_c 5",
+      "_cell_angle_alpha 90", "_cell_angle_beta 90", "_cell_angle_gamma 90",
+      "loop_", "_atom_site_label", "_atom_site_fract_x", "_atom_site_fract_y", "_atom_site_fract_z",
+      ...labels.map((l, i) => `${l} ${i / 10} 0.5 0.5`), "",
+    ].join("\n");
+
+  it("reads NA and CL as sodium and chlorine, not N and C", () => {
+    const parsed = parse(entry("cif_uppercase_symbols"));
+    expect(parsed.symbols).toEqual(["Na", "Na", "Na", "Na", "Cl", "Cl", "Cl", "Cl"]);
+  });
+
+  it("reads lower-case and charged symbols as the element: na, cl, Fe2+, O2-", () => {
+    const text = p1(["na 0 0 0", "cl 0.5 0.5 0.5", "Fe2+ 0.25 0.25 0.25", "O2- 0.75 0.75 0.75"]);
+    expect(parseStructureText(text, "t.cif").symbols).toEqual(["Na", "Cl", "Fe", "O"]);
+  });
+
+  it("refuses an all-capitals label that could be two elements (CA1: calcium or an alpha carbon)", () => {
+    expect(() => parseStructureText(labelOnly(["CA1"]), "t.cif")).toThrow(/CA1.*Ca or C|Ca or C.*CA1/);
+  });
+
+  it("reads other labels without ambiguity: Ca1, C1A, O2', Cl3", () => {
+    expect(parseStructureText(labelOnly(["Ca1", "C1A", "O2'", "Cl3"]), "t.cif").symbols).toEqual(["Ca", "C", "O", "Cl"]);
+  });
+
+  it("refuses a symbol that is no element", () => {
+    expect(() => parseStructureText(p1(["Xq 0 0 0"]), "t.cif")).toThrow(/Xq/);
+  });
+
+  it("honours an explicit ':2' instead of refusing the file, and says the calculation builds that origin", () => {
+    const parsed = parse(entry("cif_diamond_origin2_colon2"));
+    expect(parsed.atomCount).toBe(1);
+    const note = (parsed.notes ?? []).join(" ");
+    expect(note).toMatch(/origin choice 2/);
+    expect(note).toMatch(/calculation builds origin choice 2 as written/);
+    expect(note).not.toMatch(/ignores the ":2"/);
+  });
+
+  it("honours ':1' and the _symmetry_space_group_setting key the same way", () => {
+    const one = parse(entry("cif_diamond_origin1_hm_only"));
+    const text = readFileSync(adversarialIndex.find((a) => a.name === "cif_diamond_origin1_hm_only")!.path, "utf8");
+    const explicit = parseStructureText(text.replace("'F d -3 m'", "'F d -3 m :1'"), "o1.cif");
+    expect((explicit.notes ?? []).join(" ")).toMatch(/calculation builds origin choice 1 as written/);
+    const keyed = parseStructureText(text.replace("data_Si", "data_Si\n_symmetry_space_group_setting 2"), "o2.cif");
+    expect((keyed.notes ?? []).join(" ")).toMatch(/calculation builds origin choice 2 as written/);
+    expect(one.atomCount).toBe(1);
+  });
+
+  it("describes the server's rule for a bare symbol of a two-origin group, not an assumption of origin 1", () => {
+    const note = (parse(entry("cif_diamond_origin2_hm_only")).notes ?? []).join(" ");
+    expect(note).toMatch(/two origin choices/);
+    expect(note).toMatch(/tries both/);
+    expect(note).toMatch(/fewer atoms/);
+    expect(note).toMatch(/':1' or ':2'/);
+    expect(note).not.toMatch(/assumes origin 1/);
+    expect(note).not.toMatch(/so check that yours does/);
+  });
+
+  it("refuses two different elements on one position, which the server calls hidden disorder", () => {
+    const e = entry("cif_two_elements_one_site");
+    expect(e.ase.symbols).toEqual(["Na", "Cl"]); // ASE keeps the first and only warns
+    expect(() => parse(e)).toThrow(/Na1.*Cl1|same position/);
+  });
+
+  it("merges the same element listed twice at one position", () => {
+    expect(parseStructureText(p1(["Na 0 0 0", "Na 0.0004 0 1.0"]), "t.cif").symbols).toEqual(["Na"]);
+  });
+
+  it("takes an occupancy within 0.001 of 1 for 1, as the server does", () => {
+    const text = p1(["Na 0 0 0 0.9995"]).replace("_atom_site_fract_z", "_atom_site_fract_z\n_atom_site_occupancy");
+    expect(parseStructureText(text, "t.cif").symbols).toEqual(["Na"]);
+    expect(() => parseStructureText(text.replace("0.9995", "0.99"), "t.cif")).toThrow(/occupancy/);
   });
 });
 

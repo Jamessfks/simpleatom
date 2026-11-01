@@ -11,7 +11,6 @@ _atom_site_fract_x
 _atom_site_fract_y
 _atom_site_fract_z
 Na 0 0 0
-Cl 0 0 0
 Na 0.0005 0.0005 1.0
 Na 0.002 0 0
 Na 0.9996 0 0

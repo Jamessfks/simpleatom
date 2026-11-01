@@ -207,6 +207,12 @@
   "name": "cif_duplicate_sites_tolerance",
   "filename": "dups.cif",
   "path": "test/fixtures/structures/adversarial/cif_duplicate_sites_tolerance__dups.cif",
-  "note": "P1 sites 0.0005 apart, 0.9996 (= -0.0004) from 0 across the cell, a Cl on the Na site, and one 0.002 apart; ASE keeps the first and 0.002 (D62)"
+  "note": "P1 sites 0.0005 apart, 0.9996 (= -0.0004) from 0 across the cell, and one 0.002 apart; the same element merges within 0.001, so ASE keeps the first and the 0.002 one (D62)"
+ },
+ {
+  "name": "cif_two_elements_one_site",
+  "filename": "clash.cif",
+  "path": "test/fixtures/structures/adversarial/cif_two_elements_one_site__clash.cif",
+  "note": "Na and Cl listed at (0,0,0): ASE keeps the Na and drops the Cl with a warning; the server refuses it as hidden disorder (D62, D152)"
  }
 ]

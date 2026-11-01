@@ -4954,8 +4954,8 @@
    "name": "adversarial/cif_duplicate_sites_tolerance",
    "group": "adversarial",
    "filename": "dups.cif",
-   "note": "P1 sites 0.0005 apart, 0.9996 (= -0.0004) from 0 across the cell, a Cl on the Na site, and one 0.002 apart; ASE keeps the first and 0.002 (D62)",
-   "sha256": "b389ae4d7ed972722371bfae65076c87c6a2a13ec977e00d41d5bd73aeaf7b1d",
+   "note": "P1 sites 0.0005 apart, 0.9996 (= -0.0004) from 0 across the cell, and one 0.002 apart; the same element merges within 0.001, so ASE keeps the first and the 0.002 one (D62)",
+   "sha256": "c848183820c41fdc3a5bd4ffe70a04964e2431493e01ab618c411c2a72335330",
    "ase": {
     "format": "cif",
     "symbols": [
@@ -4972,6 +4972,55 @@
       0.01,
       0.0,
       0.0
+     ]
+    ],
+    "cell": [
+     [
+      5.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      5.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      5.0
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
+  },
+  {
+   "name": "adversarial/cif_two_elements_one_site",
+   "group": "adversarial",
+   "filename": "clash.cif",
+   "note": "Na and Cl listed at (0,0,0): ASE keeps the Na and drops the Cl with a warning; the server refuses it as hidden disorder (D62, D152)",
+   "sha256": "1075893abc37fb5e503e4cacb52ea27cca64abad927fbab1a6f5899286144c2c",
+   "ase": {
+    "format": "cif",
+    "symbols": [
+     "Na",
+     "Cl"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      2.5,
+      2.5,
+      2.5
      ]
     ],
     "cell": [
