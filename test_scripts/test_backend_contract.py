@@ -1386,6 +1386,40 @@ class TestErrorShape(unittest.TestCase):
         self._assert_shape(status, payload, "params")
 
 
+class TestSmilesRefusalCodes(unittest.TestCase):
+    """D151 follow-through: the route wrapped every ValueError, ContractError included, as invalid_smiles."""
+
+    def test_a_coded_refusal_from_the_converter_keeps_its_code(self):
+        import asyncio
+        import main
+        body = json.dumps({"smiles": "C1=CC=CC=C1"}).encode()
+        scope = {"type": "http", "method": "POST", "path": "/smiles-to-xyz", "raw_path": b"/smiles-to-xyz",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.45", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            await asyncio.sleep(0.05)
+            return {"type": "http.request", "body": b"", "more_body": True}
+
+        async def send(message):
+            messages.append(message)
+
+        def slow(_smiles):
+            raise ContractError("The 3D embedding took longer than 20 s.", code="smiles_embedding_timeout",
+                                field="smiles", status=422)
+
+        with mock.patch.object(main, "_smiles_to_xyz", slow), mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        payload = json.loads(b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body"))
+        self.assertEqual((status, payload["error"]["code"]), (422, "smiles_embedding_timeout"), payload)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
