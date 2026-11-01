@@ -381,7 +381,10 @@ def git_info() -> dict:
     if info["commit"] is None:
         pinned = _pinned_commit()
         if pinned is not None:
-            info = {"commit": pinned, "dirty": None, "unavailableReason": None}
+            info = {"commit": pinned, "dirty": None, "unavailableReason": None,
+                    "dirtyUnknownReason": (
+                        "the commit was read from the GIT_COMMIT file written at deploy "
+                        "time, and the deployed container has no git working tree to check")}
 
     _GIT_INFO = info
     return dict(info)
@@ -483,6 +486,14 @@ def build_manifest(
             "code.gitDirty is true: the checkout had uncommitted changes to "
             "tracked files, so the commit alone does not describe the code "
             "that ran."
+        )
+    elif git["dirty"] is None:
+        # D49: every other null in the manifest says why; this one did not.
+        notes.append(
+            "code.gitDirty is null: "
+            + (git.get("dirtyUnknownReason") or git.get("unavailableReason")
+               or "the dirty state could not be determined")
+            + "."
         )
 
     manifest = {
