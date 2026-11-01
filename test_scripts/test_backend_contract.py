@@ -838,6 +838,36 @@ class TestSuitesCannotPassEmpty(unittest.TestCase):
             self.assertTrue(all(not r.ok for r in daily_gate.gate_guards()))
 
 
+class TestSmilesAdmission(unittest.TestCase):
+    """D136: /smiles-to-xyz (about 13 s of CPU per request) bypassed every admission limit."""
+
+    def test_smiles_conversion_goes_through_the_job_admission(self):
+        import asyncio
+        import jobs
+        import main
+        body = json.dumps({"smiles": "CCO"}).encode()
+        scope = {"type": "http", "method": "POST", "path": "/smiles-to-xyz", "raw_path": b"/smiles-to-xyz",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.40", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+
+        full = jobs.JobStore(max_queued=0)   # admission refuses everything
+        with mock.patch.object(main, "JOBS", full), mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        self.assertEqual(status, 429)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
