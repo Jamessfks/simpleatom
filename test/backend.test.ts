@@ -74,6 +74,34 @@ describe("cross-site and rebinding guards (D40)", () => {
     }
   });
 
+  it("does not let forwarded headers vouch for a non-loopback client (D94)", () => {
+    // X-Forwarded-Host is the client's to set when no proxy is in front.
+    expect(() => assertLoopbackHost(req({ host: "192.168.1.20:3000", "x-forwarded-host": "localhost:3000" }))).toThrow(
+      ApiError,
+    );
+    // Next fills X-Forwarded-For from the socket when the client sent none: a LAN peer shows up there.
+    expect(() => assertLoopbackHost(req({ host: "localhost:3000", "x-forwarded-for": "192.168.1.9" }))).toThrow(ApiError);
+    for (const xff of ["127.0.0.1", "::1", "::ffff:127.0.0.1"]) {
+      expect(() => assertLoopbackHost(req({ host: "localhost:3000", "x-forwarded-for": xff }))).not.toThrow();
+    }
+  });
+
+  it("answers python_unavailable when the local Python cannot start, on the synchronous path too (D147)", async () => {
+    const { runPythonJson } = await import("@/lib/server/backend");
+    const before = process.env.SIMPLEATOM_PYTHON;
+    process.env.SIMPLEATOM_PYTHON = "/nonexistent/simpleatom-python";
+    try {
+      await runPythonJson("calculate_local.py", ["--capabilities"], { profile: "local", timeoutMs: 10_000 });
+      expect.unreachable("a missing interpreter must be refused");
+    } catch (err) {
+      expect((err as ApiError).status).toBe(503);
+      expect((err as ApiError).code).toBe("python_unavailable");
+    } finally {
+      if (before === undefined) delete process.env.SIMPLEATOM_PYTHON;
+      else process.env.SIMPLEATOM_PYTHON = before;
+    }
+  });
+
   it("binds the dev server to loopback", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8"));
     expect(pkg.scripts.dev).toMatch(/--hostname 127\.0\.0\.1\b/);
