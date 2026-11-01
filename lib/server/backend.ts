@@ -86,14 +86,32 @@ export function assertSameOrigin(request: WithHeaders): void {
 }
 
 const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+const LOOPBACK_ADDRESS = /^(127\.\d+\.\d+\.\d+|::1|::ffff:127\.\d+\.\d+\.\d+)$/;
 
 /**
  * Accept a checkpoint upload in local mode only when the page was loaded from
  * a loopback name. A DNS-rebinding page is same-origin with itself, so its
  * Origin check passes; only its host name gives it away.
+ *
+ * Headers vouch for nothing here (D94). The Host header is read directly, never
+ * X-Forwarded-Host, which a client sets freely when no proxy is in front; a
+ * forwarded host that is not loopback is refused. Next fills X-Forwarded-For
+ * from the socket when the client sent none, so a LAN peer appears there and
+ * is refused too. A client can still preset both, so binding the server to
+ * 127.0.0.1 (npm run dev / start) remains the boundary; route handlers expose
+ * no socket address to check instead.
  */
 export function assertLoopbackHost(request: WithHeaders): void {
-  if (!LOOPBACK_HOST.test(requestHost(request) ?? "")) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const clients = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const loopback =
+    LOOPBACK_HOST.test(request.headers.get("host") ?? "") &&
+    (forwardedHost === null || LOOPBACK_HOST.test(forwardedHost)) &&
+    clients.every((ip) => LOOPBACK_ADDRESS.test(ip));
+  if (!loopback) {
     throw new ApiError(
       "Custom checkpoints are accepted only from this machine (open SimpleAtom at localhost).",
       403,
@@ -318,6 +336,9 @@ export function pythonExecutable(): string {
   return process.env.SIMPLEATOM_PYTHON?.trim() || "python3";
 }
 
+/** execFile error codes that mean the interpreter itself could not be started. */
+const CANNOT_START = new Set(["ENOENT", "EACCES", "EPERM", "ENOEXEC"]);
+
 export async function runPythonJson(
   script: string,
   args: string[],
@@ -327,7 +348,12 @@ export async function runPythonJson(
   const { join } = await import("node:path");
 
   const scriptPath = join(process.cwd(), "mace-api", script);
-  const { stdout, stderr, failed } = await new Promise<{ stdout: string; stderr: string; failed: boolean }>(
+  const { stdout, stderr, failed, spawnError } = await new Promise<{
+    stdout: string;
+    stderr: string;
+    failed: boolean;
+    spawnError: Error | null;
+  }>(
     (resolve) => {
       execFile(
         pythonExecutable(),
@@ -345,12 +371,28 @@ export async function runPythonJson(
             SIMPLEATOM_PROFILE: options.profile,
           },
         },
-        (error, out, err) => resolve({ stdout: String(out ?? ""), stderr: String(err ?? ""), failed: !!error }),
+        (error, out, err) =>
+          resolve({
+            stdout: String(out ?? ""),
+            stderr: String(err ?? ""),
+            failed: !!error,
+            spawnError: error && CANNOT_START.has(String((error as { code?: unknown }).code)) ? error : null,
+          }),
       );
     },
   );
 
   if (options.signal?.aborted) throw new ApiError("The request was cancelled.", 499, "cancelled");
+  // A Python that cannot be started (ENOENT, EACCES) is the deployment's fault,
+  // not the request's: the same 503 the jobs path gives (D95, D147).
+  if (spawnError) {
+    throw new ApiError(
+      `Could not start the local Python (${pythonExecutable()}): ${spawnError.message}. ` +
+        "Set SIMPLEATOM_PYTHON to an environment built from mace-api/requirements.lock.txt. Nothing was computed.",
+      503,
+      "python_unavailable",
+    );
+  }
   if (stderr) console.warn(`[${script} stderr]`, stderr.slice(-800));
 
   const start = stdout.indexOf("{");
