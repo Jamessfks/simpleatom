@@ -43,3 +43,35 @@ describe("docs say only what the validator and the benchmarks support (D67)", ()
     expect(home).toMatch(/22nd of 43/);
   });
 });
+
+// D81: the validator checks every pair at the minimum image when the result has
+// a cell, and judges MD by what each ensemble conserves (test_scripts/
+// validate_calculation.py, acd8500). The page used to say "minimum distance
+// > 0.4 Å" and "bounded energy fluctuation".
+describe("the validation page describes what the validator now checks (D81)", () => {
+  const validation = read("app/docs/validation/page.tsx");
+
+  it("checks distances over every pair at the minimum image, and an overlap is an issue", () => {
+    expect(validation).toMatch(/every pair/i);
+    expect(validation).toMatch(/minimum image/i);
+    expect(validation).toMatch(/below 0\.4 (Å|&Aring;)[^.]*(issue|error)/i);
+  });
+
+  it("checks NaN and Inf in the potential, total and temperature series", () => {
+    expect(validation).toMatch(/NaN\/Inf[^.]*potential, total and temperature/i);
+  });
+
+  it("judges NVE by the total energy's excursion from its start, with its limits and the drift", () => {
+    expect(validation).not.toMatch(/bounded energy fluctuation/i);
+    expect(validation).toMatch(/NVE[^.]*total energy[^.]*largest excursion from its start per atom/i);
+    expect(validation).toMatch(/issue above 0\.05 eV\/atom/);
+    expect(validation).toMatch(/warning above 5 meV\/atom/);
+    expect(validation).toMatch(/meV\/atom\/ps/);
+  });
+
+  it("judges NVT and NPT by the second-half mean temperature against the target", () => {
+    expect(validation).toMatch(/NVT\/NPT[^.]*second-half mean temperature[^.]*target/i);
+    expect(validation).toMatch(/issue above 2&times;|issue above 2×/);
+    expect(validation).toMatch(/warning above 1\.5&times;|warning above 1\.5×/);
+  });
+});
