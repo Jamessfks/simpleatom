@@ -933,6 +933,24 @@ class TestDailyGateCoverage(unittest.TestCase):
         self.assertIn("test_geometry_opt.py", {pattern for _n, pattern, _m in daily_gate.SUITES})
 
 
+class TestEverySuiteRuns(unittest.TestCase):
+    """A suite that neither CI nor the daily gate runs protects nothing (D86's lesson, again)."""
+
+    SUITES = sorted(p.name for p in (REPO_ROOT / "test_scripts").glob("test_*.py"))
+
+    def test_ci_runs_every_suite(self):
+        ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+        missing = [name for name in self.SUITES if name not in ci]
+        self.assertEqual(missing, [], "test_scripts suites CI never runs")
+
+    def test_the_daily_gate_runs_every_suite(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        gated = {pattern for _n, pattern, _m in daily_gate.SUITES} | {"test_provenance.py"}
+        self.assertEqual([name for name in self.SUITES if name not in gated], [],
+                         "test_scripts suites the daily gate never runs")
+
+
 class TestValidatorGateCanFail(unittest.TestCase):
     """
     D79: the validator printed all_passed: false, exited 0, and the daily gate
