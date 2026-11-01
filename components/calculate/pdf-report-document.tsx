@@ -3,6 +3,7 @@
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 import type { CalculationParams, CalculationResult } from "@/types/mace";
 import { getSiteUrl } from "@/lib/site";
+import { reportNotes } from "./report-notes";
 
 const styles = StyleSheet.create({
   page: {
@@ -89,6 +90,7 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
   const forceMag = (f: number[]) =>
     Math.sqrt(f[0] ** 2 + f[1] ** 2 + f[2] ** 2).toFixed(4);
   const siteHost = new URL(getSiteUrl()).host;
+  const notes = reportNotes(result);
 
   return (
     <Document>
@@ -98,9 +100,15 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Status:</Text>
-            <Text style={styles.value}>{result.status}</Text>
+            <Text style={styles.label}>Outcome:</Text>
+            <Text style={styles.value}>{notes.outcome.headline}</Text>
           </View>
+          {notes.outcome.detail && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Detail:</Text>
+              <Text style={styles.value}>{notes.outcome.detail}</Text>
+            </View>
+          )}
           {result.timeTaken != null && (
             <View style={styles.row}>
               <Text style={styles.label}>Time taken:</Text>
@@ -137,6 +145,22 @@ function MACEReportPDF({ result }: { result: CalculationResult }) {
             </View>
           )}
         </View>
+
+        {notes.warnings.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Warnings from the calculation</Text>
+            {notes.warnings.map((warning, i) => (
+              <Text key={i} style={styles.value}>{`\u2022 ${warning}`}</Text>
+            ))}
+          </View>
+        )}
+
+        {notes.licenseNotice && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Model licence</Text>
+            <Text style={styles.value}>{notes.licenseNotice}</Text>
+          </View>
+        )}
 
         {result.params && (
           <View style={styles.section}>

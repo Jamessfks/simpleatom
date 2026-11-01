@@ -34,7 +34,7 @@ describe("what the PDF report must say besides the numbers (F21)", () => {
     const own = reportNotes(result({ licenseNotice: "Non-commercial use only (ASL).", params: { modelType: "MACE-OFF" } }));
     expect(own.licenseNotice).toBe("Non-commercial use only (ASL).");
     const fromModel = reportNotes(result({ params: { modelType: "MACE-OFF" } }));
-    expect(fromModel.licenseNotice).toMatch(/non-?commercial/i);
+    expect(fromModel.licenseNotice).toMatch(/Academic Software License[^.]*does not permit commercial use/);
   });
 
   it("the PDF document prints all three", () => {
