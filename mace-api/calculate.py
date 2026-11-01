@@ -843,7 +843,29 @@ def _cif_spacegroup(block):
     return (int(no) if no is not None else None), setting
 
 
-def _expand_cif(block, tags: dict, setting: int | None, display: str):
+def count_symmetry_images(scaled_positions, spacegroup, chunk: int = 2000) -> int:
+    """
+    How many atoms `spacegroup` makes of these sites, without building them
+    (D133). Every site's images under every operation (centring and inversion
+    included) are wrapped into the cell and counted once on a 1e-3 grid (ASE's
+    own symprec), so a special position counts its true multiplicity (NaCl's
+    two sites under Fm-3m's 192 operations count 8, not 384) and a redundant
+    full-cell listing (the demo silicon) counts each atom once. Costs one sort
+    of sites × operations integers; ASE's expansion compares each new atom
+    against every atom so far, which grew as N^1.9 (8000 Fm-3m sites: 165 s).
+    """
+    import numpy as np
+    rotations, translations = spacegroup.get_op()
+    positions = np.asarray(scaled_positions, dtype=float)
+    keys = []
+    for start in range(0, len(positions), chunk):
+        images = np.einsum("oij,sj->soi", rotations, positions[start:start + chunk])
+        grid = np.rint(np.mod(images + translations[None, :, :], 1.0) * 1000).astype(np.int64) % 1000
+        keys.append(np.unique(grid[..., 0] * 1_000_000 + grid[..., 1] * 1000 + grid[..., 2]))
+    return int(len(np.unique(np.concatenate(keys)))) if keys else 0
+
+
+def _expand_cif(block, tags: dict, setting: int | None, display: str, max_atoms: int | None = None):
     """
     Apply the block's symmetry, in origin `setting` when it is given. ASE merges
     a site that lands on an earlier one (keeping the first) with only a Python
@@ -867,10 +889,22 @@ def _expand_cif(block, tags: dict, setting: int | None, display: str):
         tags["_symmetry_space_group_setting"] = setting
         block = CIFBlock(block.name, tags)
     spacegroup = block.get_spacegroup(subtrans_included=True)
+    sites = block.get_unsymmetrized_structure()
+    if max_atoms is not None:
+        # Every listed position is itself an atom of the result, so more
+        # sites than the cap is over it without counting anything.
+        expected = (len(sites) if len(sites) > max_atoms else
+                    count_symmetry_images(sites.get_scaled_positions(wrap=False), spacegroup))
+        if expected > max_atoms:
+            raise ContractError(
+                f"'{display}' lists {len(sites)} sites that space group {spacegroup.no} expands to "
+                f"{'at least ' if expected == len(sites) else ''}{expected:,} atoms; this deployment computes at most {max_atoms} for this "
+                "calculation. Nothing was computed.",
+                code="limit_exceeded", field="structure", status=422)
     with pywarnings.catch_warnings(record=True) as caught:
         pywarnings.simplefilter("always")
-        atoms = crystal(block.get_unsymmetrized_structure(), spacegroup=spacegroup,
-                        setting=spacegroup.setting, onduplicates="warn")
+        atoms = crystal(sites, spacegroup=spacegroup, setting=spacegroup.setting,
+                        onduplicates="warn")
     symbols = tags["_atom_site_type_symbol"]
     labels = tags.get("_atom_site_label") or symbols
     labels = [labels] if isinstance(labels, str) else labels
@@ -887,7 +921,8 @@ def _expand_cif(block, tags: dict, setting: int | None, display: str):
     return atoms
 
 
-def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: list[str]):
+def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: list[str],
+                       max_atoms: int | None = None):
     """
     A two-origin space group given by symbol alone, with no operators (D114).
 
@@ -902,13 +937,13 @@ def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: l
     readings = {}
     for setting in (1, 2):
         try:
-            atoms = _expand_cif(block, tags, setting, display)
+            atoms = _expand_cif(block, tags, setting, display, max_atoms)
         except ContractError:
             continue
         if closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A) is None:
             readings[setting] = atoms
     if not readings:
-        return _expand_cif(block, tags, 1, display)  # refuse_overlaps() names the clash
+        return _expand_cif(block, tags, 1, display, max_atoms)  # names the clash or the cap
     counts = {setting: len(atoms) for setting, atoms in readings.items()}
     if len(readings) == 2 and counts[1] == counts[2]:
         raise ContractError(
@@ -929,7 +964,7 @@ def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: l
     return readings[chosen]
 
 
-def _read_cif(filepath: str, display: str, warnings: list[str]):
+def _read_cif(filepath: str, display: str, warnings: list[str], max_atoms: int | None = None):
     """
     Read the first structure block of a CIF, refusing what ASE would silently
     change: element symbols (D113), the origin choice (D114), partial occupancy
@@ -979,13 +1014,14 @@ def _read_cif(filepath: str, display: str, warnings: list[str]):
     else:
         number, setting = _cif_spacegroup(block)
         if not block._get_sitesym() and setting is None and number in _TWO_ORIGIN_GROUPS:
-            atoms = _expand_cif_origin(block, tags, number, display, warnings)
+            atoms = _expand_cif_origin(block, tags, number, display, warnings, max_atoms)
         else:
-            atoms = _expand_cif(block, tags, None if block._get_sitesym() else setting, display)
+            atoms = _expand_cif(block, tags, None if block._get_sitesym() else setting, display,
+                                max_atoms)
     return atoms
 
 
-def _read_structure(filepath: str, display: str, warnings: list[str]):
+def _read_structure(filepath: str, display: str, warnings: list[str], max_atoms: int | None = None):
     """
     Read the FIRST frame of a structure file.
 
@@ -998,7 +1034,10 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
 
     fmt = detect_format(filepath)
     try:
-        atoms = _read_cif(filepath, display, warnings) if fmt == "cif" else read(filepath, format=fmt, index=0)
+        if fmt == "cif":
+            atoms = _read_cif(filepath, display, warnings, max_atoms)
+        else:
+            atoms = read(filepath, format=fmt, index=0)
     except ContractError:
         raise
     except Exception as exc:
@@ -1173,7 +1212,9 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
 
     hooks.phase("reading-structure")
     filename = _display_name(display_name, filepath)
-    atoms, fmt = _read_structure(filepath, filename, warnings)
+    # The cap goes in too: a CIF is counted before its symmetry is expanded (D133).
+    atoms, fmt = _read_structure(filepath, filename, warnings,
+                                 contract.profile(profile_name)["maxAtoms"][calc_type])
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
     contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
     refuse_overlaps(atoms, filename)
