@@ -404,8 +404,9 @@ def resolve_device(requested, profile_name: str) -> tuple[str, str | None]:
     if requested == "cuda" and not _cuda_available():
         return "cpu", (
             "CUDA was requested but is not available on this machine "
-            "(torch.cuda.is_available() is False). The calculation ran on CPU; "
-            "the numbers are unaffected, the timing is CPU timing."
+            "(torch.cuda.is_available() is False), so the calculation ran on CPU. "
+            "Values computed on CPU differ from a GPU run only at round-off level; "
+            "the timing is CPU timing."
         )
     return requested, None
 
@@ -488,10 +489,14 @@ def get_custom_calculator(model_path: str, device: str):
     try:
         return MACECalculator(model_paths=model_path, device=device)
     except Exception as e:
+        # D101: a CUDA out-of-memory is not a bad file. Re-raised as is, so
+        # run_calculation() reports cuda_out_of_memory (507), not "invalid".
+        if _is_cuda_oom(e):
+            raise
         raise ValueError(
             f"Failed to load custom model '{Path(model_path).name}': {e}. "
             "Ensure the file is a valid MACE .model checkpoint."
-        )
+        ) from e
 
 
 def extract_reference_data(atoms) -> dict:
