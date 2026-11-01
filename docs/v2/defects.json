@@ -1148,8 +1148,10 @@
       "source": "CI/docs review, 2026-10-31 (~/.cache/simpleatom/overnight/review/ci-docs.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "Partial: zero-test runs fail (33c3e2f), but the 23 optimizer tests never import calculate.py (batch 3). With the backend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: a2e0570. Zero-test runs fail (33c3e2f). cc19b53 rewrites the optimizer tests to run through run_calculation/_run_geometry_opt with a Morse or EMT model: ten mutants of _run_geometry_opt (converged forced, BFGS skipped, <= fmax, component max, duplicated or missing frames, message, step-limit logic, optSteps) pass the old 23 tests and fail the new ones. test_geometry_opt 12 (floor 10), mace-api 34 (floor 31). Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "33c3e2f + cc19b53",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D87",
@@ -1765,7 +1767,7 @@
       "status": "fixed",
       "fixedIn": "c560533",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 661084c. MD stops with md_diverged on a temperature blow-up or an NVE energy jump. Timestep caps unchanged."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 661084c. MD stops with md_diverged on a temperature blow-up or an NVE energy jump. Timestep caps unchanged. Reproduction committed in 645844c (docs/v2/evidence/2026-11-01/md-divergence): relaxed ethanol diverges at 2.0/2.5/3.0/4.0 fs at steps 587/75/7/3, relaxed water at 902/35/6/3; both stay bound at 1.5 fs; no trigger at 0.5 or 1.0 fs or on the strained demo at 1 fs."
     },
     {
       "id": "D131",
@@ -2057,8 +2059,8 @@
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
       "status": "fixed-unverified",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 9eb1149, b9da855. RDKit's embedding timeout inside a 20 s budget; refused as smiles_embedding_timeout. Awaiting the parent session's independent verdict before it counts as fixed.",
-      "fixedIn": "cf2266c",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 9eb1149, b9da855, 4744784. RDKit's embedding timeout inside a 20 s budget, refused as smiles_embedding_timeout (422); the hosted route keeps the code (14f6f64). Option: move the 20 s budget into the contract profile. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "cf2266c + 14f6f64",
       "fixedOn": "2026-11-01"
     },
     {
@@ -2154,8 +2156,10 @@
       "source": "batch-3 verification at 23e2339, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch3/)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "open",
-      "fixNote": "Ledger part done; the D105/D130 wording is with the backend writer."
+      "status": "fixed-unverified",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: bf827eb. D105 warning: an MD trajectory diverges from a GPU run over time while its statistics agree. D130 comment states the strained (step 218) and relaxed (587, 902) runs separately. Ledger part done. Awaiting the parent session's independent verdict before it counts as fixed.",
+      "fixedIn": "5f5fed1 + e182d47",
+      "fixedOn": "2026-11-01"
     },
     {
       "id": "D159",
