@@ -650,6 +650,18 @@ class TestValidatorSelfTest(unittest.TestCase):
         self.assertNotIn('"passed": True', text)
 
 
+class TestDocumentedTestsExist(unittest.TestCase):
+    """The upgrade gate in requirements.in named test_translation_invariance.py, which never existed."""
+
+    def test_every_test_file_named_in_requirements_exists(self):
+        import re
+        text = (API_DIR / "requirements.in").read_text() + (API_DIR / "requirements.txt").read_text()
+        named = re.findall(r"(test_scripts/test_\w+\.py)", text)
+        self.assertTrue(named)
+        for path in named:
+            self.assertTrue((REPO_ROOT / path).exists(), path)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
