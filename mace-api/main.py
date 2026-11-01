@@ -34,6 +34,7 @@ import torch
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -171,13 +172,26 @@ class _CheckBeforeTheBodyIsRead:
 app.add_middleware(_CheckBeforeTheBodyIsRead)
 
 
+_STATUS_CODES = {404: "not_found", 405: "method_not_allowed"}
+
+
+def _encodable(value):
+    """A refusal can echo the caller's input; a lone surrogate would make the reply unencodable (D149)."""
+    return value.encode("utf-8", "backslashreplace").decode("utf-8") if isinstance(value, str) else value
+
+
+@app.exception_handler(StarletteHTTPException)
 @app.exception_handler(HTTPException)
-async def _http_error(_request: Request, exc: HTTPException):
-    """One error shape everywhere: {"error": {code, message, field}}."""
+async def _http_error(_request: Request, exc: StarletteHTTPException):
+    """
+    One error shape everywhere: {"error": {code, message, field}}. Registered for
+    Starlette's HTTPException too, so its own 404 and 405 answer in it (D148).
+    """
     detail = exc.detail if isinstance(exc.detail, dict) else {
-        "code": "http_error", "message": str(exc.detail), "field": None}
+        "code": _STATUS_CODES.get(exc.status_code, "http_error"), "message": str(exc.detail), "field": None}
+    detail = {k: _encodable(v) for k, v in detail.items()}
     return JSONResponse({"status": "error", "message": detail["message"], "error": detail},
-                        status_code=exc.status_code, headers=exc.headers)
+                        status_code=exc.status_code, headers=getattr(exc, "headers", None))
 
 
 @app.exception_handler(RequestValidationError)
@@ -191,6 +205,7 @@ async def _validation_error(_request: Request, exc: RequestValidationError):
     loc = [str(part) for part in first.get("loc", ()) if part not in ("body", "query", "header")]
     field = loc[-1] if loc else None
     message = f"{field or 'request'}: {first.get('msg', 'invalid request')}"
+    message, field = _encodable(message), _encodable(field)
     error = {"code": "invalid_request", "message": message, "field": field}
     return JSONResponse({"status": "error", "message": message, "error": error}, status_code=422)
 
