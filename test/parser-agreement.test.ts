@@ -59,7 +59,6 @@ function textOf(entry: Entry): string {
  */
 const ASE_IS_WRONG: Record<string, string> = {
   "adversarial/cif_uppercase_symbols": "D113: ASE reads NA, CL as C, N",
-  "adversarial/cif_diamond_origin2_hm_only": "D114: ASE expands origin-2 coordinates with origin-1 operators",
   "adversarial/cif_diamond_origin2_colon2": "D114: ASE ignores the ':2' origin choice",
   "adversarial/cif_partial_occupancy_mixed": "D115: ASE drops the occupancy",
   "adversarial/cif_partial_occupancy_vacancy": "D115: ASE drops the occupancy",
@@ -73,6 +72,26 @@ const ASE_IS_WRONG: Record<string, string> = {
 const SYMMETRY_FROM_SYMBOL: Record<string, string> = {
   "adversarial/cif_nacl_asym_hm_only": "no symmetry operations, only a Hermann-Mauguin symbol",
   "adversarial/cif_diamond_origin1_hm_only": "no symmetry operations, only a Hermann-Mauguin symbol",
+  // D114: coordinates in origin choice 2 are expanded by ASE with origin-1
+  // operators (16 atoms instead of 8). Without a ":2" the symbol cannot tell
+  // the two apart, so the preview flags the file and says which origin ASE assumes.
+  "adversarial/cif_diamond_origin2_hm_only": "D114: two origin choices, the symbol alone does not say which",
+};
+
+/**
+ * The wwPDB `CRYST1 1.000 1.000 1.000 90 90 90 P 1` placeholder: ASE takes it
+ * for a 1 Angstrom periodic cube (E = 1e21 eV for ethanol). It means "no cell",
+ * so the preview reads an isolated molecule — and the server must, too (D89).
+ */
+const PLACEHOLDER_CELL = "adversarial/pdb_cryst1_placeholder";
+
+/**
+ * ASE expands a symbol-only CIF by walking the space group's operations from
+ * the first site, so it lists the same atoms in the orbit's order; the browser
+ * keeps the order of the file. The atoms must be the same set.
+ */
+const SAME_ATOMS_OTHER_ORDER: Record<string, string> = {
+  "demo/silicon.cif": "Fd-3m listed with all 8 sites and no symmetry operations",
 };
 
 /** Which defect a fixture pins, so a failure names it. */
@@ -134,7 +153,8 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
   });
 
   const agreeing = reference.structures.filter(
-    (e) => !(e.name in ASE_IS_WRONG) && !(e.name in SYMMETRY_FROM_SYMBOL) && !e.ase.error,
+    (e) =>
+      !(e.name in ASE_IS_WRONG) && !(e.name in SYMMETRY_FROM_SYMBOL) && e.name !== PLACEHOLDER_CELL && !e.ase.error,
   );
 
   for (const entry of agreeing) {
@@ -143,14 +163,21 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
       const ase = entry.ase;
       const parsed = parse(entry);
 
-      expect(parsed.symbols, "species, in order").toEqual(ase.symbols);
       expect(parsed.atomCount, "atom count").toBe(ase.symbols!.length);
-      for (let i = 0; i < ase.symbols!.length; i++)
-        for (let k = 0; k < 3; k++)
-          expect(
-            close(parsed.positions[i][k], ase.positions![i][k]),
-            `atom ${i} ${"xyz"[k]}: ${parsed.positions[i][k]} vs ${ase.positions![i][k]}`,
-          ).toBe(true);
+      if (entry.name in SAME_ATOMS_OTHER_ORDER) {
+        const key = (symbol: string, p: number[]) => `${symbol} ${p.map((v) => v.toFixed(4)).join(" ")}`;
+        const mine = parsed.symbols.map((s, i) => key(s, parsed.positions[i])).sort();
+        const theirs = ase.symbols!.map((s, i) => key(s, ase.positions![i])).sort();
+        expect(mine, "the same atoms, in any order").toEqual(theirs);
+      } else {
+        expect(parsed.symbols, "species, in order").toEqual(ase.symbols);
+        for (let i = 0; i < ase.symbols!.length; i++)
+          for (let k = 0; k < 3; k++)
+            expect(
+              close(parsed.positions[i][k], ase.positions![i][k]),
+              `atom ${i} ${"xyz"[k]}: ${parsed.positions[i][k]} vs ${ase.positions![i][k]}`,
+            ).toBe(true);
+      }
 
       if (ase.cell) expectMatrix(parsed.lattice, ase.cell, "cell");
       else expect(parsed.lattice, "no cell").toBeUndefined();
@@ -184,6 +211,33 @@ describe("browser parser agrees with ASE (the server's reader)", () => {
   }
 });
 
+describe("D89 the wwPDB CRYST1 placeholder is no cell", () => {
+  const entry = reference.structures.find((e) => e.name === PLACEHOLDER_CELL)!;
+
+  it("reads an isolated molecule, with the atoms ASE reads", () => {
+    const parsed = parse(entry);
+    expect(parsed.symbols).toEqual(entry.ase.symbols);
+    expect(parsed.lattice).toBeUndefined();
+    expect(parsed.pbc).toEqual([false, false, false]);
+    expect(parsed.isPeriodic).toBe(false);
+    expect((parsed.notes ?? []).join(" ")).toMatch(/CRYST1/);
+  });
+
+  it("keeps a real CRYST1 periodic, with its cell", () => {
+    // Cell a=b=c=5 A, 90 degrees: ASE reads pbc True and this cell (checked with ase 3.27).
+    const pdb =
+      "CRYST1    5.000    5.000    5.000  90.00  90.00  90.00 P 1           1\n" +
+      "HETATM    1 NA   NA  A   1       0.000   0.000   0.000  1.00  0.00          NA\n" +
+      "HETATM    2 CL   CL  A   2       2.500   2.500   2.500  1.00  0.00          CL\n";
+    const parsed = parseStructureText(pdb, "real.pdb");
+    expect(parsed.symbols).toEqual(["Na", "Cl"]);
+    expect(parsed.pbc).toEqual([true, true, true]);
+    expect(parsed.isPeriodic).toBe(true);
+    expect(parsed.lattice![0][0]).toBeCloseTo(5, 6);
+    expect(parsed.minNeighborDist).toBeCloseTo(Math.sqrt(3) * 2.5, 6);
+  });
+});
+
 describe("D117 the preview measures nearest neighbours across the cell boundary", () => {
   it("a 0.20 A contact across a periodic boundary is the minimum distance", () => {
     const entry = reference.structures.find((e) => e.name === "adversarial/xyz_overlap_across_boundary")!;
@@ -203,5 +257,47 @@ describe("D117 the preview measures nearest neighbours across the cell boundary"
     const text = 'Lattice="3 0 0 0 3 0 0 0 3" Properties=species:S:1:pos:R:3 pbc="F F F"';
     const parsed = parseStructureText(`2\n${text}\nH 0.1 0 0\nH 2.9 0 0\n`, "box.xyz");
     expect(parsed.minNeighborDist).toBeCloseTo(2.8, 6);
+  });
+});
+
+// Behaviours ASE shows on the pinned version (3.27.0, checked by reading these
+// exact strings with ase.io.read(format="extxyz", index=0) and, where the
+// reader raised, the plain "xyz" reader the server falls back to).
+describe("extended XYZ keys are case-sensitive, as ASE reads them (D93)", () => {
+  const box = (key: string, extra = "") =>
+    `2\n${key}="3 0 0 0 3 0 0 0 3" ${extra}Properties=species:S:1:pos:R:3\nH 0 0 0\nH 1 0 0\n`;
+
+  it("ignores a lower-case lattice= (no cell, not periodic) and says so", () => {
+    const parsed = parseStructureText(box("lattice"), "lower.xyz") as Parsed;
+    expect(parsed.lattice).toBeUndefined();
+    expect(parsed.pbc).toEqual([false, false, false]);
+    expect(parsed.isPeriodic).toBe(false);
+    expect((parsed.notes ?? []).join(" ")).toMatch(/lattice=.*case-sensitive/);
+  });
+
+  it("reads pbc as booleans per axis, with one value for all three", () => {
+    expect((parseStructureText(box("Lattice", 'pbc="T T F" '), "a.xyz") as Parsed).pbc).toEqual([true, true, false]);
+    expect((parseStructureText(box("Lattice", "pbc=F "), "a.xyz") as Parsed).pbc).toEqual([false, false, false]);
+    expect((parseStructureText(box("Lattice", 'pbc="True False True" '), "a.xyz") as Parsed).pbc).toEqual([true, false, true]);
+    expect(parseStructureText(box("Lattice", 'pbc="T T F" '), "a.xyz").isPeriodic).toBe(false);
+    expect(parseStructureText(box("Lattice"), "a.xyz").isPeriodic).toBe(true);
+  });
+
+  it("falls back to plain XYZ when the comment line cannot be read, losing the cell like the server", () => {
+    const bad = '2\nLattice="3 0 0 0 3" Properties=species:S:1:pos:R:3\nH 0 0 0\nH 1 0 0\n';
+    const parsed = parseStructureText(bad, "bad.xyz") as Parsed;
+    expect(parsed.atomCount).toBe(2);
+    expect(parsed.lattice).toBeUndefined();
+    expect(parsed.isPeriodic).toBe(false);
+    expect((parsed.notes ?? []).join(" ")).toMatch(/plain XYZ/);
+  });
+
+  it("refuses an atom line with a missing coordinate (ASE refuses it too), instead of dropping the atom", () => {
+    expect(() => parseStructureText("2\n\nO 0 0 0\nH 1 0\n", "bad.xyz")).toThrow(/atom line 2/);
+  });
+
+  it("does not take free_energy for the reference energy", () => {
+    const parsed = parseStructureText("1\nfree_energy=-9 \nH 0 0 0\n", "fe.xyz");
+    expect(parsed.referenceEnergy).toBeUndefined();
   });
 });

@@ -4675,6 +4675,110 @@
     ],
     "nFrames": 1
    }
+  },
+  {
+   "name": "adversarial/xyz_overlap_across_boundary",
+   "group": "adversarial",
+   "filename": "ob.xyz",
+   "note": "two Cu atoms 0.20 A apart across the periodic boundary of a 3 A cube (nearest neighbour is only visible with the minimum-image convention)",
+   "sha256": "7db6c72b06a7938672a3ac2ff487d1ff8ba4956b79483284ac718001f930db03",
+   "ase": {
+    "format": "extxyz",
+    "symbols": [
+     "Cu",
+     "Cu",
+     "Cu"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.1
+     ],
+     [
+      0.0,
+      0.0,
+      2.9
+     ],
+     [
+      1.5,
+      1.5,
+      1.5
+     ]
+    ],
+    "cell": [
+     [
+      3.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      3.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      3.0
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
+  },
+  {
+   "name": "adversarial/poscar_three_unequal_scales",
+   "group": "adversarial",
+   "filename": "POSCAR",
+   "note": "three unequal per-axis scale factors 5.43 5.43 10.86 (Direct coordinates)",
+   "sha256": "86044174423f010a31e76082c6a5974206e87fbff655a93fe40a97f216275718",
+   "ase": {
+    "format": "vasp",
+    "symbols": [
+     "Si",
+     "Si"
+    ],
+    "positions": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      1.3575,
+      1.3575,
+      1.3575
+     ]
+    ],
+    "cell": [
+     [
+      5.43,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      5.43,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      10.86
+     ]
+    ],
+    "pbc": [
+     true,
+     true,
+     true
+    ],
+    "nFrames": 1
+   }
   }
  ]
 }

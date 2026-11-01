@@ -178,5 +178,17 @@
   "filename": "fecl.pdb",
   "path": "test/fixtures/structures/adversarial/pdb_uppercase_elements__fecl.pdb",
   "note": "standard PDB upper-case element columns FE, CL"
+ },
+ {
+  "name": "xyz_overlap_across_boundary",
+  "filename": "ob.xyz",
+  "path": "test/fixtures/structures/adversarial/xyz_overlap_across_boundary__ob.xyz",
+  "note": "two Cu atoms 0.20 A apart across the periodic boundary of a 3 A cube (nearest neighbour is only visible with the minimum-image convention)"
+ },
+ {
+  "name": "poscar_three_unequal_scales",
+  "filename": "POSCAR",
+  "path": "test/fixtures/structures/adversarial/three_unequal__POSCAR",
+  "note": "three unequal per-axis scale factors 5.43 5.43 10.86 (Direct coordinates)"
  }
 ]
