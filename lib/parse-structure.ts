@@ -888,18 +888,42 @@ const wrapUnit = (v: number): number => {
 };
 
 /**
+ * Most images (listed sites x symmetry operations) the preview will expand. A
+ * database CIF lists a few dozen sites under at most 192 operations; a file
+ * past this is a symmetry bomb that would freeze the browser tab (the server
+ * refuses the same files, D133).
+ */
+const MAX_SYMMETRY_IMAGES = 100_000;
+
+/**
  * Apply `ops` to every listed site and drop repeats, as ASE's `crystal()`
  * does: every image is wrapped into the cell, and one within 0.001 of an
  * earlier one (fractional, modulo the cell) is dropped — whichever listed site
  * it came from. With no operations the sites are only wrapped. Sites stay
- * grouped by the listed site they came from, as ASE orders them.
+ * grouped by the listed site they came from, as ASE orders them. Repeats are
+ * found through a hash grid of 1/1000 cells, so the cost is linear in the
+ * number of images.
  */
 function expandSymmetry<T extends { symbol: string; frac: [number, number, number] }>(
   sites: T[],
   ops: SymOp[],
 ): T[] {
   const operations: SymOp[] = ops.length > 0 ? ops : [{ rot: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], trans: [0, 0, 0] }];
+  if (sites.length * operations.length > MAX_SYMMETRY_IMAGES) {
+    throw new Error(
+      `The CIF lists ${sites.length.toLocaleString()} sites and ${operations.length} symmetry operations, which would expand to up to ` +
+        `${(sites.length * operations.length).toLocaleString()} atoms. That is more than this page or the calculation will expand ` +
+        `(${MAX_SYMMETRY_IMAGES.toLocaleString()} images at most). Upload the unit cell with its atoms written out.`,
+    );
+  }
   const out: T[] = [];
+  const grid = new Map<number, number[]>();
+  const bucket = (c: number) => Math.floor(c * 1000);
+  const key = (x: number, y: number, z: number) => ((x + 1000) % 1000) * 1_000_000 + ((y + 1000) % 1000) * 1000 + ((z + 1000) % 1000);
+  const near = (a: number, b: number) => {
+    const d = Math.abs(a - b);
+    return Math.min(d, 1 - d) < 1e-3;
+  };
   for (const site of sites) {
     for (const { rot, trans } of operations) {
       const f = site.frac;
@@ -908,13 +932,26 @@ function expandSymmetry<T extends { symbol: string; frac: [number, number, numbe
         number,
         number,
       ];
-      const seen = out.some((o) =>
-        o.frac.every((c, k) => {
-          const d = Math.abs(c - image[k]);
-          return Math.min(d, 1 - d) < 1e-3;
-        }),
-      );
-      if (!seen) out.push({ ...site, frac: image });
+      const [bx, by, bz] = image.map(bucket);
+      let seen = false;
+      for (let dx = -1; dx <= 1 && !seen; dx++)
+        for (let dy = -1; dy <= 1 && !seen; dy++)
+          for (let dz = -1; dz <= 1 && !seen; dz++) {
+            for (const index of grid.get(key(bx + dx, by + dy, bz + dz)) ?? []) {
+              const o = out[index].frac;
+              if (near(o[0], image[0]) && near(o[1], image[1]) && near(o[2], image[2])) {
+                seen = true;
+                break;
+              }
+            }
+          }
+      if (!seen) {
+        const k = key(bx, by, bz);
+        const list = grid.get(k);
+        if (list) list.push(out.length);
+        else grid.set(k, [out.length]);
+        out.push({ ...site, frac: image });
+      }
     }
   }
   return out;
