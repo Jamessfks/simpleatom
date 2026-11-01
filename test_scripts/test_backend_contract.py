@@ -544,6 +544,87 @@ class TestHourlyCap(unittest.TestCase):
         self.assertEqual(main.JOBS.per_client_hourly, main.LIMITS["maxCalculationsPerHour"])
 
 
+class TestSyncLifecycle(unittest.TestCase):
+    """
+    D45: a cancel requested while a step-less phase runs is honoured (the job
+    used to finish "succeeded"); the synchronous wait counts run time from the
+    job's start, not queue time; and a caller who disconnects cancels the job
+    instead of holding the single worker.
+    """
+
+    def test_cancel_during_a_stepless_run_ends_cancelled(self):
+        import jobs
+        store = jobs.JobStore()
+        started = __import__("threading").Event()
+
+        def run(job):
+            started.set()
+            job.cancel_requested.wait(5)   # a phase with no step hook to stop it
+            return {"status": "success"}
+
+        job = store.submit("203.0.113.20", run)
+        self.assertTrue(started.wait(5))
+        store.cancel(job.id)
+        self.assertTrue(job.done.wait(5))
+        self.assertEqual(job.status, "cancelled")
+        self.assertIsNone(job.result)
+
+    def test_queue_time_is_not_run_time(self):
+        import main
+        from types import SimpleNamespace
+        import threading
+        queued = SimpleNamespace(done=threading.Event(), started=None)
+        self.assertEqual(main._await_job(queued, run_budget=60, queue_budget=0.2, poll=0.05), "queue_timeout")
+        running = SimpleNamespace(done=threading.Event(), started=time.time() - 0.5)
+        self.assertEqual(main._await_job(running, run_budget=0.2, queue_budget=60, poll=0.05), "run_timeout")
+        finished = SimpleNamespace(done=threading.Event(), started=time.time())
+        finished.done.set()
+        self.assertEqual(main._await_job(finished, run_budget=60, queue_budget=60, poll=0.05), "done")
+
+    def test_a_disconnected_caller_cancels_its_job(self):
+        import asyncio
+        import threading
+        import main
+        seen = {}
+
+        def run(job):
+            seen["job"] = job
+            job.cancel_requested.wait(10)
+            return {"status": "success"}
+
+        async def fake_intake(files, params, model):
+            return run, None
+
+        boundary = "sa-boundary"
+        body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"h.xyz\"\r\n"
+                f"Content-Type: text/plain\r\n\r\n1\n\nH 0 0 0\n\r\n"
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"params\"\r\n\r\n{{}}\r\n"
+                f"--{boundary}--\r\n").encode()
+        scope = {"type": "http", "method": "POST", "path": "/calculate", "raw_path": b"/calculate",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", f"multipart/form-data; boundary={boundary}".encode()),
+                             (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.30", 4321), "server": ("testserver", 80)}
+        state = {"sent": False}
+
+        async def receive():
+            if not state["sent"]:
+                state["sent"] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            await asyncio.sleep(0.2)            # the caller goes away while it waits
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            pass
+
+        with mock.patch.object(main, "_intake", fake_intake), \
+             mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(asyncio.wait_for(main.app(scope, receive, send), 15))
+        job = seen["job"]
+        self.assertTrue(job.done.wait(5))
+        self.assertEqual(job.status, "cancelled")
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
