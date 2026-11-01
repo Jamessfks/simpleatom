@@ -301,3 +301,42 @@ describe("extended XYZ keys are case-sensitive, as ASE reads them (D93)", () => 
     expect(parsed.referenceEnergy).toBeUndefined();
   });
 });
+
+// D133 (backend): a CIF whose sites x symmetry operations is huge froze the
+// server for minutes. The preview runs the same expansion in the browser tab,
+// so it refuses past a cap rather than hang the page, and stays linear below it.
+describe("a CIF symmetry bomb cannot freeze the preview (D133)", () => {
+  const ops = (): string[] => {
+    const vars = ["x", "y", "z"];
+    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    const centring = [["", "", ""], ["", "+1/2", "+1/2"], ["+1/2", "", "+1/2"], ["+1/2", "+1/2", ""]];
+    const out: string[] = [];
+    for (const p of perms)
+      for (let s = 0; s < 8; s++)
+        for (const t of centring)
+          out.push(`'${p.map((v, i) => `${s & (1 << i) ? "-" : ""}${vars[v]}${t[i]}`).join(", ")}'`);
+    return out;
+  };
+  const cif = (sites: number): string =>
+    [
+      "data_bomb", "_cell_length_a 40", "_cell_length_b 40", "_cell_length_c 40",
+      "_cell_angle_alpha 90", "_cell_angle_beta 90", "_cell_angle_gamma 90",
+      "loop_", "_symmetry_equiv_pos_as_xyz", ...ops(),
+      "loop_", "_atom_site_type_symbol", "_atom_site_fract_x", "_atom_site_fract_y", "_atom_site_fract_z",
+      ...Array.from({ length: sites }, (_, i) => `Cu ${((i * 0.6180339887) % 1).toFixed(6)} ${((i * 0.7548776662) % 1).toFixed(6)} ${((i * 0.5698402909) % 1).toFixed(6)}`),
+      "",
+    ].join("\n");
+
+  it("refuses 6000 sites under 192 operations at once, naming the size", () => {
+    const started = Date.now();
+    expect(() => parseStructureText(cif(6000), "bomb.cif")).toThrow(/symmetry|expand/i);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("expands an ordinary large listing quickly and drops repeats", () => {
+    const started = Date.now();
+    const parsed = parseStructureText(cif(60), "big.cif");
+    expect(parsed.atomCount).toBeGreaterThan(60 * 100); // generic positions: close to 60 x 192 distinct images
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+});
