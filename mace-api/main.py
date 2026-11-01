@@ -86,6 +86,32 @@ def _error(status: int, code: str, message: str, field=None, headers=None) -> HT
                          headers=headers)
 
 
+_BODY_ROUTES = ("/v1/jobs", "/calculate")
+
+
+@app.middleware("http")
+async def _check_before_the_body_is_read(request: Request, call_next):
+    """
+    The proxy key and the declared size are checked before the multipart body
+    is parsed (D44): Starlette reads and spools the whole form before a route
+    runs, so a 30 MB upload used to be received in full before its 413 — or,
+    from an unauthenticated caller, its 401. A body sent without a declared
+    length is still capped per file by `_save_capped`.
+    """
+    if request.method == "POST" and request.url.path in _BODY_ROUTES:
+        try:
+            _require_proxy_key(request.headers.get("x-simpleatom-proxy-key"))
+            declared = request.headers.get("content-length", "")
+            cap = LIMITS["maxUploadBytes"] + LIMITS["maxModelUploadBytes"] + (1 << 20)
+            if declared.isdigit() and int(declared) > cap:
+                raise _error(413, "upload_too_large",
+                             f"This request declares {int(declared) / 1e6:.1f} MB; this deployment "
+                             f"accepts at most {cap / 1e6:.1f} MB per calculation.", field="files")
+        except HTTPException as exc:
+            return await _http_error(request, exc)
+    return await call_next(request)
+
+
 @app.exception_handler(HTTPException)
 async def _http_error(_request: Request, exc: HTTPException):
     """One error shape everywhere: {"error": {code, message, field}}."""

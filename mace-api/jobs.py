@@ -21,7 +21,7 @@ import secrets
 import shutil
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -60,7 +60,10 @@ class JobStore:
         self._order: deque[str] = deque()
         self._lock = threading.Lock()
         self._queue: queue.Queue[str] = queue.Queue()
-        self._submissions: dict[str, deque[float]] = defaultdict(deque)
+        # Only visitors with an admitted submission in the last hour (D44): a
+        # defaultdict made an entry for every caller, refused ones included,
+        # and nothing ever removed one.
+        self._submissions: dict[str, deque[float]] = {}
         self._worker = threading.Thread(target=self._work, name="mace-job-worker", daemon=True)
         self._worker.start()
 
@@ -71,7 +74,7 @@ class JobStore:
         with self._lock:
             self._reap_locked()
             now = time.time()
-            window = self._submissions[client]
+            window = self._submissions.get(client, deque())
             while window and now - window[0] > 3600:
                 window.popleft()
             active = sum(1 for j in self._jobs.values()
@@ -96,6 +99,7 @@ class JobStore:
             self._jobs[job.id] = job
             self._order.append(job.id)
             window.append(now)
+            self._submissions[client] = window
         self._queue.put(job.id)
         return job
 
@@ -184,6 +188,8 @@ class JobStore:
     def _reap_locked(self) -> None:
         """Drop expired finished jobs, then the oldest finished ones over the cap."""
         now = time.time()
+        for client in [c for c, w in self._submissions.items() if not w or now - w[-1] > 3600]:
+            del self._submissions[client]
         for job_id in list(self._order):
             job = self._jobs.get(job_id)
             expired = job is not None and job.finished is not None and now - job.finished > self.ttl
