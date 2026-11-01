@@ -1,0 +1,30 @@
+{
+  "about": "This stack's own output for the default model and for D3, pinned so drift is visible (D82). Not experiment or DFT. mace-torch 0.3.16 / torch 2.10.0 / ase 3.27.0 / torch-dftd 0.5.3, CPU. Read by test_model_coverage.py and by CI docker-smoke, which runs the first entry inside the image with no network. A deliberate change of stack records new numbers here in a commit that says so.",
+  "energyAtol": 0.001,
+  "cases": {
+    "silicon-mpa0": {
+      "file": "public/demo/silicon.cif",
+      "params": {"calculationType": "single-point", "modelType": "MACE-MPA-0", "modelSize": "medium"},
+      "energy": -43.299949645996094,
+      "nAtoms": 8,
+      "precision": "float32",
+      "dispersion": false
+    },
+    "silicon-mp0-small": {
+      "file": "public/demo/silicon.cif",
+      "params": {"calculationType": "single-point", "modelType": "MACE-MP-0", "modelSize": "small", "dispersion": false},
+      "energy": -42.954566955566406,
+      "nAtoms": 8,
+      "precision": "float32",
+      "dispersion": false
+    },
+    "silicon-mp0-small-d3": {
+      "file": "public/demo/silicon.cif",
+      "params": {"calculationType": "single-point", "modelType": "MACE-MP-0", "modelSize": "small", "dispersion": true},
+      "energy": -45.45993936248717,
+      "nAtoms": 8,
+      "precision": "float32",
+      "dispersion": true
+    }
+  }
+}
