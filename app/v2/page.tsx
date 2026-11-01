@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { APP_VERSION } from "@/lib/contract";
 import { barText } from "./bars";
 
 // Always re-read the manifest from disk so the page reflects the live run.
@@ -70,7 +71,7 @@ export default async function V2ProgressPage() {
           {data.branch} · gauntlet loop
         </p>
         <h1 className="mt-3 font-serif text-4xl leading-none text-text-primary">
-          SimpleAtom v2.0 progress
+          SimpleAtom v{APP_VERSION} progress
         </h1>
         <p className="mt-4 max-w-2xl text-text-secondary">
           Each piece runs a builder and a separate critic. A piece is only{" "}
