@@ -1092,8 +1092,9 @@ class TestDailyGateCoverage(unittest.TestCase):
         import daily_gate
         frontend = {name for name, _cmd, _min in daily_gate.FRONTEND_CHECKS}
         self.assertTrue({"vitest", "typecheck", "contract-sync"} <= frontend, frontend)
-        self.assertEqual(set(daily_gate.BACKEND_UNIT_MODULES), {"test_geometry_opt", "test_smiles_to_xyz"})
-        self.assertIn("test_geometry_opt.py", {pattern for _n, pattern, _m in daily_gate.SUITES})
+        patterns = {args[0] for args in daily_gate.ci_suites()}
+        self.assertIn("test_geometry_opt.py", patterns)
+        self.assertIn('"test_*.py"', patterns)   # the mace-api/ unit tests, as CI runs them
 
 
 class TestEverySuiteRuns(unittest.TestCase):
@@ -1109,7 +1110,7 @@ class TestEverySuiteRuns(unittest.TestCase):
     def test_the_daily_gate_runs_every_suite(self):
         sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
         import daily_gate
-        gated = {pattern for _n, pattern, _m in daily_gate.SUITES} | {"test_provenance.py"}
+        gated = {args[0] for args in daily_gate.ci_suites()}
         self.assertEqual([name for name in self.SUITES if name not in gated], [],
                          "test_scripts suites the daily gate never runs")
 
@@ -1195,6 +1196,29 @@ class TestSuitesCannotPassEmpty(unittest.TestCase):
     def test_minimum_count_is_enforced(self):
         self.assertEqual(self._suite("test_geometry_opt.py", "--min", "1").returncode, 0)
         self.assertNotEqual(self._suite("test_geometry_opt.py", "--min", "100000").returncode, 0)
+
+    def test_skipped_tests_do_not_count_toward_the_minimum(self):
+        # D146: a suite whose every test skips (a broken mace import skips per test) passed.
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: subprocess.run(["rm", "-rf", str(tmp)]))
+        (tmp / "test_allskip.py").write_text(
+            "import unittest\n"
+            "class T(unittest.TestCase):\n"
+            "    def test_a(self): self.skipTest('no mace')\n"
+            "    def test_b(self): self.skipTest('no mace')\n")
+        self.assertNotEqual(self._suite("test_allskip.py", "--start-dir", str(tmp), "--min", "1").returncode, 0)
+
+    def test_the_daily_gate_runs_what_ci_runs_with_cis_floors(self):
+        # D145: the gate's floors trailed CI's (contract 20 vs 60) and its
+        # backend-unit check had none, so it showed "[PASS] 0 tests OK".
+        import re
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import daily_gate
+        ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+        expected = sorted(tuple(m.split()) for m in re.findall(r"python test_scripts/run_suite\.py ([^\n]+)", ci))
+        self.assertTrue(expected)
+        self.assertEqual(sorted(tuple(args) for args in daily_gate.ci_suites()), expected)
+        self.assertGreaterEqual(dict((n, m) for n, _c, m in daily_gate.FRONTEND_CHECKS)["vitest"], 300)
 
     def test_guards_judge_the_refusal_code(self):
         sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
