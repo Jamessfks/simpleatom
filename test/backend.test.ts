@@ -84,3 +84,26 @@ describe("cross-site and rebinding guards (D40)", () => {
     expect(pkg.scripts.start).toMatch(/--hostname 127\.0\.0\.1\b/);
   });
 });
+
+describe("upload names and benchmark uploads (D96, D99, D100)", () => {
+  it("drops bidi and other format controls, as Python's isprintable() does", async () => {
+    expect(displayName("evil‮txt.xyz")).toBe("eviltxt.xyz");
+    expect(displayName("a‍b⁦c.cif")).toBe("abc.cif");
+    expect(displayName("non breaking.xyz")).toBe("nonbreaking.xyz");
+    expect(displayName("ethanol.xyz")).toBe("ethanol.xyz");
+  });
+
+  it("gives every uploaded structure a distinct id, even when stems collide", async () => {
+    const { uniqueUploadIds } = await import("@/lib/server/backend");
+    expect(uniqueUploadIds(["a.xyz", "a.cif", "b.xyz", "a.pdb"])).toEqual(["user-a", "user-a-2", "user-b", "user-a-3"]);
+  });
+
+  it("keeps a hosted benchmark's uploads under Vercel's 4.5 MB request limit", async () => {
+    const { profile } = await import("@/lib/contract");
+    const { checkUploadTotal } = await import("@/lib/server/backend");
+    const cap = (profile("hosted") as { maxBenchmarkUploadBytes: number }).maxBenchmarkUploadBytes;
+    expect(cap).toBeLessThanOrEqual(4_500_000);
+    expect(() => checkUploadTotal([new Blob([new Uint8Array(cap)]), new Blob(["x"])], cap)).toThrow(ApiError);
+    expect(() => checkUploadTotal([new Blob(["x"])], cap)).not.toThrow();
+  });
+});
