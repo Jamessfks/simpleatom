@@ -880,9 +880,11 @@ def refuse_invalid_cell(atoms, display: str) -> None:
     lengths = np.linalg.norm(vectors, axis=1)
     if lengths.min() < 1e-6 or np.linalg.matrix_rank(vectors, tol=1e-6 * lengths.max()) < len(periodic):
         axes = "".join("abc"[i] for i in periodic)
+        missing = [("abc"[i]) for i, length in zip(periodic, lengths) if length < 1e-6]
+        problem = (f"has no lattice vector along {', '.join(missing)}" if missing else
+                   "its lattice vectors there are not independent (the cell is flat)")
         raise ContractError(
-            f"'{display}' is periodic along {axes} but its lattice vectors there "
-            f"{'are missing' if lengths.max() < 1e-6 else 'are zero or not independent'} "
+            f"'{display}' is periodic along {axes} but {problem} "
             f"(cell {np.round(np.asarray(atoms.cell), 4).tolist()}). Give a Lattice with a "
             "non-zero, independent vector for every periodic axis, or mark the structure "
             "non-periodic. Nothing was computed.",
@@ -912,6 +914,11 @@ def rotate_to_standard_form(atoms) -> dict:
 
 def refuse_overlaps(atoms, display: str) -> None:
     """Refuse two atoms closer than MIN_INTERATOMIC_DISTANCE_A (minimum image)."""
+    # D154: ASE's neighbour list completes a missing periodic vector with a 1 Å
+    # one, so on a periodic file with no Lattice it measured a box nobody gave
+    # (demo water: a 0.479 Å pair that does not exist). The cell is checked
+    # here too, so no caller can reach the distances before it.
+    refuse_invalid_cell(atoms, display)
     pair = closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A)
     if pair is None:
         return
