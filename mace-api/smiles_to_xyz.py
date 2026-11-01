@@ -5,10 +5,12 @@ SMILES → 3D XYZ converter using RDKit.
 Usage:
   python3 smiles_to_xyz.py <smiles_string> [--max-atoms 500]
 
-Parses a SMILES string, generates 3D coordinates via ETKDG, optimizes with
-MMFF94 (UFF fallback), and prints a JSON result to stdout:
+Parses a SMILES string, refuses ions and radicals, generates 3D coordinates via
+ETKDG, optimizes with MMFF94 (UFF where MMFF94 has no parameters), and prints a
+JSON result to stdout:
 
-  { "xyz": "...", "num_atoms": 9, "smiles_canonical": "CCO", "formula": "C2H6O" }
+  { "xyz": "...", "num_atoms": 9, "smiles_canonical": "CCO", "formula": "C2H6O",
+    "force_field": "MMFF94" }
 
 Called by the Next.js API route (app/api/smiles-to-xyz/route.ts) as a subprocess,
 or imported directly by the FastAPI server (main.py).
@@ -42,6 +44,29 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
     canonical = Chem.MolToSmiles(mol)
     formula = rdMolDescriptors.CalcMolFormula(mol)
 
+    # D116: MACE has no total-charge or spin input, and MACE-OFF23 is trained
+    # on neutral closed-shell molecules. An ion or a radical used to come back
+    # as an ordinary XYZ file and be computed as if neutral and closed-shell
+    # (NH4+ as an 11-electron NH4), with nothing to say so.
+    from rdkit.Chem import Descriptors
+    charge = Chem.GetFormalCharge(mol)
+    if charge != 0:
+        raise ValueError(
+            f"'{smiles}' has a net formal charge of {charge:+d}. MACE models take no charge "
+            "input and are trained on neutral systems, so an ion would be computed as if it "
+            "were neutral. Use the neutral molecule, or a neutral salt or zwitterion.")
+    radicals = Descriptors.NumRadicalElectrons(mol)
+    lone_atom = mol.GetNumAtoms() == 1 and mol.GetAtomWithIdx(0).GetTotalNumHs() == 0
+    if radicals and not lone_atom:
+        # A lone atom is the model's own isolated-atom reference state (and
+        # RDKit's radical count for bare metal atoms is arbitrary: [Cu] 1,
+        # [Fe] 0), so only multi-atom radicals are refused.
+        raise ValueError(
+            f"'{smiles}' has {radicals} unpaired (radical) electron{'s' if radicals > 1 else ''}. "
+            "MACE models take no spin input and MACE-OFF23 is trained on closed-shell "
+            "molecules, so a radical would be computed as something it is not. Use the "
+            "closed-shell molecule.")
+
     mol = Chem.AddHs(mol)
     num_atoms = mol.GetNumAtoms()
 
@@ -66,13 +91,15 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
                 "The molecule may be too constrained or unusual for ETKDG embedding."
             )
 
-    try:
-        AllChem.MMFFOptimizeMolecule(mol, maxIters=500)
-    except Exception:
-        try:
-            AllChem.UFFOptimizeMolecule(mol, maxIters=500)
-        except Exception:
-            pass  # Keep unoptimized coordinates — still valid for MACE
+    # D118: MMFFOptimizeMolecule returns -1 when MMFF94 has no parameters for
+    # the molecule (boron, many metals); it does not raise, so the UFF branch
+    # never ran and raw ETKDG coordinates were labelled MMFF94. Branch on what
+    # each force field reports, and say which one shaped the geometry.
+    force_field = None
+    if AllChem.MMFFHasAllMoleculeParams(mol) and AllChem.MMFFOptimizeMolecule(mol, maxIters=500) != -1:
+        force_field = "MMFF94"
+    elif AllChem.UFFHasAllMoleculeParams(mol) and AllChem.UFFOptimizeMolecule(mol, maxIters=500) != -1:
+        force_field = "UFF"
 
     xyz_block = Chem.rdmolfiles.MolToXYZBlock(mol)
     if not xyz_block or not xyz_block.strip():
@@ -80,7 +107,11 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
 
     lines = xyz_block.strip().split("\n")
     if len(lines) >= 2:
-        lines[1] = f"SMILES={canonical} generator=RDKit-ETKDG+MMFF94"
+        # D122: quoted, so extended-XYZ readers keep [ ] and + -; a backslash
+        # (a stereo bond) is escaped inside the quotes.
+        quoted = canonical.replace("\\", "\\\\")
+        generator = "RDKit-ETKDG" + (f"+{force_field}" if force_field else "")
+        lines[1] = f'SMILES="{quoted}" generator={generator}'
     xyz_block = "\n".join(lines) + "\n"
 
     return {
@@ -88,6 +119,7 @@ def smiles_to_xyz(smiles: str, max_atoms: int = MAX_ATOMS_DEFAULT) -> dict:
         "num_atoms": num_atoms,
         "smiles_canonical": canonical,
         "formula": formula,
+        "force_field": force_field,
     }
 
 
