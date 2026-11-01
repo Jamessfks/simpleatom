@@ -27,7 +27,7 @@ jobs:
       - name: Refuse a manual deploy from any branch but main
         if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
         run: |
-          echo "::error::Manual deploys run only from main (got ${{ github.ref }})."
+          echo "::error::Manual deploys run only from main (got $GITHUB_REF)."
           exit 1
 
       - name: Checkout repo

@@ -158,14 +158,14 @@ jobs:
         run: |
           docker run -d --name api -p 7860:7860 simpleatom-api
           for i in $(seq 1 60); do curl -fsS localhost:7860/health && break; sleep 5; done
-          curl -fsS localhost:7860/health | python -c "import json,sys; d=json.load(sys.stdin); assert d['gitCommit']=='${{ github.sha }}', d"
+          curl -fsS localhost:7860/health | python -c "import json,os,sys; d=json.load(sys.stdin); assert d['gitCommit']==os.environ['GITHUB_SHA'], d"
           curl -fsS -F files=@public/demo/ethanol.xyz -F 'params={"modelType":"MACE-OFF","modelSize":"small"}' \
             localhost:7860/calculate > result.json
           python - <<'PY'
-          import json
+          import json, os
           r = json.load(open("result.json"))
           assert r["validation"]["status"] == "ran", r["validation"]
-          assert r["provenance"]["code"]["gitCommit"] == "${{ github.sha }}", r["provenance"]["code"]
+          assert r["provenance"]["code"]["gitCommit"] == os.environ["GITHUB_SHA"], r["provenance"]["code"]
           print("ethanol E =", r["energy"])
           PY
           code() { curl -s -o /dev/null -w '%{http_code}' -F files=@public/demo/ethanol.xyz -F "params=$1" localhost:7860/calculate; }
@@ -179,14 +179,14 @@ jobs:
             -v "$PWD/public/demo/silicon.cif:/tmp/silicon.cif:ro" simpleatom-api \
             python calculate_local.py /tmp/silicon.cif "$params" > mpa0.json
           python - <<'PY'
-          import json
+          import json, os
           golden = json.load(open("test_scripts/golden_energies.json"))
           case = golden["cases"]["silicon-mpa0"]
           r = json.loads(open("mpa0.json").read().strip().splitlines()[-1])
           assert r["status"] == "success", r
           assert r["params"]["modelType"] == "MACE-MPA-0", r["params"]
           assert abs(r["energy"] - case["energy"]) <= golden["energyAtol"], (r["energy"], case["energy"])
-          assert r["provenance"]["code"]["gitCommit"] == "${{ github.sha }}", r["provenance"]["code"]
+          assert r["provenance"]["code"]["gitCommit"] == os.environ["GITHUB_SHA"], r["provenance"]["code"]
           print("MPA-0 silicon E =", r["energy"], "offline, from the baked checkpoint")
           PY
       - if: failure()
