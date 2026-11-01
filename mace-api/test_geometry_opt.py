@@ -45,6 +45,23 @@ class ConstantForce(Calculator):
                         "forces": np.tile(self.force, (len(pos), 1))}
 
 
+class OneAtomForce(Calculator):
+    """Only the first atom feels a force (the others none), so RMS and max differ."""
+
+    implemented_properties = ["energy", "forces"]
+
+    def __init__(self, force):
+        super().__init__()
+        self.force = np.asarray(force, dtype=float)
+
+    def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        pos = self.atoms.get_positions()
+        forces = np.zeros_like(pos)
+        forces[0] = self.force
+        self.results = {"energy": float(-(pos[0] @ self.force)), "forces": forces}
+
+
 def _h2(bond, calc=None):
     atoms = Atoms("H2", positions=[[0, 0, 0], [0, 0, bond]])
     atoms.calc = calc or MorsePotential(epsilon=4.0, r0=MORSE_R0, rho0=5.0)
@@ -113,6 +130,15 @@ class TestStrictThreshold(unittest.TestCase):
         r = _optimise(_h2(3.0, ConstantForce([0.04, 0.04, 0.04])), 0.05, 50,
                       deadline=time.monotonic() - 1)
         self.assertAlmostEqual(r["params"]["finalFmax"], 0.04 * 3 ** 0.5, places=12)
+        self.assertIs(r["converged"], False, r["message"])
+
+    def test_the_verdict_uses_the_largest_atom_force_not_an_rms(self):
+        # D166: every earlier fixture was symmetric (RMS = max), so a mutant that judged
+        # convergence by the RMS force survived. One atom at 0.06, the other at 0:
+        # RMS 0.042 < fmax 0.05 < max 0.06.
+        r = _optimise(_h2(3.0, OneAtomForce([0.06, 0.0, 0.0])), 0.05, 50,
+                      deadline=time.monotonic() - 1)
+        self.assertAlmostEqual(r["params"]["finalFmax"], 0.06, places=12)
         self.assertIs(r["converged"], False, r["message"])
 
 
