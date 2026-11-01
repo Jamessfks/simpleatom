@@ -548,7 +548,10 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
     lattice = atoms.get_cell().tolist() if atoms.pbc.any() else None
     warnings = list(warnings or [])
 
-    properties = {"volume": float(atoms.get_volume()) if atoms.pbc.any() else None,
+    # A slab may leave its non-periodic vector zero (MACE computes it exactly
+    # as with vacuum); it then has no volume, rather than crashing here.
+    properties = {"volume": float(atoms.get_volume())
+                  if atoms.pbc.any() and atoms.cell.rank == 3 else None,
                   "stress": None, "pressure": None}
     # Stress and pressure only for a fully periodic cell (D6). For a molecule
     # or a slab the "volume" a stress would be divided by is a padding box
@@ -793,6 +796,53 @@ MIN_INTERATOMIC_DISTANCE_A = 0.5
 # (diamond Si: 16 atoms 1.92 Å apart, D114).
 _TWO_ORIGIN_GROUPS = frozenset({48, 50, 59, 68, 70, 85, 86, 88, 125, 126, 129, 130, 133, 134,
                                 137, 138, 141, 142, 201, 203, 222, 224, 227, 228})
+
+
+def refuse_invalid_cell(atoms, display: str) -> None:
+    """
+    Every periodic axis needs a lattice vector, and those vectors must span as
+    many dimensions as there are periodic axes (D137). A periodic file with no
+    Lattice, or a flat cell, used to reach the model and fail after it loaded
+    ("You have 0 lattice vectors", "Singular matrix"). A non-periodic axis may
+    keep a zero vector: a slab without a vacuum vector computes exactly like
+    one with it.
+    """
+    import numpy as np
+    periodic = np.flatnonzero(atoms.pbc)
+    if len(periodic) == 0:
+        return
+    vectors = np.asarray(atoms.cell)[periodic]
+    lengths = np.linalg.norm(vectors, axis=1)
+    if lengths.min() < 1e-6 or np.linalg.matrix_rank(vectors, tol=1e-6 * lengths.max()) < len(periodic):
+        axes = "".join("abc"[i] for i in periodic)
+        raise ContractError(
+            f"'{display}' is periodic along {axes} but its lattice vectors there "
+            f"{'are missing' if lengths.max() < 1e-6 else 'are zero or not independent'} "
+            f"(cell {np.round(np.asarray(atoms.cell), 4).tolist()}). Give a Lattice with a "
+            "non-zero, independent vector for every periodic axis, or mark the structure "
+            "non-periodic. Nothing was computed.",
+            code="invalid_cell", field="structure", status=422)
+
+
+def _is_triangular(cell) -> bool:
+    import numpy as np
+    m = np.asarray(cell)
+    return bool(np.all(m[np.triu_indices(3, 1)] == 0.0) or np.all(m[np.tril_indices(3, -1)] == 0.0))
+
+
+def rotate_to_standard_form(atoms) -> dict:
+    """
+    Rotate atoms and cell rigidly into ASE's lower-triangular standard form
+    (rcell @ Q = cell, so positions go to positions @ Q.T). Returns the record
+    that goes into result["params"]["cellRotation"].
+    """
+    import numpy as np
+    rcell, q = atoms.cell.standard_form()
+    rcell = np.tril(np.asarray(rcell))  # exact zeros above the diagonal
+    atoms.set_positions(atoms.get_positions() @ q.T)
+    atoms.set_cell(rcell, scale_atoms=False)
+    return {"reason": "NPT needs a triangular cell", "form": "lower-triangular",
+            "rotation": [[float(x) for x in row] for row in q]}
 
 
 def refuse_overlaps(atoms, display: str) -> None:
@@ -1237,6 +1287,7 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
                                  contract.profile(profile_name)["maxAtoms"][calc_type])
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
     contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
+    refuse_invalid_cell(atoms, filename)
     refuse_overlaps(atoms, filename)
     covered = model.get("elements") or []
     outside = sorted(set(atoms.get_chemical_symbols()) - set(covered)) if covered else []
@@ -1256,6 +1307,18 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
             "upload a periodic structure. Nothing was computed.",
             code="npt_requires_periodic", field="mdEnsemble",
         )
+    npt_rotation = None
+    if run_params.get("mdEnsemble") == "NPT" and not _is_triangular(atoms.cell):
+        # D134: MelchionnaNPT runs only on a triangular cell matrix, and used
+        # to fail after the model loaded, as a 500 quoting ASE internals.
+        if atoms.constraints:
+            raise ContractError(
+                "NPT needs a triangular cell matrix, and this cell is not one. It cannot be "
+                "rotated into one here because the structure carries constraints, whose axes "
+                "would rotate with it. Supply the cell in lower-triangular form (a along x, b in "
+                "the xy plane), or remove the constraints. Nothing was computed.",
+                code="npt_requires_triangular_cell", field="structure", status=422)
+        npt_rotation = "pending"  # rotated after the manifest hashes the submitted structure
 
     ref_data = extract_reference_data(atoms)
 
@@ -1403,6 +1466,14 @@ def _run_calculation(filepath: str, params: dict, model_path: str | None = None,
         )
     except Exception as exc:  # noqa: BLE001 — provenance must never break a run
         manifest = provenance.unavailable_manifest(f"{type(exc).__name__}: {exc}")
+
+    if npt_rotation is not None:
+        effective_params["cellRotation"] = rotate_to_standard_form(atoms)
+        warnings.append(
+            "NPT needs a triangular cell matrix, so the structure was rotated rigidly to ASE's "
+            "standard orientation (a along x, b in the xy plane) before the run. Energies, "
+            "temperatures and pressure are unchanged by a rotation; positions, forces and the "
+            "lattice are reported in the rotated frame.")
 
     # Fixed atoms (POSCAR selective dynamics, D132): said once, per calculation.
     constrained = constrained_indices(atoms)
