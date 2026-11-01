@@ -626,6 +626,30 @@ class TestSyncLifecycle(unittest.TestCase):
         self.assertEqual(job.status, "cancelled")
 
 
+class TestValidatorSelfTest(unittest.TestCase):
+    """
+    D38: `validate_calculation.py --test` is "the scientific gate", but it called
+    upstream mace_mp/mace_off directly, ran its geometry optimisation in float32,
+    and hard-coded `passed: True` for two of its five checks. It now runs
+    SimpleAtom's own engine and computes every verdict, so a broken engine fails it.
+    """
+
+    def test_a_broken_engine_fails_every_check(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import calculate
+        import validate_calculation
+        broken = {"status": "error", "error": {"code": "broken", "message": "engine broken"}}
+        with mock.patch.object(calculate, "run_calculation", return_value=broken):
+            out = validate_calculation.run_verification_tests()
+        self.assertFalse(out["all_passed"])
+        self.assertTrue(out["tests"])
+        self.assertTrue(all(not t["passed"] for t in out["tests"]), out["tests"])
+
+    def test_no_check_passes_unconditionally(self):
+        text = (REPO_ROOT / "test_scripts" / "validate_calculation.py").read_text()
+        self.assertNotIn('"passed": True', text)
+
+
 class TestFrameRecorder(unittest.TestCase):
     def test_stride_keeps_arrays_aligned_and_always_records_the_end(self):
         import numpy as np
