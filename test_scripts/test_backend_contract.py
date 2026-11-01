@@ -233,6 +233,24 @@ class TestCliGuards(unittest.TestCase):
                            env={"SIMPLEATOM_PROFILE": "hosted"})
 
 
+class TestHugeNumbers(unittest.TestCase):
+    """D138: a numeric parameter far beyond any cap is a 400, never a 500 — even past
+    Python's 4300-digit limit for printing an int in the refusal message."""
+
+    def test_huge_integers_are_refused_with_a_code(self):
+        import calculate
+        for field, extra in (("mdSteps", {"calculationType": "molecular-dynamics"}),
+                             ("maxOptSteps", {"calculationType": "geometry-opt"}),
+                             ("temperature", {"calculationType": "molecular-dynamics"}),
+                             ("seed", {})):
+            for value in (10 ** 400, 10 ** 5000):
+                with self.subTest(field=field, digits=len(str(value)) if value < 10 ** 4000 else "5000+"):
+                    with self.assertRaises(ContractError) as ctx:
+                        calculate.validate_request({**extra, field: value}, False, "local")
+                    self.assertIn(ctx.exception.code, ("invalid_number", "out_of_range"))
+                    self.assertEqual(ctx.exception.status, 400)
+
+
 class TestSeed(unittest.TestCase):
     """D48: a seed is a finite whole number in range, never coerced; infinity was a 500."""
 
