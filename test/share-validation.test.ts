@@ -1,10 +1,15 @@
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { TrajectoryViewer } from "@/components/calculate/trajectory/trajectory-viewer";
 import {
   GIT_COMMIT_PATTERN,
   MAX_RENDERED_ROWS,
   checkSharedResultShape,
+  normalizeSharedResult,
   visibleRows,
 } from "@/lib/share";
+import type { CalculationResult, SharedResult } from "@/types/mace";
 
 const SHA = "a".repeat(64);
 
@@ -101,6 +106,48 @@ describe("a shared trajectory has the arrays the page reads (D64)", () => {
     const frame = [[0, 0, 0], [1, 0, 0], [0, 1, 0]];
     expect(problem({ trajectory: { energies: [1, 2], step: [0, 1], positions: [frame, frame] } })).toBeNull();
     expect(problem({})).toBeNull();
+  });
+});
+
+// D159: the player indexes `step` beside `energies` and `positions`. A row with
+// no `step`, or with lists of different lengths, passed the shape check, and the
+// player read `traj.step.length` of undefined (or drew misaligned frames).
+describe("a shared trajectory has a step list as long as its energies and positions (D159)", () => {
+  const frame = [[0, 0, 0], [1, 0, 0], [0, 1, 0]];
+  const noStep = { energies: [1, 2], positions: [frame, frame] };
+  const mismatched = [
+    { energies: [1, 2, 3], step: [0, 1], positions: [frame, frame] },
+    { energies: [1, 2], step: [0, 1, 2, 3], positions: [frame, frame] },
+    { energies: [1, 2], step: [0, 1], positions: [frame] },
+  ];
+
+  it("refuses a trajectory with no step list", () => {
+    expect(problem({ trajectory: noStep })).toBe("result.trajectory");
+    expect(problem({ trajectory: { ...noStep, step: "0,1" } })).toBe("result.trajectory");
+  });
+
+  it("refuses lists of different lengths", () => {
+    for (const trajectory of mismatched) expect(problem({ trajectory }), JSON.stringify(trajectory)).toBe("result.trajectory");
+  });
+
+  it("drops either kind from a row stored earlier, keeping the numbers", () => {
+    for (const trajectory of [noStep, ...mismatched]) {
+      const shared = { id: "abc12345", params: {}, result: { status: "success", energy: -1, trajectory } } as unknown as SharedResult;
+      const out = normalizeSharedResult(shared);
+      expect(out.result.trajectory, JSON.stringify(trajectory)).toBeUndefined();
+      expect(out.result.energy).toBe(-1);
+    }
+  });
+
+  it("draws the trajectory player for a legacy row without step instead of throwing", () => {
+    const result = {
+      status: "success",
+      energy: -1,
+      symbols: ["O", "H", "H"],
+      params: { calculationType: "molecular-dynamics", temperature: 300 },
+      trajectory: noStep,
+    } as unknown as CalculationResult;
+    expect(() => renderToString(createElement(TrajectoryViewer, { result }))).not.toThrow();
   });
 });
 
