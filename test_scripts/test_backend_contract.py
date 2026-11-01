@@ -973,6 +973,19 @@ class TestLintBaseline(unittest.TestCase):
             self.assertFalse(self.gate.gate_lint().ok)
 
 
+class TestGeneratedHeaders(unittest.TestCase):
+    """A generated file's header must come from its generator, or the next regeneration undoes it."""
+
+    def test_the_mp_reference_header_is_what_the_generator_writes(self):
+        sys.path.insert(0, str(REPO_ROOT / "test_scripts"))
+        import fetch_mp_reference
+        data = (REPO_ROOT / "lib" / "mp-reference-data.ts").read_text()
+        written = data[: data.index("*/") + 2]
+        emitted = fetch_mp_reference.emit_fixture([], "test")
+        self.assertEqual(emitted[: emitted.index("*/") + 2], written,
+                         "lib/mp-reference-data.ts's header was edited by hand (D106, D121)")
+
+
 class TestValidatorGateCanFail(unittest.TestCase):
     """
     D79: the validator printed all_passed: false, exited 0, and the daily gate
