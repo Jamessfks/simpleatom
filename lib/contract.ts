@@ -150,11 +150,19 @@ function violation(code: string, message: string, field: string | null, status =
   return { code, message, field, status };
 }
 
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+/** The trimmed string, as contract.resolve_choice() compares it; other values unchanged. */
+const trimmed = (raw: unknown) => (typeof raw === "string" ? raw.trim() : raw);
+
 function checkNumber(params: Record<string, unknown>, field: NumericParam): ContractViolation | null {
   const raw = params[field];
   if (raw === undefined || raw === null || raw === "") return null;
   const spec = PARAMS[field];
-  const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  // Strings must be plain decimals, as in contract.py: Number() alone also
+  // takes "0x10" and "0b11", which Python refuses.
+  const value =
+    typeof raw === "number" ? raw : typeof raw === "string" && DECIMAL.test(raw.trim()) ? Number(raw) : NaN;
   if (typeof raw === "boolean" || !Number.isFinite(value)) {
     return violation("invalid_number", `Invalid ${field}: expected a finite number.`, field);
   }
@@ -242,7 +250,7 @@ export function checkCalculationParams(
     size !== undefined &&
     size !== null &&
     size !== "" &&
-    !(typeof size === "string" && Object.keys(model.sizes).includes(size))
+    !(typeof size === "string" && Object.keys(model.sizes).includes(size.trim()))
   ) {
     return violation(
       "unsupported_model_size",
@@ -255,14 +263,14 @@ export function checkCalculationParams(
     ["precision", CONTRACT.precisions],
     ["device", CONTRACT.devices],
   ] as const) {
-    const raw = params[field];
+    const raw = trimmed(params[field]);
     if (raw !== undefined && raw !== null && raw !== "" && !(choices as readonly unknown[]).includes(raw)) {
       return violation(`unsupported_${field}`, `Unsupported ${field} '${String(raw)}'.`, field);
     }
   }
   // ADR-0031: a device the contract knows but this profile cannot provide is
   // refused, not silently replaced (the public server is CPU-only).
-  const device = params.device;
+  const device = trimmed(params.device);
   if (typeof device === "string" && device && !(CONTRACT.profiles[profileName].devices as readonly string[]).includes(device)) {
     return violation(
       "device_unavailable",
@@ -289,7 +297,7 @@ export function checkCalculationParams(
   // calculate._resolve_run_params() resolves — so a stray mdSteps on a
   // single-point is ignored here just as it is by the backend.
   const calc = typeof calcType === "string" && calcType.trim() ? calcType.trim() : "single-point";
-  const ensemble = params.mdEnsemble;
+  const ensemble = trimmed(params.mdEnsemble);
   if (calc === "molecular-dynamics" && ensemble !== undefined && ensemble !== null && ensemble !== "" &&
       !(CONTRACT.mdEnsembles as readonly unknown[]).includes(ensemble)) {
     return violation("unsupported_mdEnsemble", `Unsupported mdEnsemble '${String(ensemble)}'.`, "mdEnsemble");
@@ -307,7 +315,7 @@ export function checkCalculationParams(
 
   const caps = profile(profileName);
   const opt = Number(params.maxOptSteps);
-  if (params.calculationType === "geometry-opt" && Number.isFinite(opt) && opt > caps.maxOptSteps) {
+  if (calc === "geometry-opt" && Number.isFinite(opt) && opt > caps.maxOptSteps) {
     return violation(
       "limit_exceeded",
       `maxOptSteps = ${opt} exceeds this deployment's limit of ${caps.maxOptSteps}.`,
@@ -316,7 +324,7 @@ export function checkCalculationParams(
     );
   }
   const md = Number(params.mdSteps);
-  if (params.calculationType === "molecular-dynamics" && Number.isFinite(md) && md > caps.maxMdSteps) {
+  if (calc === "molecular-dynamics" && Number.isFinite(md) && md > caps.maxMdSteps) {
     return violation(
       "limit_exceeded",
       `mdSteps = ${md} exceeds this deployment's limit of ${caps.maxMdSteps}.`,

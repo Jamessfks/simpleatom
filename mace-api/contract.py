@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -245,6 +246,9 @@ def resolve_bool(raw, field: str, default: bool = False) -> bool:
     )
 
 
+DECIMAL = re.compile(r"[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?")
+
+
 def resolve_number(params: dict, field: str):
     """
     A finite number inside the contract's physical bounds, or its default.
@@ -259,9 +263,15 @@ def resolve_number(params: dict, field: str):
     if isinstance(raw, bool):
         raise ContractError(f"Invalid {field}: expected a number, got a boolean.",
                             code="invalid_number", field=field)
+    # Strings must be plain decimals, as in lib/contract.ts: float() alone
+    # also takes "1_000", which JavaScript's Number() does not, and the two
+    # mirrors must refuse the same requests.
+    if isinstance(raw, str) and not DECIMAL.fullmatch(raw.strip()):
+        raise ContractError(f"Invalid {field}: expected a number, got {raw!r}.",
+                            code="invalid_number", field=field)
     try:
         value = float(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise ContractError(f"Invalid {field}: expected a number, got {raw!r}.",
                             code="invalid_number", field=field)
     if not math.isfinite(value):

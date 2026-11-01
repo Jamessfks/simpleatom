@@ -115,22 +115,9 @@ def resolve_seed(raw) -> int:
     """Normalise and validate an RNG seed. Missing/empty -> DEFAULT_MD_SEED."""
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return DEFAULT_MD_SEED
-    if isinstance(raw, bool):  # bool is an int subclass — reject explicitly
-        raise ContractError("Invalid seed: expected a non-negative integer, got a boolean.",
-                            code="invalid_number", field="seed")
-    try:
-        seed = int(raw)
-    except (TypeError, ValueError):
-        raise ContractError(f"Invalid seed: expected a non-negative integer, got {raw!r}.",
-                            code="invalid_number", field="seed")
-    if seed < 0:
-        raise ContractError(f"Invalid seed: must be non-negative, got {seed}.",
-                            code="out_of_range", field="seed")
-    if seed > _CONTRACT["params"]["seed"]["max"]:
-        raise ContractError(
-            f"Invalid seed: must be at most {_CONTRACT['params']['seed']['max']}, got {seed}.",
-            code="out_of_range", field="seed")
-    return seed
+    # The contract's own number rule (D48): int() truncated 3.7 to 3 and
+    # raised OverflowError — a 500 — on infinity.
+    return int(contract.resolve_number({"seed": raw}, "seed"))
 
 
 def validate_calculation_type(raw) -> str:
