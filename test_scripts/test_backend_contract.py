@@ -591,6 +591,57 @@ class TestResourceBounds(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "upload_too_large")
 
 
+class TestHostileParamsJson(unittest.TestCase):
+    """D138: a 4301-digit integer literal (ValueError) or deep nesting (RecursionError) in
+    params gave a plain-text 500, even in a field nothing reads."""
+
+    HOSTILE = {"huge integer": '{"seed": ' + "9" * 5000 + "}",
+               "deep nesting": '{"x": ' + "[" * 100_000 + "]" * 100_000 + "}"}
+
+    def _post(self, params):
+        import asyncio
+        import main
+        body = (b"--x\r\nContent-Disposition: form-data; name=\"files\"; filename=\"w.xyz\"\r\n\r\n"
+                b"1\n\nH 0 0 0\n\r\n--x\r\nContent-Disposition: form-data; name=\"params\"\r\n\r\n"
+                + params.encode() + b"\r\n--x--\r\n")
+        scope = {"type": "http", "method": "POST", "path": "/calculate", "raw_path": b"/calculate",
+                 "query_string": b"", "root_path": "", "scheme": "http", "http_version": "1.1",
+                 "headers": [(b"content-type", b"multipart/form-data; boundary=x"),
+                             (b"content-length", str(len(body)).encode())],
+                 "client": ("198.51.100.43", 4321), "server": ("testserver", 80)}
+        sent, messages = [False], []
+
+        async def receive():
+            if not sent[0]:
+                sent[0] = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+
+        with mock.patch.dict(os.environ, {"MACE_API_TOKEN": ""}):
+            asyncio.run(main.app(scope, receive, send))
+        status = next(m["status"] for m in messages if m["type"] == "http.response.start")
+        return status, json.loads(b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body"))
+
+    def test_the_api_refuses_them_as_invalid_params(self):
+        for name, params in self.HOSTILE.items():
+            with self.subTest(name):
+                status, payload = self._post(params)
+                self.assertEqual(status, 400, payload)
+                self.assertEqual(payload["error"]["code"], "invalid_params")
+
+    def test_the_cli_refuses_them_as_invalid_params(self):
+        for name, params in self.HOSTILE.items():
+            with self.subTest(name):
+                run = subprocess.run([sys.executable, str(API_DIR / "calculate_local.py"), str(ETHANOL), params],
+                                     capture_output=True, text=True, timeout=120,
+                                     env={**os.environ, "KMP_DUPLICATE_LIB_OK": "TRUE"})
+                doc = json.loads(run.stdout.strip().splitlines()[-1])
+                self.assertEqual(doc["error"]["code"], "invalid_params", run.stderr[-500:])
+
+
 class TestChunkedUploadCap(unittest.TestCase):
     """D142: a body sent without Content-Length (chunked) was received in full before its 413."""
 
