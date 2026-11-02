@@ -697,6 +697,16 @@ class TestCustomModelPeer(unittest.TestCase):
         self.assertEqual(status, 403, payload)
         self.assertEqual(ran, [])
 
+    def test_a_forwarded_request_is_refused_even_from_a_loopback_peer(self):
+        # D178: uvicorn --forwarded-allow-ips '*' rewrites the peer from X-Forwarded-For,
+        # so a LAN client claiming 127.0.0.1 looked like loopback. A direct loopback
+        # client never sends forwarding headers; one that does may not be what it seems.
+        for header in (b"x-forwarded-for", b"forwarded"):
+            with self.subTest(header=header):
+                status, payload, ran = self._post("127.0.0.1", [(header, b"for=127.0.0.1")])
+                self.assertEqual((status, payload["error"]["code"]), (403, "custom_models_local_only"), payload)
+                self.assertEqual(ran, [])
+
     def test_a_loopback_peer_is_admitted(self):
         for host in ("127.0.0.1", "::1"):
             with self.subTest(host=host):
