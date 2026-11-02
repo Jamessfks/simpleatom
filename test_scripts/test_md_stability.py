@@ -286,5 +286,48 @@ class TestMdSummary(unittest.TestCase):
         self.assertTrue(r["properties"]["stressIncludesKineticTerm"])
 
 
+
+
+class TestTemperatureErrorBar(unittest.TestCase):
+    """
+    D174: the '± 5-block standard error' on the mean temperature was 2-3x too small for
+    default 100-step runs (8 seeds scattered 37.5 K for Si, 52.9 K for ethanol, against a
+    median reported ~20 K): five blocks of correlated frames are not five independent
+    samples. Checked on AR(1) series whose correlation time is known exactly.
+    """
+
+    @staticmethod
+    def _series(rng, n, rho=0.9, mean=300.0, sigma=40.0):
+        import numpy as np
+        x = np.empty(n)
+        x[0] = rng.normal(0, sigma)
+        for i in range(1, n):
+            x[i] = rho * x[i - 1] + rng.normal(0, sigma * (1 - rho * rho) ** 0.5)
+        return mean + x
+
+    def _summary(self, temps):
+        import calculate
+        n = len(temps)
+        return calculate.md_summary(list(range(n)), [0.0] * n, list(temps), 1.0, 9, "NVT")
+
+    def test_too_few_independent_samples_get_no_error_bar(self):
+        import numpy as np
+        rng = np.random.default_rng(7)
+        # 100 frames, 80 kept, tau_int = (1+rho)/(2(1-rho)) = 9.5: about 4 independent samples.
+        s = self._summary(self._series(rng, 100))
+        self.assertNotIn("temperatureStdError", s)
+        self.assertIn("independent", s["_text"])
+
+    def test_the_error_bar_matches_the_scatter_between_seeds(self):
+        import numpy as np
+        rng = np.random.default_rng(11)
+        reported, means = [], []
+        for _ in range(60):
+            s = self._summary(self._series(rng, 2500))
+            reported.append(s["temperatureStdError"])
+            means.append(s["meanTemperature"])
+        ratio = float(np.median(reported)) / float(np.std(means, ddof=1))
+        self.assertGreater(ratio, 0.7, ratio)
+        self.assertLess(ratio, 1.4, ratio)
 if __name__ == "__main__":
     unittest.main()
