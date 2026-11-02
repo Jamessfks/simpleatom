@@ -66,13 +66,15 @@ TRACKED_DISTRIBUTIONS = ("mace-torch", "torch", "ase", "numpy")
 # the manifest — a reader can tell which recipe produced the digest.
 # v2 (D132): constraints (POSCAR selective dynamics) are part of the input —
 # they change the reported forces and the MD temperature — so they are hashed.
-STRUCTURE_HASH_SPEC = "simpleatom-structure-v2"
+# v3 (D76): coordinates and cell count to 8 decimals, the precision ASE's extended
+# XYZ writer keeps, so the same structure hashes alike as extxyz, CIF and POSCAR.
+STRUCTURE_HASH_SPEC = "simpleatom-structure-v3"
 
 # Coordinates are rounded before hashing so that a round-trip through a text
 # format (which is how structures reach this backend) does not change the
-# digest. 1e-10 A is far below any physically meaningful displacement and far
-# above float64's representation noise.
-_STRUCTURE_COORD_DECIMALS = 10
+# digest. 8 decimals is what ASE writes to extended XYZ, the most common upload
+# (D76); 1e-8 A is still far below any physically meaningful displacement.
+_STRUCTURE_COORD_DECIMALS = 8
 
 _HASH_CHUNK_BYTES = 1 << 20  # 1 MiB
 
@@ -281,10 +283,10 @@ def structure_canonical_bytes(atoms) -> bytes:
     Format-independent canonical serialisation of a structure.
 
     The same atoms, cell, pbc and constraints produce the same bytes whatever
-    file carried them (extended XYZ, CIF and POSCAR round-trip identically) and
+    file carried them (extended XYZ, CIF and POSCAR, Cartesian or direct) and
     whatever the temp file was called, so the digest identifies the structure,
     not the file. It is not more forgiving than that (D76): positions count to
-    10 decimals, so a PDB (3 decimals) matches only coordinates that agree at
+    8 decimals, so a PDB (3 decimals) matches only coordinates that agree at
     that precision, and a molecule written as CIF gains a cell and periodicity,
     which makes it a different input. test_provenance.TestStructureHashAcrossFormats.
 

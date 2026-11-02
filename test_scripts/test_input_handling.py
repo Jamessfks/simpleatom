@@ -443,7 +443,10 @@ class TestConstrainedForces(unittest.TestCase):
         fixed = _run_file(self.fixed)["provenance"]["input"]
         free = _run_file(self.free)["provenance"]["input"]
         self.assertNotEqual(fixed["structureSha256"], free["structureSha256"])
-        self.assertEqual(fixed["structureHashSpec"], "simpleatom-structure-v2")
+        import provenance
+        # Constraints are hashed since v2 (D132); the current spec is whatever provenance says.
+        self.assertEqual(fixed["structureHashSpec"], provenance.STRUCTURE_HASH_SPEC)
+        self.assertNotEqual(fixed["structureHashSpec"], "simpleatom-structure-v1")
 
 
 class TestDegenerateCells(_RefusalMixin, unittest.TestCase):
