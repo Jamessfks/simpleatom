@@ -129,13 +129,10 @@ export interface MdSummary {
   warmupFraction: number;
   warmupFrames?: number;
   meanTemperature?: number;
+  /** Results stored before D174 only: an error bar SimpleAtom no longer claims. */
   temperatureStdError?: number;
-  /** Results before D174 only: the old five-block error. */
+  /** Results stored before D174 only: the old five-block error. */
   temperatureBlocks?: number;
-  /** N / (2 tau_int) of the kept frames (D174); a "±" is given only from 10. */
-  temperatureIndependentSamples?: number;
-  /** How temperatureStdError was computed (D174). */
-  temperatureErrorMethod?: string;
   nveDriftMeVPerAtomPerPs?: number;
 }
 
