@@ -158,6 +158,8 @@ export interface CalculationResult {
   positions?: number[][];
   /** Cell vectors (Å); null for a non-periodic structure (D7). */
   lattice?: number[][] | null;
+  /** Along which axes the structure is periodic (D179). */
+  pbc?: boolean[];
   symbols?: string[];
   trajectory?: {
     /**

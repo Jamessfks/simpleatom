@@ -101,7 +101,7 @@ def _energy_band(model_type: str):
     return None, None, None
 
 
-def _min_distance(positions, lattice):
+def _min_distance(positions, lattice, pbc=None):
     """
     Smallest interatomic distance over every pair (D81), with the minimum image
     when the result has a cell. A result carries `lattice` only when it is
@@ -116,9 +116,11 @@ def _min_distance(positions, lattice):
     if lattice is None:
         atoms = Atoms(positions=positions, pbc=False)
     else:
-        # A zero lattice vector is a non-periodic axis (a slab, D137/D175): no images
-        # along it. Complete the cell there so the neighbour list has a basis.
-        pbc = [bool(np.linalg.norm(v) > 1e-8) for v in lattice]
+        # The result's own pbc decides (D179); without it, a zero lattice vector is a
+        # non-periodic axis (D175). Complete the cell so the neighbour list has a basis.
+        if pbc is None or len(pbc) != 3:
+            pbc = [bool(np.linalg.norm(v) > 1e-8) for v in lattice]
+        pbc = [bool(flag) and bool(np.linalg.norm(v) > 1e-8) for flag, v in zip(pbc, lattice)]
         atoms = Atoms(positions=positions, cell=Cell(np.array(lattice, dtype=float)).complete(), pbc=pbc)
     d = neighbor_list("d", atoms, NEIGHBOUR_CUTOFF)
     return float(d.min()) if len(d) else None
@@ -289,7 +291,7 @@ def validate_result(result: dict) -> dict:
 
     # --- Position validation (every pair, minimum image in a cell) ---
     if positions is not None and len(positions) > 1:
-        min_dist = _min_distance(positions, lattice)
+        min_dist = _min_distance(positions, lattice, result.get("pbc"))
         if min_dist is None:
             info.append(f"No two atoms are closer than {NEIGHBOUR_CUTOFF} Å")
         elif min_dist < MIN_INTERATOMIC_DIST:
@@ -301,8 +303,10 @@ def validate_result(result: dict) -> dict:
             info.append(f"Min interatomic distance = {min_dist:.3f} Å — reasonable")
 
     # --- Lattice validation ---
-    if lattice is not None and len(lattice) == 3 and all(len(v) == 3 for v in lattice) \
-            and sum(1 for v in lattice if math.sqrt(sum(x * x for x in v)) > 1e-8) < 3:
+    result_pbc = result.get("pbc")
+    if lattice is not None and len(lattice) == 3 and all(len(v) == 3 for v in lattice) and (
+            sum(1 for v in lattice if math.sqrt(sum(x * x for x in v)) > 1e-8) < 3
+            or (isinstance(result_pbc, list) and not all(result_pbc))):
         # A slab or wire: periodic along fewer than three axes, so there is no volume to
         # check (D175). The engine refuses a degenerate periodic cell itself (D137).
         info.append("Cell volume not checked: periodic along fewer than three axes")

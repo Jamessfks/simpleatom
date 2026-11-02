@@ -652,6 +652,9 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
         "positions": atoms.get_positions().tolist(),
         "symbols": symbols,
         "lattice": lattice,
+        # Along which axes the structure is periodic (D179): the lattice alone cannot
+        # say it for a slab whose third vector is short but not zero.
+        "pbc": [bool(flag) for flag in atoms.pbc],
         "properties": properties,
         "params": dict(effective_params),
         "message": msg,
