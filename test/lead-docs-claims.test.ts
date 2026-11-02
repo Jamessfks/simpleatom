@@ -69,3 +69,16 @@ describe("batch-5 doc facts (D168-D172)", () => {
     expect(report).not.toMatch(/No other rule text changed\./);
   });
 });
+
+describe("batch-7 doc facts (D182, D183)", () => {
+  it("no longer describes a block-mean error bar (D182)", () => {
+    expect(read("types/mace.ts")).not.toMatch(/standard error comes from block means/);
+    expect(read(".claude/agents/science-critic.md")).not.toMatch(/Get the standard error by block averaging/);
+  });
+
+  it("limits the structure-hash promise to one cell orientation (D183)", () => {
+    const provenance = read("mace-api/provenance.py");
+    expect(provenance).toMatch(/same cell orientation/);
+    expect(provenance).toMatch(/CIF[^.]*re-?orient/i);
+  });
+});
