@@ -278,7 +278,19 @@ def _client_key(request: Request, forwarded_ip: str | None) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def _intake(files: list[UploadFile], params: str, model: UploadFile | None):
+def _is_loopback(host: str | None) -> bool:
+    """127.0.0.0/8, ::1 or an IPv4-mapped loopback; a name or a missing peer is not."""
+    import ipaddress
+    try:
+        address = ipaddress.ip_address(host or "")
+    except ValueError:
+        return False
+    mapped = getattr(address, "ipv4_mapped", None)
+    return address.is_loopback or bool(mapped and mapped.is_loopback)
+
+
+async def _intake(files: list[UploadFile], params: str, model: UploadFile | None,
+                  peer: str | None = None):
     """
     Validate a calculation request and stage its files, or refuse it.
 
@@ -301,6 +313,14 @@ async def _intake(files: list[UploadFile], params: str, model: UploadFile | None
     except ValueError as e:
         raise _error(getattr(e, "status", 400), getattr(e, "code", "invalid_request"),
                      str(e), field=getattr(e, "field", None))
+    # A checkpoint runs code when it is loaded. Where custom models are allowed at all
+    # (local, ALLOW_CUSTOM_MODELS=1), accept one only from this machine: the socket's
+    # peer address, never a forwarded header (D173). The Next.js proxy on the same host
+    # connects from loopback.
+    if model is not None and not _is_loopback(peer):
+        raise _error(403, "custom_models_local_only",
+                     "Custom checkpoints are accepted only from this machine (a loopback "
+                     "connection); loading one runs code from the file.", field="model")
 
     workdir = tempfile.mkdtemp(prefix="mace-")
     try:
@@ -351,7 +371,7 @@ async def submit_job(
 ):
     """Queue a calculation. Returns 202 with a job id to poll."""
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model)
+    run, workdir = await _intake(files, params, model, request.client.host if request.client else None)
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
     return JOBS.describe(job)
 
@@ -394,7 +414,7 @@ async def calculate(
     for existing callers. It goes through the same single worker as /v1/jobs.
     """
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model)
+    run, workdir = await _intake(files, params, model, request.client.host if request.client else None)
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
     budget = LIMITS["timeBudgetSeconds"]
     while True:

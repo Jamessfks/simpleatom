@@ -980,7 +980,7 @@ class TestSyncLifecycle(unittest.TestCase):
             job.cancel_requested.wait(10)
             return {"status": "success"}
 
-        async def fake_intake(files, params, model):
+        async def fake_intake(files, params, model, peer=None):
             return run, None
 
         boundary = "sa-boundary"
