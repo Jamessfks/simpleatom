@@ -397,6 +397,8 @@ function SummaryTab({
   const modelSize = result.params?.modelSize;
   const reference = energyReference(result);
   const energyInRange = reference?.inRange ?? null;
+  // One rule with the validator (D176): only outside the enforced band is a warning.
+  const energyAccepted = reference?.withinEnforced ?? null;
 
   // Dense "Properties" table — computed (output) quantities only, MP-style
   // rows. Run-time inputs (model, thresholds, ensemble) stay in Run
@@ -494,14 +496,20 @@ function SummaryTab({
                 </div>
               )}
               {modelType && (
-                <div className={energyInRange === false ? "text-warning" : undefined}>
+                <div className={energyAccepted === false ? "text-warning" : undefined}>
                   {modelType === "custom" ? "Custom model" : modelType}
                   {modelSize ? ` (${modelSize})` : ""} &middot;{" "}
                   {reference?.method ?? "reference convention unknown"}
-                  {energyInRange === false &&
+                  {energyAccepted === false &&
+                    reference?.enforced &&
+                    ` — outside the validator's range ${reference.enforced[0]} to ${reference.enforced[1]} eV/atom` +
+                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "")}
+                  {energyAccepted !== false &&
+                    energyInRange === false &&
                     reference &&
                     ` — outside typical ${reference.band[0]} to ${reference.band[1]} eV/atom` +
-                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "")}
+                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "") +
+                      "; the validator accepts it"}
                 </div>
               )}
             </>

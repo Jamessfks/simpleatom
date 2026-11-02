@@ -29,8 +29,12 @@ export interface EnergyReference {
   band: [number, number];
   /** The number the band applies to, eV/atom; null when the result does not carry it. */
   value: number | null;
-  /** Null when there is no value to judge. */
+  /** Within the typical band; null when there is no value to judge. */
   inRange: boolean | null;
+  /** The enforced band (what the validator judges), eV/atom; null when the registry has none. */
+  enforced: [number, number] | null;
+  /** Within the enforced band; only false here is a warning (D176). Null when not judged. */
+  withinEnforced: boolean | null;
 }
 
 type Band = { minEvPerAtom: number; maxEvPerAtom: number };
@@ -49,26 +53,43 @@ export function energyReference(result: CalculationResult): EnergyReference | un
   if (!method) return undefined;
 
   const atomCount = result.symbols?.length ?? 0;
-  const judge = (value: number | null, band: Band, basis: EnergyReference["basis"]): EnergyReference => ({
-    basis,
-    method,
-    band: [band.minEvPerAtom, band.maxEvPerAtom],
-    value,
-    inRange: value === null ? null : value >= band.minEvPerAtom && value <= band.maxEvPerAtom,
-  });
+  const within = (value: number | null, b: Band | null) =>
+    value === null || !b ? null : value >= b.minEvPerAtom && value <= b.maxEvPerAtom;
+  const judge = (
+    value: number | null,
+    band: Band,
+    enforced: unknown,
+    basis: EnergyReference["basis"],
+  ): EnergyReference => {
+    const hard = isBand(enforced) ? enforced : null;
+    return {
+      basis,
+      method,
+      band: [band.minEvPerAtom, band.maxEvPerAtom],
+      value,
+      inRange: within(value, band),
+      enforced: hard ? [hard.minEvPerAtom, hard.maxEvPerAtom] : null,
+      withinEnforced: within(value, hard),
+    };
+  };
 
   // The band relative to the model's own isolated atoms, when the registry gives
   // one: it holds for any composition, which a raw E/N band does not.
-  const relative = convention.relativeToIsolatedAtoms as { typical?: unknown } | undefined;
+  const relative = convention.relativeToIsolatedAtoms as { typical?: unknown; enforced?: unknown } | undefined;
   if (relative && isBand(relative.typical)) {
     const reported = result.properties?.energyPerAtomVsIsolatedAtoms;
-    return judge(typeof reported === "number" && Number.isFinite(reported) ? reported : null, relative.typical, "vs-isolated-atoms");
+    return judge(
+      typeof reported === "number" && Number.isFinite(reported) ? reported : null,
+      relative.typical,
+      relative.enforced,
+      "vs-isolated-atoms",
+    );
   }
 
   // Otherwise a raw band on E/N, when the registry has one (the MACE-MP family).
   if (isBand(convention.typical)) {
     const perAtom = result.energy != null && atomCount > 0 ? result.energy / atomCount : null;
-    return judge(perAtom !== null && Number.isFinite(perAtom) ? perAtom : null, convention.typical, "per-atom");
+    return judge(perAtom !== null && Number.isFinite(perAtom) ? perAtom : null, convention.typical, convention.enforced, "per-atom");
   }
   return undefined;
 }

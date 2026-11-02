@@ -97,6 +97,10 @@ describe("the MACE-MP family keeps its raw per-atom band", () => {
     const shown = text(si);
     expect(shown).toContain(`typical values fall between ${mpBand.minEvPerAtom} and ${mpBand.maxEvPerAtom} eV/atom for MACE-MPA-0`);
     expect(shown).not.toMatch(/outside typical/);
-    expect(text({ ...si, energy: -8 * 40 })).toContain(`outside typical ${mpBand.minEvPerAtom} to ${mpBand.maxEvPerAtom} eV/atom`);
+    // Outside typical but inside the validator's range: a neutral note (D176).
+    expect(text({ ...si, energy: -8 * 18 })).toContain(`outside typical ${mpBand.minEvPerAtom} to ${mpBand.maxEvPerAtom} eV/atom`);
+    // Outside the enforced band too: named as the validator's range.
+    const mpEnforced = CONTRACT.energyConventions.mp.enforced;
+    expect(text({ ...si, energy: -8 * 40 })).toContain(`outside the validator's range ${mpEnforced.minEvPerAtom} to ${mpEnforced.maxEvPerAtom} eV/atom`);
   });
 });
