@@ -707,6 +707,18 @@ class TestCustomModelPeer(unittest.TestCase):
                 self.assertEqual((status, payload["error"]["code"]), (403, "custom_models_local_only"), payload)
                 self.assertEqual(ran, [])
 
+    def test_an_empty_or_repeated_forwarding_header_is_refused(self):
+        # D178 (batch 7): the check read the first value of the header and found it empty,
+        # while uvicorn rewrites the peer from the last one, so "X-Forwarded-For: " then
+        # "X-Forwarded-For: 127.0.0.1" reached the unpickler. Presence alone refuses.
+        cases = {"empty": [(b"x-forwarded-for", b"")],
+                 "repeated": [(b"x-forwarded-for", b""), (b"x-forwarded-for", b"127.0.0.1")]}
+        for name, headers in cases.items():
+            with self.subTest(name):
+                status, payload, ran = self._post("127.0.0.1", headers)
+                self.assertEqual((status, payload["error"]["code"]), (403, "custom_models_local_only"), payload)
+                self.assertEqual(ran, [])
+
     def test_a_loopback_peer_is_admitted(self):
         for host in ("127.0.0.1", "::1"):
             with self.subTest(host=host):
