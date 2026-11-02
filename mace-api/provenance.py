@@ -296,10 +296,12 @@ def structure_canonical_bytes(atoms) -> bytes:
     fmt = f"%.{_STRUCTURE_COORD_DECIMALS}f"
 
     def num(value: float) -> str:
-        # `+ 0.0` normalises -0.0 to 0.0; IEEE-754 gives -0.0 + 0.0 == +0.0.
-        # Without it, two identical structures could hash differently purely
-        # from the sign of a zero coordinate.
-        return fmt % (float(value) + 0.0)
+        # Round to the printed precision first, then `+ 0.0`: a coordinate of
+        # -1e-12 rounds to -0.0, and IEEE-754 gives -0.0 + 0.0 == +0.0. Without
+        # the rounding it printed as "-0.0000000000" from one format and
+        # "0.0000000000" from another, so hcp and wurtzite cells hashed
+        # differently as POSCAR and as CIF (D76).
+        return fmt % (round(float(value), _STRUCTURE_COORD_DECIMALS) + 0.0)
 
     lines = [STRUCTURE_HASH_SPEC, str(len(atoms))]
     lines.append(" ".join("1" if flag else "0" for flag in atoms.pbc))
