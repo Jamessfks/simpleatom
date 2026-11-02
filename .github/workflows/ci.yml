@@ -142,7 +142,7 @@ jobs:
           python test_scripts/run_suite.py test_input_handling.py --min 32
           python test_scripts/run_suite.py test_md_stability.py --min 7
       - name: Physical invariants (translation, rotation, permutation, finite differences, units; D78, D80)
-        run: python test_scripts/run_suite.py test_invariants.py --min 10
+        run: python test_scripts/run_suite.py test_invariants.py --min 11
 
   docker-smoke:
     runs-on: ubuntu-latest

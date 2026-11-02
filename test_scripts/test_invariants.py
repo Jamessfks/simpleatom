@@ -188,6 +188,34 @@ class TestEngineUnitsAndSettings(unittest.TestCase):
         np.testing.assert_allclose(reported, fd, atol=2e-3)
         self.assertAlmostEqual(r["properties"]["pressure"], -fd[:3].mean(), delta=2e-3)
 
+    def test_reported_forces_are_minus_the_energy_gradient(self):
+        """
+        Kills a perturbed or rescaled force in the returned result (D78): the
+        calculator-level gradient check above never sees what the engine reports.
+        F_i = -dE/dx_i by central differences on the returned geometry.
+        """
+        import numpy as np
+        import calculate
+
+        si = _strained_silicon()
+        r = calculate.run_calculation(_write(self.tmp.name, "si-f.xyz", si),
+                                      {**MPA, "precision": "float64"}, profile="local")
+        reported = np.array(r["forces"])
+        calc = _calculator(MPA)
+        h = 1e-4
+        fd = np.zeros_like(reported)
+        for atom in range(len(si)):
+            for axis in range(3):
+                energies = []
+                for sign in (1, -1):
+                    moved = si.copy()
+                    moved.positions[atom, axis] += sign * h
+                    moved.calc = calc
+                    energies.append(moved.get_potential_energy())
+                fd[atom, axis] = -(energies[0] - energies[1]) / (2 * h)
+        self.assertGreater(float(np.abs(fd).max()), 0.05, fd)  # the forces are exercised
+        np.testing.assert_allclose(reported, fd, atol=2e-4)
+
     def test_langevin_friction_is_converted_from_per_fs(self):
         """Kills: passing friction (1/fs) to ASE without dividing by ase.units.fs."""
         from ase import units
