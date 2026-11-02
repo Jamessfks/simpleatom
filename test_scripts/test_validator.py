@@ -8,7 +8,7 @@ The distance check ignored the cell and stopped after 200 atoms, so two atoms
 whose zero is arbitrary, so a +500 eV NVE drift was "stable". Each case here
 failed before the fix.
 
-Run: python test_scripts/run_suite.py test_validator.py --min 12
+Run: python test_scripts/run_suite.py test_validator.py --min 17
 """
 import pathlib
 import sys
@@ -104,6 +104,19 @@ class TestMaceOffEnergyBand(unittest.TestCase):
         self.assertIsNone(conv["enforced"])
         self.assertIsNone(conv["typical"])
         self.assertIsNotNone(conv["relativeToIsolatedAtoms"]["enforced"])
+
+
+class TestSlabWithoutThirdVector(unittest.TestCase):
+    """D175: a TTF slab with a zero third vector (accepted by the engine since D137) got a
+    phantom 0.160 Å overlap and a zero-volume issue from the validator."""
+
+    def test_a_zero_lattice_vector_is_a_non_periodic_axis(self):
+        a = 2.55
+        r = validate_result(_result(["Cu", "Cu"], [[0, 0, 0], [a / 2, a / 2, 1.8]],
+                                    [[a, 0, 0], [0, a, 0], [0, 0, 0]]))
+        self.assertTrue(r["valid"], r)
+        self.assertFalse(any("overlap" in i.lower() for i in r["issues"]), r["issues"])
+        self.assertFalse(any("volume" in i.lower() for i in r["issues"]), r["issues"])
 
 
 class TestMolecularDynamics(unittest.TestCase):
