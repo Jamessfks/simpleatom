@@ -296,7 +296,10 @@ def _direct_peer(request: Request) -> str | None:
     LAN client claiming 127.0.0.1 would look like loopback. A direct loopback client
     never sends these headers.
     """
-    if any(request.headers.get(h) for h in ("x-forwarded-for", "forwarded", "x-real-ip")):
+    # Presence, in the raw list: an empty first value or a repeated header still
+    # counts, because uvicorn rewrites the peer from the last X-Forwarded-For (D178).
+    forwarding = {b"x-forwarded-for", b"forwarded", b"x-real-ip"}
+    if any(name.lower() in forwarding for name, _value in request.scope.get("headers", [])):
         return None
     return request.client.host if request.client else None
 
