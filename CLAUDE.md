@@ -179,7 +179,11 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 - Temperature is reported over the degrees of freedom that carry energy: 3N for NVT,
   3N−3 for NVE/NPT (COM momentum stays zero) — recorded as `temperatureDegreesOfFreedom`
 - Always initialize velocities with `MaxwellBoltzmannDistribution`
-- Typical timestep: 0.5–2.0 fs (smaller for light elements like H)
+- Timestep: 0.5–2.0 fs without hydrogen. With hydrogen, use 1.0 fs or less for production runs:
+  relaxed ethanol and water under MACE-OFF small, NVT 300 K, seed 42, diverge at 2.0 fs (steps
+  587 and 902), and every run at 1.5 fs or less stayed bound
+  (`docs/v2/evidence/2026-11-01/md-divergence`, D130). The engine warns above 1.5 fs when H is
+  present and stops a diverging run (`md_diverged`). The contract cap stays 4 fs
 - **Reproducibility**: every stochastic source must be seeded. MD has two —
   `MaxwellBoltzmannDistribution(rng=...)` and `Langevin(rng=...)` — and both are fed from
   one `np.random.default_rng(seed)` (`DEFAULT_MD_SEED = 42`, override via `params["seed"]`).
@@ -250,7 +254,8 @@ deploys only after it passes on `main`. Run it locally before pushing.
 - Interatomic distances over every pair, minimum image in a cell (overlap < 0.5 Å is an issue; `contract.json` structureChecks)
 - Lattice validity (positive volume, 3x3 matrix)
 - MD: NaN/Inf; NVE total-energy excursion per atom (> 0.05 eV/atom is an issue) and fitted drift;
-  NVT/NPT second-half mean temperature against the target (> 2× is an issue)
+  NVT/NPT second-half mean temperature against the target (> 2× is an issue). Both thresholds are
+  heuristics with no published source, and a run that is too cold is not flagged
 - Parameter sanity (D3+MACE-OFF double-counting)
 
 ### Manual Verification Checklist
