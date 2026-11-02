@@ -1,0 +1,59 @@
+$ python test_scripts/validate_calculation.py --test
+Test 1: MACE-MP-0 single-point on Si bulk...
+Test 2: MACE-OFF single-point on H2O...
+Test 3: MACE-OFF geometry opt on ethanol...
+Test 4: Force conservation check...
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+Using Materials Project MACE for MACECalculator with ~/.cache/mace/20231210mace128L0_energy_epoch249model
+Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization.
+Using MACE-OFF23 MODEL for MACECalculator with ~/.cache/mace/MACE-OFF23_small.model
+Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization.
+{
+  "all_passed": true,
+  "tests": [
+    {
+      "test": "MACE-MP-0 Si bulk",
+      "passed": true,
+      "energy_per_atom": -5.369234085083008,
+      "max_force": 1.3730331716033106e-07,
+      "note": "Si diamond (a=5.43 \u00c5), 2 atoms"
+    },
+    {
+      "test": "MACE-OFF H2O molecule",
+      "passed": true,
+      "energy": -2081.1162109375,
+      "max_force": 0.6511440873146057,
+      "note": "Isolated water molecule"
+    },
+    {
+      "test": "MACE-OFF ethanol geometry opt",
+      "passed": true,
+      "energy_before": -4221.59619140625,
+      "energy_after": -4221.6044921875,
+      "max_force_after": 0.03435252234339714,
+      "opt_steps": 4,
+      "note": "Energy should decrease during optimization"
+    },
+    {
+      "test": "Force conservation (H2O)",
+      "passed": true,
+      "net_force_magnitude": 0.0,
+      "note": "Net force should be ~0 for isolated system"
+    },
+    {
+      "test": "Result validation (Si)",
+      "passed": true,
+      "validation": {
+        "valid": true,
+        "issues": [],
+        "warnings": [],
+        "info": [
+          "Energy/atom = -5.3692 eV/atom \u2014 within reasonable range for MACE-MP-0",
+          "Max force = 0.0000 eV/\u00c5, RMS = 0.0000 eV/\u00c5 \u2014 reasonable",
+          "Min interatomic distance = 2.351 \u00c5 \u2014 reasonable"
+        ]
+      }
+    }
+  ]
+}
+[exit 0]

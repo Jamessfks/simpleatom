@@ -375,7 +375,7 @@ export function EnergyChart({
         ))}
 
         {/* ── X-axis labels (first, middle, last) ── */}
-        {[0, Math.floor(n / 2), n - 1].map((i) => (
+        {[...new Set([0, Math.floor(n / 2), n - 1])].map((i) => (
           <text
             key={i}
             x={toX(steps[i] ?? i)}
@@ -393,7 +393,7 @@ export function EnergyChart({
         <text
           x={VIEWBOX_WIDTH / 2}
           y={CHART_HEIGHT - 18}
-          fill="#8A8478"
+          className="fill-text-muted"
           fontSize="8"
           fontFamily="monospace"
           textAnchor="middle"
@@ -403,7 +403,7 @@ export function EnergyChart({
         <text
           x={12}
           y={CHART_HEIGHT / 2}
-          fill="#8A8478"
+          className="fill-text-muted"
           fontSize="8"
           fontFamily="monospace"
           textAnchor="middle"

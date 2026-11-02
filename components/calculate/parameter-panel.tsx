@@ -21,12 +21,14 @@
  */
 
 import { StepTitle } from "@/components/calculate/step-title";
-import { useEffect, useState } from "react";
+import { parseSeed } from "@/components/calculate/seed";
+import Link from "next/link";
+import { createContext, useContext, useEffect, useId, useState } from "react";
 import { Info, Upload, X, FileText, AlertTriangle } from "lucide-react";
 import type { CalculationParams } from "@/types/mace";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import { MODELS, PARAMS, findModel, isMaceOffModel, licenseNotice, modelSizes } from "@/lib/contract";
-import { useCapabilities } from "@/lib/use-capabilities";
+import { deviceChoices, useCapabilities } from "@/lib/use-capabilities";
 import {
   Card,
   CardContent,
@@ -132,6 +134,11 @@ export function ParameterPanel({
   ) => onChange({ ...params, [key]: value });
 
   const caps = useCapabilities();
+  // ADR-0031: never keep a device selected that this deployment cannot run on
+  // (a saved or default "cuda" on a CPU-only server would be refused).
+  useEffect(() => {
+    if (params.device === "cuda" && !caps.devices.available.includes("cuda")) onChange({ ...params, device: "cpu" });
+  }, [caps.devices.available, params, onChange]);
   const model = findModel(params.modelType);
   const isCustom = params.modelType === "custom";
   const isOFF = isMaceOffModel(params.modelType);
@@ -214,7 +221,7 @@ export function ParameterPanel({
         <CardHeader>
           <StepTitle step={2}>Model</StepTitle>
           <CardDescription>
-            Choose a MACE foundation model or upload a fine-tuned checkpoint.
+            Choose a MACE foundation model.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -228,13 +235,13 @@ export function ParameterPanel({
                 updateParam("modelType", v as CalculationParams["modelType"])
               }
             >
-              <SelectTrigger className="w-full">
+              <FieldSelectTrigger className="w-full">
                 {/* The closed select shows the model name only; the option
                     list carries the domain and element count. */}
                 <SelectValue>
                   {params.modelType === "custom" ? "Custom checkpoint" : (findModel(params.modelType)?.label ?? params.modelType)}
                 </SelectValue>
-              </SelectTrigger>
+              </FieldSelectTrigger>
               <SelectContent>
                 {MODELS.filter((m) => m.loader !== "checkpoint" || caps.customModels).map((m) => (
                   <SelectItem key={m.id} value={m.id}>
@@ -245,6 +252,12 @@ export function ParameterPanel({
                 ))}
               </SelectContent>
             </Select>
+            {caps.profile === "local" && !caps.customModels && (
+              <p className="text-xs leading-relaxed text-text-muted">
+                Custom checkpoints are off: loading a <code>.model</code> file runs code from it.
+                Restart with <code>ALLOW_CUSTOM_MODELS=1</code> to upload your own.
+              </p>
+            )}
           </Field>
 
           {isOFF && (
@@ -293,7 +306,7 @@ export function ParameterPanel({
               </p>
 
               {!customModelFile ? (
-                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft">
+                <div className="relative cursor-pointer rounded-lg border-2 border-dashed border-border-emphasis bg-bg-elevated p-4 text-center transition-colors hover:border-accent-primary hover:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
                   <input
                     type="file"
                     accept=".model"
@@ -334,7 +347,7 @@ export function ParameterPanel({
               )}
 
               <Field label="Model label">
-                <Input
+                <FieldInput
                   type="text"
                   value={params.customModelName ?? ""}
                   onChange={(e) => updateParam("customModelName", e.target.value)}
@@ -359,9 +372,9 @@ export function ParameterPanel({
               }
               disabled={isCustom || sizes.length <= 1}
             >
-              <SelectTrigger>
+              <FieldSelectTrigger>
                 <SelectValue />
-              </SelectTrigger>
+              </FieldSelectTrigger>
               <SelectContent>
                 {sizes.map((size) => (
                   <SelectItem key={size} value={size}>
@@ -401,9 +414,9 @@ export function ParameterPanel({
                   )
                 }
               >
-                <SelectTrigger className="w-full">
+                <FieldSelectTrigger className="w-full">
                   <SelectValue>{params.precision ?? "Auto"}</SelectValue>
-                </SelectTrigger>
+                </FieldSelectTrigger>
                 <SelectContent>
                   <SelectItem value={PRECISION_AUTO}>
                     Auto — match upstream MACE
@@ -426,14 +439,29 @@ export function ParameterPanel({
                   updateParam("device", v as CalculationParams["device"])
                 }
               >
-                <SelectTrigger className="w-full">
+                <FieldSelectTrigger className="w-full">
                   <SelectValue />
-                </SelectTrigger>
+                </FieldSelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cpu">CPU</SelectItem>
-                  <SelectItem value="cuda">CUDA (GPU)</SelectItem>
+                  {deviceChoices(caps).map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value} disabled={choice.disabled}>
+                      {choice.disabled ? `${choice.label} — unavailable` : choice.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {caps.pending ? (
+                <p className="text-xs leading-relaxed text-text-muted">{caps.devices.unavailableReason}</p>
+              ) : caps.devices.unavailableReason && (
+                <p className="text-xs leading-relaxed text-text-muted">
+                  GPU unavailable: {caps.devices.unavailableReason}{" "}
+                  {caps.profile === "hosted" && (
+                    <Link href="/docs/getting-started#local" className="underline underline-offset-2 hover:text-text-primary">
+                      Run locally to use a GPU.
+                    </Link>
+                  )}
+                </p>
+              )}
             </Field>
           </div>
         </CardContent>
@@ -449,6 +477,7 @@ export function ParameterPanel({
         </CardHeader>
         <CardContent className="space-y-5">
           <RadioGroup
+            aria-label="Calculation type"
             value={params.calculationType}
             onValueChange={(v) =>
               updateParam(
@@ -508,7 +537,7 @@ export function ParameterPanel({
                 <Label htmlFor="dispersion" className="text-sm">
                   D3 dispersion correction
                 </Label>
-                <InfoTip text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
+                <InfoTip subject="D3 dispersion correction" text="Grimme D3 correction. Only meaningful for the MACE-MP family (MPA-0, MP-0) — MACE-OFF already includes dispersion in training, so enabling this would double-count it." />
               </div>
               <Switch
                 id="dispersion"
@@ -559,7 +588,7 @@ export function ParameterPanel({
               <div className="mt-5 space-y-4">
                 <Field
                   label="Ensemble"
-                  tooltip="NVE: no thermostat. NVT: Langevin thermostat. NPT: thermostat + barostat (needs a periodic cell)."
+                  tooltip="NVE: no thermostat. NVT: Langevin thermostat. NPT: thermostat + barostat (needs periodicity in all three directions)."
                 >
                   <Select
                     value={params.mdEnsemble ?? "NVT"}
@@ -567,9 +596,9 @@ export function ParameterPanel({
                       updateParam("mdEnsemble", v as "NVE" | "NVT" | "NPT")
                     }
                   >
-                    <SelectTrigger>
+                    <FieldSelectTrigger>
                       <SelectValue />
-                    </SelectTrigger>
+                    </FieldSelectTrigger>
                     <SelectContent>
                       <SelectItem value="NVE">NVE — microcanonical</SelectItem>
                       <SelectItem value="NVT">NVT — canonical</SelectItem>
@@ -583,8 +612,9 @@ export function ParameterPanel({
                   </Select>
                   {isPeriodic === false && (
                     <p className="text-xs text-text-muted">
-                      NPT is unavailable — this structure has no periodic
-                      cell (not a crystal/bulk structure). Only NVE/NVT apply.
+                      NPT is unavailable — this structure is not periodic in
+                      all three directions (a molecule, slab or wire, not a
+                      bulk crystal). Only NVE/NVT apply.
                     </p>
                   )}
                 </Field>
@@ -647,6 +677,14 @@ export function ParameterPanel({
                     max={maxMdSteps}
                   />
                 </div>
+
+                <SeedField
+                  value={params.seed}
+                  onChange={(v) => updateParam("seed", v)}
+                  min={PARAMS.seed.min}
+                  max={PARAMS.seed.max}
+                  defaultSeed={PARAMS.seed.default}
+                />
               </div>
             )}
 
@@ -664,6 +702,9 @@ export function ParameterPanel({
 
 /* ── Local helpers ── */
 
+/** The id a Field's label points at; its control picks it up from here. */
+const FieldIdContext = createContext<string | undefined>(undefined);
+
 function Field({
   label,
   tooltip,
@@ -673,24 +714,35 @@ function Field({
   tooltip?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
-        <Label className="text-xs font-medium text-text-secondary">
+        <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
           {label}
         </Label>
-        {tooltip && <InfoTip text={tooltip} />}
+        {tooltip && <InfoTip text={tooltip} subject={label} />}
       </div>
-      {children}
+      <FieldIdContext.Provider value={id}>{children}</FieldIdContext.Provider>
     </div>
   );
+}
+
+/** SelectTrigger that carries the enclosing Field's label as its name. */
+function FieldSelectTrigger(props: React.ComponentProps<typeof SelectTrigger>) {
+  return <SelectTrigger id={useContext(FieldIdContext)} {...props} />;
+}
+
+/** Input that carries the enclosing Field's label as its name. */
+function FieldInput(props: React.ComponentProps<typeof Input>) {
+  return <Input id={useContext(FieldIdContext)} {...props} />;
 }
 
 /**
  * Hover/focus tooltip that also opens on tap: Radix tooltips ignore touch, so
  * without the click handler this explanation was unreachable on a phone.
  */
-function InfoTip({ text }: { text: string }) {
+function InfoTip({ text, subject }: { text: string; subject: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
@@ -699,13 +751,69 @@ function InfoTip({ text }: { text: string }) {
           type="button"
           onClick={() => setOpen(true)}
           className="touch-target rounded-full text-text-muted transition-colors hover:text-accent-strong"
-          aria-label="More information"
+          aria-label={`More information about ${subject}`}
         >
           <Info className="h-3.5 w-3.5" />
         </button>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">{text}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * Optional MD random seed. Empty sends nothing and the backend uses its
+ * default, so the same input reproduces the same trajectory; a different
+ * whole number gives an independent replica.
+ */
+function SeedField({
+  value,
+  onChange,
+  min,
+  max,
+  defaultSeed,
+}: {
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+  min: number;
+  max: number;
+  defaultSeed: number;
+}) {
+  const id = useId();
+  const [text, setText] = useState(value == null ? "" : String(value));
+  const { error } = parseSeed(text, min, max);
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
+        Random seed
+      </Label>
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        className="font-mono"
+        value={text}
+        placeholder={String(defaultSeed)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
+        onChange={(e) => {
+          setText(e.target.value);
+          // An invalid entry goes through as NaN so the request check blocks
+          // the run; it is never replaced by a number the user did not type.
+          onChange(parseSeed(e.target.value, min, max).value);
+        }}
+      />
+      {error && (
+        <p id={`${id}-error`} role="alert" className="flex items-start gap-1.5 text-xs leading-relaxed text-error">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{error}</span>
+        </p>
+      )}
+      <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
+        Optional. Blank uses {defaultSeed}. The same seed reproduces a trajectory; change it for an independent replica.
+      </p>
+    </div>
   );
 }
 
@@ -736,6 +844,7 @@ function NumberField({
   max?: number;
   step?: number;
 }) {
+  const id = useId();
   const [localValue, setLocalValue] = useState<string>(String(value));
   const [isFocused, setIsFocused] = useState(false);
   const displayValue = isFocused ? localValue : String(value);
@@ -743,10 +852,17 @@ function NumberField({
     min != null && max != null
       ? `Range: ${min}–${max}${unit ? ` ${unit}` : ""}`
       : undefined;
+  const describedBy = [
+    hint ? `${id}-hint` : null,
+    rangeText ? `${id}-range` : null,
+    warning ? `${id}-warning` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-text-secondary">
+      <Label htmlFor={id} className="text-xs font-medium text-text-secondary">
         {label}
         {unit && (
           <span className="ml-1 font-normal text-text-muted">
@@ -755,7 +871,9 @@ function NumberField({
         )}
       </Label>
       <Input
+        id={id}
         type="number"
+        aria-describedby={describedBy || undefined}
         className="no-spinner font-mono"
         value={displayValue}
         onFocus={() => {
@@ -791,17 +909,17 @@ function NumberField({
         step={step ?? 1}
       />
       {hint && (
-        <p className="font-mono text-xs text-text-muted">
+        <p id={`${id}-hint`} className="font-mono text-xs text-text-muted">
           {hint}
         </p>
       )}
       {rangeText && (
-        <p className="font-mono text-xs text-text-muted">
+        <p id={`${id}-range`} className="font-mono text-xs text-text-muted">
           {rangeText}
         </p>
       )}
       {warning && (
-        <p className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
+        <p id={`${id}-warning`} className="flex items-start gap-1.5 text-xs leading-relaxed text-warning">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{warning}</span>
         </p>

@@ -127,7 +127,7 @@ npm run dev                    # starts the dev server`}</code>
             <Link href="/docs/calculations">calculation type</Link> —
             single-point, geometry optimization, or molecular dynamics.
           </li>
-          <li>Click Calculate and wait for the result.</li>
+          <li>Click Run calculation and wait for the result.</li>
           <li>
             Explore the five-tab dashboard — Summary, Forces, Energy,
             Structure and Raw data — with an interactive 3D viewer and
@@ -148,8 +148,10 @@ npm run dev                    # starts the dev server`}</code>
           Every calculation can be published as a permanent, citable link
           (a &ldquo;MACE Link&rdquo;) — for example{" "}
           <code>mace-lake.vercel.app/r/gK7tabOE</code>. Click{" "}
-          <strong>Share Result</strong> after a run completes. Anyone with
-          the link can view the full result dashboard, no login required,
+          <strong>Share result</strong> after a run completes and confirm
+          that you want to publish it: the link is public and permanent, and
+          it includes the structure&rsquo;s coordinates and file name. Anyone
+          with the link can view the full result dashboard, no login required,
           and shared results are immutable once created — the same link
           always shows the same result, which keeps citations stable.
         </p>

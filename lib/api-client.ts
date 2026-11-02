@@ -7,7 +7,7 @@
  * `{status:"error", message, error:{code, message, field}}` (lib/server/backend.ts).
  */
 
-import type { CalculationResult } from "@/types/mace";
+import type { CalculationResult, SmilesToXyzResponse } from "@/types/mace";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -52,6 +52,43 @@ export async function postJson<T>(url: string, body: unknown, signal?: AbortSign
   return response.json() as Promise<T>;
 }
 
+/** Make a SMILES string safe to put in a file name. */
+function sanitizeFilename(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_\-()[\]=#+.@]/g, "_").slice(0, 60);
+}
+
+/** Files made by smilesToFile(). Marked by identity, never guessed from a name. */
+const smilesFiles = new WeakSet<File>();
+
+/** True only for a file smilesToFile() produced, whatever a user names theirs. */
+export function isSmilesGenerated(file: File): boolean {
+  return smilesFiles.has(file);
+}
+
+/**
+ * Convert a SMILES string to a 3D structure through /api/smiles-to-xyz.
+ *
+ * The SMILES box and the molecule editor both end here, so a rejected string
+ * reads the same in both: the server's own message, never the raw envelope.
+ */
+export async function smilesToFile(smiles: string, signal?: AbortSignal): Promise<File> {
+  const trimmed = smiles.trim();
+  // Untrusted JSON: every field optional, checked before use.
+  const data = await postJson<Partial<SmilesToXyzResponse> & { status?: string; message?: string }>(
+    "/api/smiles-to-xyz",
+    { smiles: trimmed },
+    signal,
+  );
+  if (data.status === "error" || typeof data.xyz !== "string") {
+    throw new ApiRequestError(data.message || "Conversion failed", 502, "conversion_failed");
+  }
+  const file = new File([data.xyz], `smiles_${sanitizeFilename(data.smiles_canonical || trimmed)}.xyz`, {
+    type: "text/plain",
+  });
+  smilesFiles.add(file);
+  return file;
+}
+
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 /** Real progress from the backend: the phase, and the BFGS / MD step when there is one. */
@@ -86,48 +123,94 @@ export async function getJob(jobId: string, signal?: AbortSignal): Promise<JobVi
 }
 
 export async function cancelJob(jobId: string): Promise<void> {
-  await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" }).catch(() => undefined);
+  // keepalive lets the request outlive a page that is being closed or left.
+  await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE", keepalive: true }).catch(
+    () => undefined,
+  );
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(new DOMException("Aborted", "AbortError"));
-      },
-      { once: true },
-    );
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+/** Failed polls tolerated in a row before the job is given up on. */
+const POLL_RETRIES = 3;
+
+/** A poll that failed for a reason a later attempt can fix: network, 5xx, 429. */
+function isTransient(err: unknown): boolean {
+  if (err instanceof ApiRequestError) return err.status >= 500 || err.status === 429;
+  return err instanceof TypeError;
 }
 
 /**
  * Submit a calculation and wait for its result, reporting real progress.
  *
- * Aborting `signal` cancels the job on the server too — closing the panel or
- * pressing Cancel stops the computation instead of leaving it running.
+ * Aborting `signal` cancels the job on the server too, at once: the DELETE is
+ * sent from the abort event itself, so pressing Cancel, leaving the page or
+ * closing the tab stops the computation instead of leaving it running. A poll
+ * that fails for a transient reason is retried; when retries run out the job
+ * is cancelled and the error names it.
  */
 export async function runCalculationJob(
   form: FormData,
   options: { signal?: AbortSignal; onUpdate?: (job: JobView) => void } = {},
 ): Promise<CalculationResult> {
   const { signal, onUpdate } = options;
-  let job = await submitJob(form, signal);
+  // The submit is deliberately not tied to `signal`. The server may create the
+  // job before the answer reaches us, and an aborted fetch would leave us
+  // without the id we need to cancel it. A Cancel pressed meanwhile is carried
+  // out as soon as the id arrives.
+  let job = await submitJob(form);
+  const cancelNow = () => void cancelJob(job.jobId);
+  if (signal?.aborted) {
+    cancelNow();
+    throw new ApiRequestError("The calculation was cancelled.", 499, "cancelled");
+  }
+  signal?.addEventListener("abort", cancelNow, { once: true });
   onUpdate?.(job);
   const started = Date.now();
+  let failures = 0;
   try {
     while (job.status === "queued" || job.status === "running") {
-      // Poll quickly while a short job is likely to finish, then back off.
+      // Poll quickly while a short job is likely to finish, then back off; wait
+      // longer still after a failed poll.
       const elapsed = Date.now() - started;
-      await sleep(elapsed < 10_000 ? 700 : elapsed < 60_000 ? 1500 : 3000, signal);
-      job = await getJob(job.jobId, signal);
+      const interval = elapsed < 10_000 ? 700 : elapsed < 60_000 ? 1500 : 3000;
+      await sleep(interval + failures * 1000, signal);
+      try {
+        job = await getJob(job.jobId, signal);
+        failures = 0;
+      } catch (err) {
+        if (signal?.aborted || !isTransient(err) || ++failures > POLL_RETRIES) throw err;
+        continue;
+      }
       onUpdate?.(job);
     }
   } catch (err) {
-    if (signal?.aborted) void cancelJob(job.jobId);
-    throw err;
+    if (signal?.aborted) throw err;
+    cancelNow();
+    const reason = err instanceof Error ? err.message : "Lost track of the calculation";
+    throw new ApiRequestError(
+      `${reason} A cancel request was sent for job ${job.jobId} so it does not keep using the server.`,
+      err instanceof ApiRequestError ? err.status : 502,
+      err instanceof ApiRequestError ? err.code : "poll_failed",
+    );
+  } finally {
+    signal?.removeEventListener("abort", cancelNow);
   }
   if (job.status === "succeeded" && job.result) return job.result;
   if (job.status === "cancelled") throw new ApiRequestError("The calculation was cancelled.", 499, "cancelled");

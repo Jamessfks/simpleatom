@@ -15,19 +15,28 @@
  *   3. no compound contains an element that attracts MP2020 anion corrections;
  *   4. every element of every compound has a reference structure in this set.
  *
- * Geometries are MP's PBE-relaxed cells, served by OPTIMADE as lattice_vectors
- * + cartesian_site_positions, and written here twice: as extended XYZ (human
- * readable, positions in A to 8 decimal places) and as ASE-generated CIF.
+ * Geometries are the structures MP's OPTIMADE endpoint serves for each id, as
+ * lattice_vectors + cartesian_site_positions. MP serves the structure from its
+ * best-ranked calculation (r2SCAN, then GGA+U, then GGA), so 12 of the 13 cells
+ * here are r2SCAN-relaxed. Only mp-1048 (NiTi) has no r2SCAN entry, and its cell
+ * is from the GGA/GGA+U calculation. They are not PBE cells: for the four
+ * ids with archived GGA-era pages (Cu, Ni, AlNi, AlFe) the served conventional
+ * cell is 0.87-1.21 % smaller than MP's own GGA cell
+ * (docs/v2/validation/structure-references.json, H1). Each cell is written twice,
+ * as extended XYZ (positions in A to 8 decimal places) and as an ASE-generated CIF.
  *
- * The CIF is the one that gets calculated. mace-api/calculate.py maps a ".xyz"
- * extension onto ASE's plain-xyz reader, which discards `Lattice=` and `pbc=`
- * and would have every crystal here evaluated as an isolated cluster. Each CIF
- * was checked to survive a write/read round trip with no loss of minimum-image
- * interatomic distances or cell parameters — the measured deviations are below.
+ * The benchmark sends the CIF (lib/benchmark-structures.ts). The extended XYZ
+ * would compute the same thing: mace-api/calculate.py reads a ".xyz" with ASE's
+ * extended-XYZ reader, which honours the `Lattice=` and `pbc="T T T"` on the
+ * comment line. The 2026-10-31 structure audit confirmed each pair describes one
+ * structure (energy difference at most 3.3e-9 eV). Each CIF was also checked to
+ * survive a write/read round trip with no loss of minimum-image interatomic
+ * distances or cell parameters; the measured deviations are below.
  *
  * Formation energies are from MP's own `_mp_stability["gga_gga+u"]` —
  * PBE / PBE+U, matching MACE-MP-0's training level of theory. The r2SCAN keys
- * MP also exposes are deliberately not used.
+ * MP also exposes are deliberately not used. So the cells (r2SCAN) and the
+ * energies compared with them (GGA/GGA+U) come from different functionals.
  */
 
 /** One Materials Project entry: a structure plus MP's published value for it. */
@@ -62,9 +71,9 @@ export interface MpReferenceEntry {
   mpThermoId: string;
   /** MP's own last-updated stamp for that thermo document. */
   mpThermoLastUpdated: string;
-  /** Extended XYZ of MP's relaxed cell. For reading; not what gets calculated. */
+  /** Extended XYZ of the served cell (r2SCAN-relaxed except mp-1048). This is what the benchmark sends. */
   xyzData: string;
-  /** ASE-generated CIF of the same cell. THIS is what gets sent to the backend. */
+  /** ASE-generated CIF of the same cell, kept as a cross-check; it gives the same energy as `xyzData`. */
   cifData: string;
   /**
    * Round-trip fidelity of `cifData`, measured at generation time:

@@ -12,7 +12,7 @@ There was no CI: ~81 Python tests nothing ran, no frontend tests, and a push to 
 
 ## Decision outcome
 
-`.github/workflows/ci.yml` runs on every push and pull request: frontend (contract freshness, version agreement, typecheck, lint ≤ baseline, vitest, build, production `npm audit`), python-unit (hashed lock; contract/trust/guards; optimizer and SMILES tests; staging completeness), python-models (validator, provenance, science regressions), and docker-smoke (the staged image over HTTP). The Space deploys only from `main` after all four pass. Actions are pinned by commit SHA.
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, `daily` and `v*` branches: frontend (contract freshness, version agreement, typecheck, lint ≤ baseline, vitest, build, production `npm audit`), python-unit (hashed lock; contract/trust/guards; optimizer and SMILES tests; staging completeness), python-models (validator, provenance, science regressions), and docker-smoke (the staged image over HTTP). The Space deploys only from `main` after all four pass. Actions are pinned by commit SHA.
 
 ### Consequences
 

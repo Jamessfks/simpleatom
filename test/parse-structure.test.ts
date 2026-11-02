@@ -28,3 +28,133 @@ describe("parseStructureText", () => {
     expect(parsed.positions[0][0]).toBe(0);
   });
 });
+
+// D62: database CIFs list the asymmetric unit and rely on the symmetry
+// operations for the rest. ASE (the backend) expands them; the preview must too,
+// or the atom count, formula, size limits and overlap warnings describe a
+// different structure from the one that runs.
+describe("CIF symmetry expansion (D62)", () => {
+  /** Rock-salt NaCl, Fm-3m, as COD writes it: 2 sites and all 192 operations. */
+  function naclCif(): string {
+    const vars = ["x", "y", "z"];
+    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    const centering = [["", "", ""], ["", "+1/2", "+1/2"], ["+1/2", "", "+1/2"], ["+1/2", "+1/2", ""]];
+    const ops: string[] = [];
+    for (const p of perms)
+      for (let s = 0; s < 8; s++)
+        for (const t of centering) {
+          const comps = p.map((v, i) => `${s & (1 << i) ? "-" : ""}${vars[v]}${t[i]}`);
+          ops.push(`'${comps.join(", ")}'`);
+        }
+    return [
+      "data_NaCl",
+      "_cell_length_a 5.6400",
+      "_cell_length_b 5.6400",
+      "_cell_length_c 5.6400",
+      "_cell_angle_alpha 90",
+      "_cell_angle_beta 90",
+      "_cell_angle_gamma 90",
+      "_symmetry_space_group_name_H-M 'F m -3 m'",
+      "loop_",
+      "_symmetry_equiv_pos_as_xyz",
+      ...ops,
+      "loop_",
+      "_atom_site_label",
+      "_atom_site_type_symbol",
+      "_atom_site_fract_x",
+      "_atom_site_fract_y",
+      "_atom_site_fract_z",
+      "Na1 Na 0.0 0.0 0.0",
+      "Cl1 Cl 0.5 0.5 0.5",
+      "",
+    ].join("\n");
+  }
+
+  it("turns the NaCl asymmetric unit (2 sites) into the 8-atom cell ASE reads", () => {
+    const parsed = parseStructureText(naclCif(), "nacl.cif");
+    expect(parsed.atomCount).toBe(8);
+    expect(parsed.elementCounts).toEqual({ Na: 4, Cl: 4 });
+    expect(parsed.isPeriodic).toBe(true);
+    // Na–Cl nearest neighbour is a/2 = 2.82 Å, not the 4.88 Å between the two listed sites.
+    expect(parsed.minNeighborDist).toBeCloseTo(2.82, 2);
+  });
+
+  it("keeps one atom for a site on a special position", () => {
+    const cif = [
+      "data_P-1",
+      "_cell_length_a 4", "_cell_length_b 5", "_cell_length_c 6",
+      "_cell_angle_alpha 90", "_cell_angle_beta 90", "_cell_angle_gamma 90",
+      "loop_", "_space_group_symop_operation_xyz", "'x, y, z'", "'-x, -y, -z'",
+      "loop_", "_atom_site_type_symbol", "_atom_site_fract_x", "_atom_site_fract_y", "_atom_site_fract_z",
+      "O 0.0 0.0 0.0",
+      "C 0.1 0.2 0.3",
+      "",
+    ].join("\n");
+    const parsed = parseStructureText(cif, "p-1.cif");
+    expect(parsed.elementCounts).toEqual({ O: 1, C: 2 });
+  });
+
+  it("does not multiply a CIF that already lists every atom", () => {
+    const parsed = parseStructureText(readFileSync("public/demo/silicon.cif", "utf8"), "silicon.cif");
+    expect(parsed.atomCount).toBe(8);
+  });
+});
+
+// The demo lists all 8 atoms of the conventional cell, so it is a P1 file. It
+// used to say 'F d -3 m' with no operations, which made every demo run carry the
+// backend's "two origin choices" warning and the preview show an "H-M symbol
+// without operations" note for a structure that needed neither.
+describe("public/demo/silicon.cif is written in P1", () => {
+  const text = readFileSync("public/demo/silicon.cif", "utf8");
+  const parsed = parseStructureText(text, "silicon.cif") as ReturnType<typeof parseStructureText> & { notes?: string[] };
+
+  it("names space group P 1, not Fd-3m with no operations", () => {
+    expect(text).toMatch(/_symmetry_space_group_name_H-M\s+'P 1'/);
+    expect(text).not.toMatch(/F d -3 m/);
+  });
+
+  it("explains in its comment that the diamond-cubic (Fd-3m) cell is written out in full", () => {
+    const comment = text.split("\n").filter((l) => l.startsWith("#")).join(" ").replace(/\s+/g, " ");
+    expect(comment).toMatch(/Fd-3m/);
+    expect(comment).toMatch(/P1/);
+    expect(comment).toMatch(/every atom/i);
+    expect(comment).toMatch(/no symmetry expansion or origin choice/i);
+    // The existing guard on the stated neighbour distance (test_backend_contract.py).
+    expect(comment).toContain("2.3516");
+  });
+
+  it("raises no symmetry note, because none is needed", () => {
+    expect(parsed.notes ?? []).toEqual([]);
+  });
+
+  it("keeps the same 8 atoms in the same cell (the golden energies depend on them)", () => {
+    const a = 5.4309;
+    const fractional = [
+      [0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5],
+      [0.25, 0.25, 0.25], [0.75, 0.75, 0.25], [0.75, 0.25, 0.75], [0.25, 0.75, 0.75],
+    ];
+    expect(parsed.symbols).toEqual(Array(8).fill("Si"));
+    expect(parsed.lattice).toEqual([[a, 0, 0], [0, a, 0], [0, 0, a]].map((r) => r.map((v) => expect.closeTo(v, 8))));
+    fractional.forEach((f, i) =>
+      f.forEach((v, k) => expect(parsed.positions[i][k]).toBeCloseTo(v * a, 8)),
+    );
+  });
+});
+
+// D69 (F13 related): the POSCAR scale factor applies to Cartesian coordinates
+// as well as to the cell.
+describe("POSCAR scale factor (D69)", () => {
+  const poscar = (mode: string) =>
+    ["cubic", "2.0", "1 0 0", "0 1 0", "0 0 1", "Cu", "1", mode, "0.5 0.0 0.0", ""].join("\n");
+
+  it("scales Cartesian coordinates with the cell", () => {
+    const parsed = parseStructureText(poscar("Cartesian"), "POSCAR");
+    expect(parsed.lattice![0][0]).toBeCloseTo(2, 10);
+    expect(parsed.positions[0][0]).toBeCloseTo(1.0, 10);
+  });
+
+  it("puts a direct coordinate at the same place", () => {
+    const parsed = parseStructureText(poscar("Direct"), "POSCAR");
+    expect(parsed.positions[0][0]).toBeCloseTo(1.0, 10);
+  });
+});

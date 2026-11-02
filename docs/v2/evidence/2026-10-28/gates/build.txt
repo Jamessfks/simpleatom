@@ -1,0 +1,49 @@
+$ npm run build
+
+> simpleatom@2.2.0 build
+> next build
+
+▲ Next.js 16.4.2 (Turbopack)
+✓ Running next.config.ts took 61ms
+
+  Creating an optimized production build ...
+(node:12674) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✓ Compiled successfully in 1809ms
+  Running TypeScript ...
+  Finished TypeScript in 1333ms ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/18) ...
+  Generating static pages using 11 workers (4/18) 
+  Generating static pages using 11 workers (8/18) 
+  Generating static pages using 11 workers (13/18) 
+✓ Generating static pages using 11 workers (18/18) in 170ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/benchmark
+├ ƒ /api/calculate
+├ ƒ /api/jobs
+├ ƒ /api/jobs/[id]
+├ ƒ /api/share
+├ ƒ /api/smiles-to-xyz
+├ ○ /benchmark
+├ ○ /calculate
+├ ○ /docs
+├ ○ /docs/calculations
+├ ○ /docs/faq
+├ ○ /docs/getting-started
+├ ○ /docs/models
+├ ○ /docs/units
+├ ○ /docs/validation
+├ ƒ /r/[id]
+├ ƒ /r/[id]/embed
+└ ƒ /v2
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[exit 0]

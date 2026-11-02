@@ -1,14 +1,12 @@
 # SimpleAtom backend — the public Hugging Face Space (docs/adr/0002, 0025).
-FROM python:3.11-slim
-
-# build-essential stays: a few transitive dependencies may only publish sdists.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential && \
-    rm -rf /var/lib/apt/lists/*
+# The base is pinned by digest (D83): a floating tag changed pip, Debian and
+# Python patch level between two builds of one commit. Bump it deliberately.
+FROM python:3.11-slim@sha256:673719e071ecf27434fd2635bbd8d00f49f4fdd81f243143438a42ced8bedf60
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     OMP_NUM_THREADS=2 \
     SIMPLEATOM_PROFILE=hosted
 
@@ -17,9 +15,17 @@ WORKDIR /app
 
 # Hash-pinned, CPU-only lock (torch from the PyTorch CPU index). --no-deps: the
 # lock is the complete closure, so pip cannot resolve anything it does not list.
-COPY requirements.lock.txt .
-RUN pip install --upgrade pip && \
-    pip install --require-hashes --no-deps -r requirements.lock.txt
+# Every distribution installs from a wheel (--only-binary=:all:), so no compiler
+# is in the image and a new sdist fails this build instead of compiling
+# unnoticed. The two exceptions are pure-Python sdists with a plain setup.py;
+# they build with the hash-pinned setuptools from build-requirements.lock.txt,
+# not one fetched unhashed under build isolation. The base image's pip is used
+# as is: an upgrade here would be one more unpinned download.
+COPY requirements.lock.txt build-requirements.lock.txt ./
+RUN pip install --require-hashes --no-deps -r build-requirements.lock.txt && \
+    pip install --require-hashes --no-deps --no-build-isolation \
+      --only-binary=:all: --no-binary=bibtexparser,python-hostlist \
+      -r requirements.lock.txt
 
 COPY --chown=user:user . .
 USER user

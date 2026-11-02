@@ -34,13 +34,16 @@ python3 mace-api/calculate_local.py public/demo/ethanol.xyz '{"modelType":"MACE-
 The default materials model is **MACE-MPA-0** (upstream's own default since
 v0.3.10; Matbench Discovery F1 0.852, energy MAE 0.028 eV/atom). MACE-MP-0
 remains available (F1 0.669, MAE 0.057 eV/atom) so earlier results can be
-reproduced. Both are trained on PBE/PBE+U DFT data, which overbinds relative to
-experiment by roughly 0.1–0.5 eV/atom. MACE-OFF23 is trained on ωB97M-D3(BJ)
+reproduced. Both are trained on PBE/PBE+U DFT data and inherit PBE's differences
+from experiment, which depend on the material and the property: MACE-MPA-0 relaxes
+silicon to a = 5.467 Å against 5.4309 Å measured at 298 K (COD 9011998; the model value
+is `docs/v2/evidence/2026-10-28/feasibility.json`). MACE-OFF23 is trained on ωB97M-D3(BJ)
 DFT (SPICE) for organic molecules and is licensed for non-commercial use only.
 None of them is "quantum-accurate", and SimpleAtom does not claim they are.
 
 Energies from different models live on different reference conventions
-(−1 to −15 eV/atom for the MP family; −100 to −600 for MACE-OFF). Never compare
+(−1 to −15 eV/atom for the MP family; for MACE-OFF, E/N depends on the elements present, so
+it is judged relative to the model's own isolated atoms, typically −6 to −0.5 eV/atom). Never compare
 totals across models; the [contract reference](../reference/contract.md#energy-conventions)
 lists the bands the validator applies.
 

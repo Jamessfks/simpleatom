@@ -70,7 +70,7 @@ import provenance  # noqa: E402  (needs the sys.path line above)
 # float noise.
 GOLDEN = {
     "ethanol": {
-        "file": "public/demo/ethanol.xyz",
+        "file": "test/fixtures/ethanol-golden.xyz",  # the strained pre-D119 demo, kept for its goldens
         "params": {"calculationType": "single-point",
                    "modelType": "MACE-OFF", "modelSize": "small"},
         "energy": -4221.322391557846,   # eV, float64
@@ -105,6 +105,54 @@ def _sha256_of(path) -> str:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+class TestStructureHashAcrossFormats(unittest.TestCase):
+    """
+    D76: the structure hash is format-independent for the same atoms, cell and
+    pbc. It is not magic: PDB keeps 3 decimals, and a molecule written as CIF
+    gains a cell and periodicity, so both are different inputs.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def _round_trip(self, atoms, fmt, ext):
+        from ase.io import read, write
+        path = os.path.join(self.tmp, f"s.{ext}")
+        write(path, atoms, format=fmt)
+        return hashlib.sha256(provenance.structure_canonical_bytes(read(path, format=fmt))).hexdigest()
+
+    def test_a_crystal_hashes_the_same_as_extxyz_cif_and_poscar(self):
+        from ase.io import read
+        si = read(str(REPO_ROOT / "public" / "demo" / "silicon.cif"))
+        hashes = {self._round_trip(si, f, e) for f, e in (("extxyz", "xyz"), ("cif", "cif"), ("vasp", "vasp"))}
+        self.assertEqual(len(hashes), 1)
+
+    def test_hexagonal_crystals_hash_the_same_as_poscar_and_cif(self):
+        # D76: a coordinate that rounds to zero printed as "-0.0000000000" from one
+        # format and "0.0000000000" from the other, so hcp and wurtzite cells differed.
+        from ase.build import bulk
+        crystals = {"Mg": bulk("Mg", "hcp", a=3.21, c=5.21), "Ti": bulk("Ti", "hcp", a=2.95, c=4.68),
+                    "C": bulk("C", "hcp", a=2.46, c=6.71),
+                    "ZnO": bulk("ZnO", "wurtzite", a=3.25, c=5.21, u=0.382)}
+        for name, atoms in crystals.items():
+            with self.subTest(name):
+                hashes = {fmt: self._round_trip(atoms, fmt, ext)
+                          for fmt, ext in (("vasp", "vasp"), ("cif", "cif"), ("extxyz", "xyz"))}
+                # D76 (batch 6): extended XYZ keeps 8 decimals, so it must agree too.
+                self.assertEqual(len(set(hashes.values())), 1, hashes)
+
+    def test_pdb_matches_only_at_its_own_precision(self):
+        import numpy as np
+        from ase.io import read
+        ethanol = read(str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz"))
+        self.assertNotEqual(self._round_trip(ethanol, "extxyz", "xyz"),
+                            self._round_trip(ethanol, "proteindatabank", "pdb"))
+        ethanol.positions = np.round(ethanol.positions, 3)
+        self.assertEqual(self._round_trip(ethanol, "extxyz", "xyz"),
+                         self._round_trip(ethanol, "proteindatabank", "pdb"))
+
+
 class TestProvenanceUnits(unittest.TestCase):
     """Manifest primitives. No model, no network, no GPU."""
 
@@ -193,6 +241,23 @@ class TestProvenanceUnits(unittest.TestCase):
         symbols[0] = "N"
         atoms.set_chemical_symbols(symbols)
         self.assertNotEqual(before, provenance.structure_sha256(atoms)[0])
+
+    def test_structure_hash_changes_when_atoms_are_fixed(self):
+        """
+        D132: selective dynamics changes what a calculation reports (forces on
+        fixed atoms, MD temperature), so the constraints are part of the input.
+        """
+        from ase.constraints import FixAtoms, FixScaled
+        atoms = self._ethanol_atoms()
+        free, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixAtoms(indices=[0, 1]))
+        fixed01, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixAtoms(indices=[0, 2]))
+        fixed02, _ = provenance.structure_sha256(atoms)
+        atoms.set_constraint(FixScaled(0, [False, False, True], atoms.cell))
+        scaled, _ = provenance.structure_sha256(atoms)
+        self.assertEqual(len({free, fixed01, fixed02, scaled}), 4)
+        self.assertEqual(provenance.STRUCTURE_HASH_SPEC, "simpleatom-structure-v3")
 
     def test_structure_hash_is_insensitive_to_the_sign_of_zero(self):
         from ase import Atoms
@@ -400,6 +465,37 @@ def _mace_available() -> tuple[bool, str]:
         return True, ""
     except Exception as exc:  # noqa: BLE001
         return False, f"{type(exc).__name__}: {exc}"
+
+
+class TestDeployedProvenanceNotes(unittest.TestCase):
+    """
+    D49: in a deployed container (no .git, no git binary) the commit comes from
+    the GIT_COMMIT file and the dirty state cannot be checked. The manifest
+    used to carry gitDirty: null with no note, unlike every other null.
+    """
+
+    def test_pinned_commit_explains_its_unknown_dirty_state(self):
+        from unittest import mock
+        import ase
+        saved = provenance._GIT_INFO
+        provenance._GIT_INFO = None
+        try:
+            with mock.patch.object(provenance.subprocess, "run", side_effect=FileNotFoundError("git")), \
+                 mock.patch.object(provenance, "_pinned_commit", return_value="a" * 40):
+                info = provenance.git_info()
+                manifest = provenance.build_manifest(
+                    model_type="MACE-OFF", model_size="small", checkpoint_path=None,
+                    checkpoint_resolved_by="none", input_filename="x.xyz", input_path=None,
+                    input_format="xyz", atoms=ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]]),
+                    device="cpu", precision="float64", seed=None)
+        finally:
+            provenance._GIT_INFO = saved
+        self.assertEqual(info["commit"], "a" * 40)
+        self.assertIsNone(info["dirty"])
+        self.assertEqual(manifest["code"]["gitCommit"], "a" * 40)
+        self.assertIsNone(manifest["code"]["gitDirty"])
+        self.assertTrue(any("gitDirty is null" in n and "GIT_COMMIT" in n for n in manifest["notes"]),
+                        manifest["notes"])
 
 
 class TestRealCalculation(unittest.TestCase):

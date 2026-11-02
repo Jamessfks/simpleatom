@@ -5,6 +5,7 @@ CLI wrapper for MACE calculations — runs locally, no FastAPI needed.
 Usage:
   python calculate_local.py <structure_file> [params_json]
                             [--model-path <path>] [--display-name <name>] [--progress]
+  python calculate_local.py --capabilities   (prints the usable devices, then exits)
 
 Reads an atomic structure file, runs MACE, prints ONE JSON document to stdout:
 the result, or {"status": "error", "message": ..., "error": {code, field,
@@ -15,6 +16,7 @@ SIMPLEATOM_PROFILE says otherwise.
 """
 
 import json
+from pathlib import Path
 import sys
 import os
 import warnings
@@ -53,18 +55,57 @@ logging.basicConfig(
 )
 
 import contract
-from calculate import RunHooks, run_calculation
+from calculate import RunHooks, device_report, run_calculation
 
 
 def emit(payload: dict) -> None:
-    """Write the one JSON document this process produces to the real stdout."""
-    print(json.dumps(payload), file=_REAL_STDOUT, flush=True)
+    """
+    Write the one JSON document this process produces to the real stdout.
+
+    Strict JSON only (D129): Python writes NaN and Infinity by default, and
+    Node's JSON.parse rejects them, so a non-finite number used to surface as
+    an unparseable reply. The engine refuses non-finite results itself; this is
+    the last line, and it answers with the same coded refusal.
+    """
+    try:
+        text = json.dumps(payload, allow_nan=False)
+    except ValueError:
+        message = "The result contains a non-finite number (NaN or Infinity). Nothing usable was computed."
+        text = json.dumps({"status": "error", "message": message,
+                           "error": {"code": "non_finite_result", "message": message,
+                                     "field": None, "status": 422}})
+    print(text, file=_REAL_STDOUT, flush=True)
 
 
 def emit_error(message: str, code: str = "calculation_failed", field=None,
                status: int = 500) -> None:
     emit({"status": "error", "message": message,
           "error": {"code": code, "message": message, "field": field, "status": status}})
+
+
+def pinned_versions() -> dict[str, str]:
+    """The exact pins in requirements.in for the packages the manifest tracks."""
+    import re
+    import provenance
+    text = (Path(__file__).resolve().parent / "requirements.in").read_text()
+    pins = dict(re.findall(r"^([A-Za-z0-9_.-]+)==([^\s#]+)", text, flags=re.M))
+    return {name: pins[name] for name in provenance.TRACKED_DISTRIBUTIONS if name in pins}
+
+
+def stack_drift(installed: dict, pins: dict[str, str]) -> list[str]:
+    """
+    Where the running Python differs from the pins. Local mode spawns whatever
+    interpreter it is given (SIMPLEATOM_PYTHON, else `python3` on PATH), which
+    need not be the pinned stack; a local version label (`+cpu`) is not drift.
+    """
+    out = []
+    for name, pinned in pins.items():
+        have = installed.get(name)
+        if have is None:
+            out.append(f"{name} not installed (pinned {pinned})")
+        elif have.split("+", 1)[0] != pinned:
+            out.append(f"{name} {have} (pinned {pinned})")
+    return out
 
 
 def _take_option(args: list[str], flag: str, takes_value: bool = True):
@@ -92,6 +133,14 @@ if __name__ == "__main__":
     args, model_path = _take_option(args, "--model-path")
     args, display_name = _take_option(args, "--display-name")
     args, want_progress = _take_option(args, "--progress", takes_value=False)
+    args, want_capabilities = _take_option(args, "--capabilities", takes_value=False)
+
+    if want_capabilities:
+        # What this machine can run on, for the local GET /api/calculate
+        # (ADR-0031): the UI offers exactly these devices.
+        emit({"profile": contract.profile_name("local"),
+              "devices": device_report(contract.profile_name("local"))})
+        sys.exit(0)
 
     if not args:
         emit_error("Usage: python calculate_local.py <file> [params_json] "
@@ -106,7 +155,7 @@ if __name__ == "__main__":
         params = json.loads(params_json)
         if not isinstance(params, dict):
             raise json.JSONDecodeError("not an object", params_json, 0)
-    except json.JSONDecodeError:
+    except (ValueError, RecursionError):  # also the 4300-digit integer limit and deep nesting (D138)
         emit_error("Invalid params JSON: expected an object.", code="invalid_params", status=400)
         sys.exit(1)
 
@@ -117,6 +166,12 @@ if __name__ == "__main__":
             profile=contract.profile_name("local"),
             display_name=display_name, hooks=hooks,
         )
+        drift = stack_drift((result.get("provenance") or {}).get("packages") or {}, pinned_versions())
+        if drift:
+            result.setdefault("warnings", []).append(
+                "This local Python is not the stack this checkout pins: " + "; ".join(drift) +
+                ". Results can differ from the hosted backend's. Point SIMPLEATOM_PYTHON at an "
+                "environment built from mace-api/requirements.lock.txt (docs/how-to/install.md).")
         emit(result)
     except ValueError as e:
         # ContractError and UntrustedCheckpointError are ValueErrors with a code:

@@ -2,7 +2,8 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { SharingUnavailableError } from "@/lib/supabase";
 import { insertSharedResult } from "@/lib/server/share-store";
-import { ApiError, displayName, errorResponse } from "@/lib/server/backend";
+import { ELEMENT_SYMBOL, MAX_SHARED_ATOMS, checkSharedResultShape } from "@/lib/share";
+import { ApiError, assertSameOrigin, displayName, errorResponse } from "@/lib/server/backend";
 import { clientIp } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
@@ -10,9 +11,7 @@ export const maxDuration = 30;
 
 /** Largest result accepted for sharing. The calculator's own JSON stays well under this. */
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
-const MAX_ATOMS = 50_000;
 const MAX_FRAMES = 2_000;
-const ELEMENT = /^[A-Z][a-z]?$/;
 
 /**
  * Per-visitor write limit, per server instance. Best effort on serverless —
@@ -52,8 +51,8 @@ function validateResult(result: unknown): Record<string, unknown> {
     throw new ApiError("Only completed calculations can be shared.", 400, "invalid_result", "result.status");
   }
   const symbols = r.symbols;
-  if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > MAX_ATOMS ||
-      !symbols.every((s) => typeof s === "string" && ELEMENT.test(s))) {
+  if (!Array.isArray(symbols) || symbols.length === 0 || symbols.length > MAX_SHARED_ATOMS ||
+      !symbols.every((s) => typeof s === "string" && ELEMENT_SYMBOL.test(s))) {
     throw new ApiError("result.symbols must be element symbols.", 400, "invalid_result", "result.symbols");
   }
   for (const key of ["positions", "forces"] as const) {
@@ -63,13 +62,25 @@ function validateResult(result: unknown): Record<string, unknown> {
     }
   }
   if (!finite(r.energy)) throw new ApiError("result.energy must be a finite number.", 400, "invalid_result", "result.energy");
-  const traj = r.trajectory as { positions?: unknown[] } | undefined;
-  if (traj !== undefined && (typeof traj !== "object" || (Array.isArray(traj.positions) && traj.positions.length > MAX_FRAMES))) {
+  // Size first (413); anything that is not a trajectory the page can draw is
+  // refused by checkSharedResultShape below (400), including null and {}.
+  const traj = r.trajectory;
+  if (
+    typeof traj === "object" && traj !== null && !Array.isArray(traj) &&
+    Array.isArray((traj as { positions?: unknown[] }).positions) &&
+    (traj as { positions: unknown[] }).positions.length > MAX_FRAMES
+  ) {
     throw new ApiError(`Trajectories longer than ${MAX_FRAMES} frames cannot be shared.`, 413, "too_large", "result.trajectory");
   }
   if (r.params !== undefined && (typeof r.params !== "object" || r.params === null)) {
     throw new ApiError("result.params must be an object.", 400, "invalid_result", "result.params");
   }
+  // Everything the shared page renders besides coordinates: text, provenance,
+  // validation, parameters, properties and trajectory series (D64). The row is
+  // public and permanent, so a value the backend never produces is refused
+  // here rather than rendered as fact later.
+  const shape = checkSharedResultShape(r, symbols.length);
+  if (shape) throw new ApiError(`${shape.field} ${shape.message}`, 400, "invalid_result", shape.field);
   return r;
 }
 
@@ -81,6 +92,7 @@ function validateResult(result: unknown): Record<string, unknown> {
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const declared = Number(request.headers.get("content-length") ?? 0);
     if (declared > MAX_BODY_BYTES) throw new ApiError("This result is too large to share.", 413, "too_large");
     const text = await request.text();

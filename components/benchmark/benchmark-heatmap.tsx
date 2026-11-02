@@ -111,11 +111,11 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
             ],
             colorbar: {
               // `titlefont` is deprecated in Plotly; the font lives on the title.
-              title: { text: "|ΔE| (meV)", side: "right", font: { color: "#5C574E", size: 10 } },
+              title: { text: "|ΔE| (meV/atom)", side: "right", font: { color: "#5C574E", size: 10 } },
               tickfont: { color: "#5C574E", size: 10 },
             },
             hovertemplate:
-              "<b>%{x}</b><br>%{y}<br>|ΔE| = %{z:.2f} meV<extra></extra>",
+              "<b>%{x}</b><br>%{y}<br>|ΔE| = %{z:.2f} meV/atom<extra></extra>",
             showscale: true,
           },
         ]}
@@ -141,8 +141,7 @@ export function BenchmarkHeatmap({ result }: HeatmapProps) {
   );
 }
 
+/** "MACE-MPA-0" -> "MPA-0": every registry label starts with the same prefix. */
 function shortenLabel(label: string): string {
-  return label
-    .replace("MACE-MP-0", "MP-0")
-    .replace("MACE-OFF", "OFF");
+  return label.replace(/MACE-/g, "");
 }

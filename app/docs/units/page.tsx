@@ -55,8 +55,8 @@ export default function UnitsPage() {
             </tr>
             <tr>
               <td>Stress</td>
-              <td>eV/Å³</td>
-              <td>Voigt notation.</td>
+              <td>GPa</td>
+              <td>Voigt order xx, yy, zz, yz, xz, xy; fully periodic cells only. Computed in eV/Å³ and converted with <code>ase.units.GPa</code>.</td>
             </tr>
             <tr>
               <td>Temperature</td>
@@ -188,8 +188,10 @@ export default function UnitsPage() {
         </ul>
         <Callout type="warning" title="Do not compare absolute energies across models">
           The MACE-MP family (MPA-0 and MP-0, &minus;1 to &minus;15 eV/atom)
-          and MACE-OFF (&minus;100 to &minus;600 eV/atom) use different energy
-          references. Never compare their absolute energies directly —
+          and MACE-OFF (whose raw energy per atom depends on the elements:
+          about &minus;694 eV/atom for water, &minus;28233 for CH<sub>2</sub>Br
+          <sub>2</sub>) use different energy references. Never compare their
+          absolute energies directly —
           compare energy <em>differences</em> computed with the{" "}
           <em>same</em> model instead. See{" "}
           <Link href="/docs/models">Foundation models</Link> for the full

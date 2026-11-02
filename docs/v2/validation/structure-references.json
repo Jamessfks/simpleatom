@@ -1,0 +1,4108 @@
+{
+ "title": "SimpleAtom shipped-structure reference table",
+ "retrieved": "2026-10-31",
+ "conventions": "Every VERIFIED value was read from the URL in 'source' on the retrieval date, or derived from such a value by the stated formula. UNVERIFIED fields carry a reason. Raw responses are kept under research/raw/.",
+ "records": [
+  {
+   "id": "Si-diamond",
+   "kind": "crystal",
+   "claimedIdentity": "diamond-cubic Si",
+   "fields": {
+    "lattice_constant_exp": {
+     "value": 5.430941,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 5.430941",
+     "temperature": "298.15 K",
+     "temperature_quote": "_diffrn_ambient_temperature      298.15",
+     "cod_id": "9011998",
+     "publication": "Hom, T.; Kiszenick, W.; Post, B. (1975) J. Appl. Cryst. 8, 457: 'Accurate lattice constants from multiple reflection mesurements II. lattice constants of germanium, silicon and diamond'"
+    },
+    "lattice_constant_exp_alt": {
+     "value": 5.4307,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008565.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 5.4307",
+     "cod_id": "9008565",
+     "reason": "secondary COD entry; see notes for its temperature/citation"
+    },
+    "space_group": {
+     "value": "Fd-3m (227)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_symmetry_space_group_name_H-M   'F d -3 m :1' / _space_group_IT_number 227",
+     "reason": "CIF symbol; confirmed by spglib 2.8.0 on the CIF structure"
+    },
+    "wyckoff_positions": {
+     "value": {
+      "Si": "a"
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on CIF (origin choice as in CIF; Fd-3m origin choice 1 => 8a at 0,0,0)"
+    },
+    "atoms_per_conventional_cell": {
+     "value": 8,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "expanded from CIF symmetry with ASE"
+    },
+    "atoms_per_primitive_cell": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib find_primitive"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.35167,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_nn = a*sqrt(3)/4 with a = 5.430941",
+     "reason": "derived; neighbour-list check gave {'Si': 2.35167}"
+    },
+    "coordination_number": {
+     "value": {
+      "Si": 4
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from neighbour list on CIF structure"
+    },
+    "density_cif": {
+     "value": 2.329,
+     "unit": "g/cm^3",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_exptl_crystal_density_diffrn    2.329",
+     "reason": "recomputed from cell + ASE standard atomic masses: 2.3291"
+    },
+    "app_lattice_constant_vs_exp": {
+     "value": {
+      "app": 5.431,
+      "exp": 5.430941,
+      "delta_percent": 0.001
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app value 'Exp (Kittel, 8th ed.)' (lib/mlpeg-catalog.ts) compared with the COD room-temperature value"
+    },
+    "app_lattice_constant_kittel_attribution": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No authorised, fetchable copy of Kittel 8th ed. lattice-constant tables was found; the attribution itself is not verified. The value is checked against COD instead.",
+     "retrieved": "2026-10-31"
+    },
+    "cohesive_energy_exp": {
+     "value": 4.63,
+     "unit": "eV/atom",
+     "source": "https://www.knowledgedoor.com/2/elements_handbook/cohesive_energy.html",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Silicon ... 4.63 eV/atom",
+     "reason": "KnowledgeDoor Elements Handbook, which cites 'Kittel, Charles. Introduction to Solid State Physics, 8th edition. Hoboken, NJ: John Wiley & Sons, Inc, 2005.'; app value -4.63 eV/atom (sign convention: binding as negative)"
+    },
+    "cohesive_energy_farid_godby": {
+     "value": 4.62,
+     "unit": "eV/atom",
+     "source": "https://journals.aps.org/prb/abstract/10.1103/PhysRevB.43.14248",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "We argue that this can be safely taken to be 4.62±0.08 eV/atom.",
+     "uncertainty": 0.08,
+     "reason": "abstract of Farid & Godby, Phys. Rev. B 43, 14248 (1991), 'Cohesive energies of crystals'; metadata confirmed via https://api.crossref.org/works/10.1103/PhysRevB.43.14248. Reference note on the page states the value is quoted without removing phonon zero-point energy (0.07 eV/atom)."
+    }
+   }
+  },
+  {
+   "id": "C-diamond",
+   "kind": "crystal",
+   "claimedIdentity": "diamond-cubic C",
+   "fields": {
+    "lattice_constant_exp": {
+     "value": 3.566986,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.566986",
+     "temperature": "298.15 K",
+     "temperature_quote": "_diffrn_ambient_temperature      298.15",
+     "cod_id": "9011997",
+     "publication": "Hom, T.; Kiszenick, W.; Post, B. (1975) J. Appl. Cryst. 8, 457 (same paper as Si)"
+    },
+    "lattice_constant_exp_alt": {
+     "value": 3.56679,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008564.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.56679",
+     "cod_id": "9008564",
+     "reason": "secondary COD entry; see notes for its temperature/citation"
+    },
+    "space_group": {
+     "value": "Fd-3m (227)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "'F d -3 m :1' / 227",
+     "reason": "CIF symbol; confirmed by spglib 2.8.0 on the CIF structure"
+    },
+    "wyckoff_positions": {
+     "value": {
+      "C": "a"
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on CIF (origin choice as in CIF; Fd-3m origin choice 1 => 8a at 0,0,0)"
+    },
+    "atoms_per_conventional_cell": {
+     "value": 8,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "expanded from CIF symmetry with ASE"
+    },
+    "atoms_per_primitive_cell": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib find_primitive"
+    },
+    "nearest_neighbour_distance": {
+     "value": 1.54455,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_nn = a*sqrt(3)/4 with a = 3.566986",
+     "reason": "derived; neighbour-list check gave {'C': 1.54455}"
+    },
+    "coordination_number": {
+     "value": {
+      "C": 4
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from neighbour list on CIF structure"
+    },
+    "density_cif": {
+     "value": 3.516,
+     "unit": "g/cm^3",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_exptl_crystal_density_diffrn    3.516",
+     "reason": "recomputed from cell + ASE standard atomic masses: 3.5157"
+    },
+    "app_lattice_constant_vs_exp": {
+     "value": {
+      "app": 3.567,
+      "exp": 3.566986,
+      "delta_percent": 0.0
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011997.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app value 'Exp (Kittel, 8th ed.)' (lib/mlpeg-catalog.ts) compared with the COD room-temperature value"
+    },
+    "app_lattice_constant_kittel_attribution": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No authorised, fetchable copy of Kittel 8th ed. lattice-constant tables was found; the attribution itself is not verified. The value is checked against COD instead.",
+     "retrieved": "2026-10-31"
+    },
+    "cohesive_energy_exp": {
+     "value": 7.37,
+     "unit": "eV/atom",
+     "source": "https://www.knowledgedoor.com/2/elements_handbook/cohesive_energy.html",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Carbon ... 7.37 eV/atom",
+     "reason": "KnowledgeDoor Elements Handbook, which cites 'Kittel, Charles. Introduction to Solid State Physics, 8th edition. Hoboken, NJ: John Wiley & Sons, Inc, 2005.'; app value -7.37 eV/atom (sign convention: binding as negative)"
+    }
+   }
+  },
+  {
+   "id": "Cu-fcc",
+   "kind": "crystal",
+   "claimedIdentity": "FCC Cu",
+   "fields": {
+    "lattice_constant_exp": {
+     "value": 3.613,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.613",
+     "temperature": "293 K",
+     "temperature_quote": "_diffrn_ambient_temperature      293",
+     "cod_id": "9013014",
+     "publication": "Suh, I.-K.; Ohta, H.; Waseda, Y. (1988) J. Mater. Sci. 23, 757: 'High-temperature thermal expansion of six metallic elements measured by dilatation method and X-ray diffraction'"
+    },
+    "lattice_constant_exp_alt": {
+     "value": 3.61496,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008468.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.61496",
+     "cod_id": "9008468",
+     "reason": "secondary COD entry; see notes for its temperature/citation"
+    },
+    "lattice_constant_exp_cod_5000216": {
+     "value": 3.615,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/5000216.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.615",
+     "cod_id": "5000216",
+     "reason": "no measurement temperature recorded in this CIF"
+    },
+    "lattice_constant_exp_cod_9012043": {
+     "value": 3.615,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9012043.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 3.615",
+     "cod_id": "9012043",
+     "reason": "no measurement temperature recorded in this CIF"
+    },
+    "space_group": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "'F m -3 m' / 225",
+     "reason": "CIF symbol; confirmed by spglib 2.8.0 on the CIF structure"
+    },
+    "wyckoff_positions": {
+     "value": {
+      "Cu": "a"
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on CIF (origin choice as in CIF; Fd-3m origin choice 1 => 8a at 0,0,0)"
+    },
+    "atoms_per_conventional_cell": {
+     "value": 4,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "expanded from CIF symmetry with ASE"
+    },
+    "atoms_per_primitive_cell": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib find_primitive"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.55478,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_nn = a/sqrt(2) with a = 3.613",
+     "reason": "derived; neighbour-list check gave {'Cu': 2.55478}"
+    },
+    "coordination_number": {
+     "value": {
+      "Cu": 12
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from neighbour list on CIF structure"
+    },
+    "density_cif": {
+     "value": 8.949,
+     "unit": "g/cm^3",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_exptl_crystal_density_diffrn    8.949",
+     "reason": "recomputed from cell + ASE standard atomic masses: 8.9494"
+    },
+    "app_lattice_constant_vs_exp": {
+     "value": {
+      "app": 3.615,
+      "exp": 3.613,
+      "delta_percent": 0.055
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app value 'Exp (Kittel, 8th ed.)' (lib/mlpeg-catalog.ts) compared with the COD room-temperature value"
+    },
+    "app_lattice_constant_kittel_attribution": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No authorised, fetchable copy of Kittel 8th ed. lattice-constant tables was found; the attribution itself is not verified. The value is checked against COD instead.",
+     "retrieved": "2026-10-31"
+    },
+    "cohesive_energy_exp": {
+     "value": 3.49,
+     "unit": "eV/atom",
+     "source": "https://www.knowledgedoor.com/2/elements_handbook/cohesive_energy.html",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Copper ... 3.49 eV/atom",
+     "reason": "KnowledgeDoor Elements Handbook, which cites 'Kittel, Charles. Introduction to Solid State Physics, 8th edition. Hoboken, NJ: John Wiley & Sons, Inc, 2005.'; app value -3.49 eV/atom (sign convention: binding as negative)"
+    }
+   }
+  },
+  {
+   "id": "NaCl-rocksalt",
+   "kind": "crystal",
+   "claimedIdentity": "rocksalt NaCl",
+   "fields": {
+    "lattice_constant_exp": {
+     "value": 5.6401,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 5.6401",
+     "temperature": "298.15 K",
+     "temperature_quote": "_diffrn_ambient_temperature      298.15",
+     "cod_id": "9003308",
+     "publication": "Walker, D.; Verma, P. K.; Cranswick, L. M. D.; Jones, R. L.; Clark, S. M.; Buhre, S. (2004) Am. Mineral. 89, 204: 'Halite-sylvite thermoelasticity' (Sample msl416031, T = 25 C, P = 0.0 kbar)"
+    },
+    "space_group": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "'F m -3 m' / 225",
+     "reason": "CIF symbol; confirmed by spglib 2.8.0 on the CIF structure"
+    },
+    "wyckoff_positions": {
+     "value": {
+      "Na": "a",
+      "Cl": "b"
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on CIF (origin choice as in CIF; Fd-3m origin choice 1 => 8a at 0,0,0)"
+    },
+    "atoms_per_conventional_cell": {
+     "value": 8,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "expanded from CIF symmetry with ASE"
+    },
+    "atoms_per_primitive_cell": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib find_primitive"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.82005,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_nn = a/2 with a = 5.6401",
+     "reason": "derived; neighbour-list check gave {'Na': 2.82005, 'Cl': 2.82005}"
+    },
+    "coordination_number": {
+     "value": {
+      "Na": 6,
+      "Cl": 6
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from neighbour list on CIF structure"
+    },
+    "density_cif": {
+     "value": 2.164,
+     "unit": "g/cm^3",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_exptl_crystal_density_diffrn    2.164",
+     "reason": "recomputed from cell + ASE standard atomic masses: 2.1635"
+    },
+    "app_lattice_constant_vs_exp": {
+     "value": {
+      "app": 5.64,
+      "exp": 5.6401,
+      "delta_percent": -0.002
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9003308.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app value 'Exp (Kittel, 8th ed.)' (lib/mlpeg-catalog.ts) compared with the COD room-temperature value"
+    },
+    "app_lattice_constant_kittel_attribution": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No authorised, fetchable copy of Kittel 8th ed. lattice-constant tables was found; the attribution itself is not verified. The value is checked against COD instead.",
+     "retrieved": "2026-10-31"
+    },
+    "cohesive_energy_per_fu_0K_from_JANAF": {
+     "value": 6.611,
+     "unit": "eV/formula unit",
+     "source": "https://janaf.nist.gov/tables/Cl-053.txt ; https://janaf.nist.gov/tables/Na-005.txt ; https://janaf.nist.gov/tables/Cl-001.txt",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Cl-053 NaCl(cr) T=0: delta-f H -410.693; Na-005 Na(g) T=0: 107.549; Cl-001 Cl(g) T=0: 119.621 (kJ/mol)",
+     "formula": "E_coh = dfH0[Na(g)] + dfH0[Cl(g)] - dfH0[NaCl(cr)] = 637.863 kJ/mol; / 96.4853 kJ/mol per eV",
+     "reason": "atomization energy vs FREE NEUTRAL ATOMS at 0 K (includes zero-point energy)"
+    },
+    "cohesive_energy_per_fu_298K_from_JANAF": {
+     "value": 6.6303,
+     "unit": "eV/formula unit",
+     "source": "https://janaf.nist.gov/tables/Cl-053.txt ; https://janaf.nist.gov/tables/Na-005.txt ; https://janaf.nist.gov/tables/Cl-001.txt ; https://webbook.nist.gov/cgi/cbook.cgi?ID=C7647145&Mask=2",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "NaCl(cr) delta-f H 298.15 = -411.120; Na(g) 107.300; Cl(g) 121.302 kJ/mol (WebBook: 'Δ f H° solid | -411.12 | kJ/mol | Review | Chase, 1998')",
+     "formula": "639.722 kJ/mol / 96.4853",
+     "reason": "atomization enthalpy at 298.15 K vs free neutral atoms"
+    },
+    "app_cohesive_energy_-6.68_per_fu": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No fetched source states 6.68 eV per formula unit. NIST-JANAF thermochemistry gives 6.611 eV/f.u. at 0 K and 6.630 eV/f.u. (298.15 K enthalpy) relative to free neutral atoms, i.e. 3.31 eV/atom, not 3.34. The 0.05-0.07 eV gap is of the size of a zero-point-energy correction, but no fetched source documents that derivation, and the claimed 'CRC Handbook' value was not reachable.",
+     "retrieved": "2026-10-31",
+     "source": "lib/mlpeg-catalog.ts (app claim: 'Exp (CRC Handbook; -6.68 eV/formula unit ÷ 2 atoms)')"
+    },
+    "faraday_conversion": {
+     "value": 96.4853321233,
+     "unit": "kJ/mol per eV",
+     "source": "https://physics.nist.gov/cgi-bin/cuu/Value?f",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "Faraday constant 96485.33212 C/mol (CODATA); fetched in this task, see NOTES"
+    }
+   }
+  },
+  {
+   "id": "Fe-bcc",
+   "kind": "crystal",
+   "claimedIdentity": "BCC Fe",
+   "fields": {
+    "lattice_constant_exp": {
+     "value": 2.8665,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 2.8665",
+     "temperature": "298 K",
+     "temperature_quote": "_diffrn_ambient_temperature      298",
+     "cod_id": "9008536",
+     "publication": "Wyckoff, R. W. G. (1963) Crystal Structures, 2nd ed., vol. 1, p. 7, Interscience ('Sample at T = 298 K, Body centered cubic, bcc, structure')"
+    },
+    "lattice_constant_exp_alt": {
+     "value": 2.8654,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9006587.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_cell_length_a 2.8654",
+     "cod_id": "9006587",
+     "reason": "secondary COD entry; see notes for its temperature/citation"
+    },
+    "space_group": {
+     "value": "Im-3m (229)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "'I m -3 m' / 229",
+     "reason": "CIF symbol; confirmed by spglib 2.8.0 on the CIF structure"
+    },
+    "wyckoff_positions": {
+     "value": {
+      "Fe": "a"
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on CIF (origin choice as in CIF; Fd-3m origin choice 1 => 8a at 0,0,0)"
+    },
+    "atoms_per_conventional_cell": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "expanded from CIF symmetry with ASE"
+    },
+    "atoms_per_primitive_cell": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib find_primitive"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.48246,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_nn = a*sqrt(3)/2 with a = 2.8665",
+     "reason": "derived; neighbour-list check gave {'Fe': 2.48246}"
+    },
+    "coordination_number": {
+     "value": {
+      "Fe": 8
+     },
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from neighbour list on CIF structure"
+    },
+    "density_cif": {
+     "value": 7.875,
+     "unit": "g/cm^3",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "_exptl_crystal_density_diffrn    7.875",
+     "reason": "recomputed from cell + ASE standard atomic masses: 7.8742"
+    },
+    "app_lattice_constant_vs_exp": {
+     "value": {
+      "app": 2.87,
+      "exp": 2.8665,
+      "delta_percent": 0.122
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9008536.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app value 'Exp (Kittel, 8th ed.)' (lib/mlpeg-catalog.ts) compared with the COD room-temperature value"
+    },
+    "app_lattice_constant_kittel_attribution": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "No authorised, fetchable copy of Kittel 8th ed. lattice-constant tables was found; the attribution itself is not verified. The value is checked against COD instead.",
+     "retrieved": "2026-10-31"
+    },
+    "cohesive_energy_exp": {
+     "value": 4.28,
+     "unit": "eV/atom",
+     "source": "https://www.knowledgedoor.com/2/elements_handbook/cohesive_energy.html",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Iron ... 4.28 eV/atom",
+     "reason": "KnowledgeDoor Elements Handbook, which cites 'Kittel, Charles. Introduction to Solid State Physics, 8th edition. Hoboken, NJ: John Wiley & Sons, Inc, 2005.'; app value -4.28 eV/atom (sign convention: binding as negative)"
+    }
+   }
+  },
+  {
+   "id": "Cu-111-slab",
+   "kind": "slab",
+   "claimedIdentity": "Cu(111)",
+   "fields": {
+    "bulk_parent": {
+     "value": "Cu-fcc (COD 9013014, a = 3.613 A)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "interlayer_spacing_111": {
+     "value": 2.08597,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_111 = a/sqrt(3) with a = 3.613",
+     "reason": "spacing between equivalent (111) layers (Cu: adjacent close-packed layers, ABC stacking; Si: adjacent bilayers)"
+    },
+    "interlayer_spacing_111_app_a": {
+     "value": 2.08712,
+     "unit": "A",
+     "source": "lib/mlpeg-catalog.ts",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "a_app/sqrt(3)",
+     "reason": "same formula with the app's lattice constant"
+    },
+    "stacking": {
+     "value": "ABC close-packed (111) layers; 3 layers per repeat along [111] (repeat = a*sqrt(3))",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9013014.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived from fcc 4a structure"
+    }
+   }
+  },
+  {
+   "id": "Si-111-slab",
+   "kind": "slab",
+   "claimedIdentity": "Si(111)",
+   "fields": {
+    "bulk_parent": {
+     "value": "Si-diamond (COD 9011998, a = 5.430941 A)",
+     "unit": null,
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "interlayer_spacing_111": {
+     "value": 3.13556,
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "d_111 = a/sqrt(3) with a = 5.430941",
+     "reason": "spacing between equivalent (111) layers (Cu: adjacent close-packed layers, ABC stacking; Si: adjacent bilayers)"
+    },
+    "interlayer_spacing_111_app_a": {
+     "value": 3.13559,
+     "unit": "A",
+     "source": "lib/mlpeg-catalog.ts",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "a_app/sqrt(3)",
+     "reason": "same formula with the app's lattice constant"
+    },
+    "diamond_111_bilayer_pattern": {
+     "value": {
+      "intra_bilayer_vertical_A": 0.78389,
+      "inter_bilayer_vertical_A": 2.35167,
+      "period_A": 3.13556,
+      "stacking": "AaBbCc (3 bilayers per hexagonal repeat along [111], repeat = a*sqrt(3))"
+     },
+     "unit": "A",
+     "source": "https://www.crystallography.net/cod/9011998.cif",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "along [111]: short gap a*sqrt(3)/12 within a bilayer, long gap a*sqrt(3)/4 (= one Si-Si bond, parallel to [111]) between bilayers; sum a/sqrt(3)",
+     "reason": "derived from the diamond structure (8a sites at (0,0,0) and (1/4,1/4,1/4)) and the cited a"
+    }
+   }
+  },
+  {
+   "id": "mp-2258",
+   "kind": "mp",
+   "claimedIdentity": "AuCu3",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "AuCu3",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 4,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      3.73539,
+      3.73539,
+      3.73539,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      3.73539,
+      3.73539,
+      3.73539,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 13.0301,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Cu:c",
+      "Cu:c",
+      "Cu:c",
+      "Au:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.6413,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T03:50:19.705000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.03656425250000028,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-2258_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.03656425250000073,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-2258_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.037633489999997494,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-2258_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2258",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    }
+   }
+  },
+  {
+   "id": "mp-985806",
+   "kind": "mp",
+   "claimedIdentity": "Al2Cu",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Al2Cu",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 3,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      4.06067,
+      4.04639,
+      4.06067,
+      120.11685,
+      90.0,
+      120.11685
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      4.06067,
+      4.06067,
+      5.70219,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 15.6706,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "I4/mmm (139)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "I4/mmm (139)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Al:d",
+      "Al:d",
+      "Cu:b"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4808,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T19:50:11.418000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.17806622999999946,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-985806_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.21265698333333324,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-985806_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.21265698333333324,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-985806_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "structure_identity": {
+     "value": "Fluorite-type (C1, CaF2-like) Al2Cu: Cu 8-fold cubic coordination by Al (Cu-Al 2.481 A), Al tetrahedral (4 Cu). Served cell is I4/mmm (139) with c/(a*sqrt2) = 0.993, i.e. a ~0.7% tetragonal distortion of Fm-3m; spglib at symprec 0.1 returns Fm-3m (225) with Cu 4b, Al 8c.",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib + ASE neighbour list on served cell"
+    },
+    "archived_gga_structure": {
+     "value": {
+      "space_group": "Fm-3m (225)",
+      "conventional_a_A": 5.769108
+     },
+     "unit": "A",
+     "source": "https://web.archive.org/web/20220108080238id_/https://materialsproject.org/materials/mp-985806/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "mp-985806: Al2Cu (cubic, Fm-3m, 225) ... Formation Energy / Atom -0.178 eV ... Energy Above Hull / Atom 0.000 eV ... Run Type GGA",
+     "reason": "a from scene JSON: Al at +/-1.442277 A = a/4, Cu at 0 and 2.884555 A = a/2 (fluorite)"
+    },
+    "experimental_match": {
+     "value": false,
+     "unit": null,
+     "source": "https://web.archive.org/web/20220108080238id_/https://materialsproject.org/materials/mp-985806/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "archived page shows no 'ICSD IDs' list and no tags, whereas the theta-phase page mp-998 lists 6 ICSD IDs; treat mp-985806 as a hypothetical (computed) phase"
+    },
+    "theta_Al2Cu_is_mp-998": {
+     "value": {
+      "mp-998 space group": "I4/mcm (140)",
+      "nsites": 6,
+      "gga_gga+u energy_above_hull": 0.012531531666666318,
+      "gga_gga+u formation_energy_per_atom": -0.16553469833333287,
+      "r2scan energy_above_hull": 0.04758887666666567
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-998",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "archived 2022-01-09: 'mp-998: Al2Cu (tetragonal, I4/mcm, 140) Tags: Khatyrkite ... Aluminium copper (2/1) - theta ... Energy Above Hull / Atom 0.013 eV ... ICSD IDs 151372 107544 172800 42518 186680 42517'",
+     "archived_source": "https://web.archive.org/web/20220109084450id_/https://materialsproject.org/materials/mp-998/"
+    },
+    "energy_above_hull": {
+     "value": {
+      "gga_gga+u": 0.0,
+      "gga_gga+u_r2scan": 0.0,
+      "r2scan": 0.0
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-985806",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "hypothetical fluorite phase is MP's hull ground state at Al2Cu in all three thermo sets; experimental theta (mp-998) is 0.0125 (GGA) / 0.0476 (r2SCAN) eV/atom above"
+    }
+   }
+  },
+  {
+   "id": "mp-2658",
+   "kind": "mp",
+   "claimedIdentity": "AlFe",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "AlFe",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.84551,
+      2.84551,
+      2.84551,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      2.84551,
+      2.84551,
+      2.84551,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 11.5199,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Al:a",
+      "Fe:b"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4643,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T07:10:17.281000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.3268870149999996,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-2658_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.3268870149999996,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-2658_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.1224557449999999,
+      "energy_above_hull": 0.09216438844827479,
+      "thermo_id": "mp-2658_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "gga_relaxed_conventional_a_archived": {
+     "value": 2.874332,
+     "unit": "A",
+     "source": "https://web.archive.org/web/20220109183647id_/https://materialsproject.org/materials/mp-2658/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Run Type GGA; Final Energy/Atom -6.4347 eV; Formation Energy / Atom -0.327 eV; Hermann Mauguin Pm 3 m [221]; Magnetic Ordering FM; Density 5.79 g/cm^3",
+     "reason": "Read from the archived MP legacy page's embedded 3D-scene JSON (material-viz-data): B2: Fe at 0, +/-2.874332; Al at +/-1.437166 = a/2. Snapshot predates r2SCAN integration (v2022.10.28)."
+    },
+    "served_vs_gga_a_percent": {
+     "value": -1.003,
+     "unit": "%",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-2658 ; https://web.archive.org/web/20220109183647id_/https://materialsproject.org/materials/mp-2658/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(served conventional a 2.84551 / archived GGA a 2.874332 - 1) x 100"
+    }
+   }
+  },
+  {
+   "id": "mp-1048",
+   "kind": "mp",
+   "claimedIdentity": "NiTi",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "NiTi",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 4,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.89169,
+      3.96696,
+      4.82563,
+      90.0,
+      105.22959,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      2.89169,
+      3.96696,
+      4.82563,
+      90.0,
+      105.22959,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 13.3529,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "P2_1/m (11)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "P2_1/m (11)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Ti:e",
+      "Ti:e",
+      "Ni:e",
+      "Ni:e"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.5011,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T08:09:25.633000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.3958550266666663,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1048_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.3958550266666663,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1048_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "reason": "key 'r2scan' absent from _mp_stability in the live response (no such thermo doc served)"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": false,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "structure_identity": {
+     "value": "monoclinic P2_1/m (11), 4 atoms (B19'-type NiTi martensite cell)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1048",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib; this entry has no r2scan thermo document, so its served structure is presumably GGA (inference from emmet ranking)"
+    }
+   }
+  },
+  {
+   "id": "mp-1953",
+   "kind": "mp",
+   "claimedIdentity": "AlTi",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "AlTi",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.81075,
+      2.81075,
+      4.06642,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      2.81075,
+      2.81075,
+      4.06642,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 16.063,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "P4/mmm (123)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "P4/mmm (123)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Ti:d",
+      "Al:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.8108,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T13:08:16.932000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.40694453166666733,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1953_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.44695741333333494,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1953_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.44695741333333494,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1953_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1953",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    }
+   }
+  },
+  {
+   "id": "mp-622209",
+   "kind": "mp",
+   "claimedIdentity": "Al3Ni",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Al3Ni",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 16,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      4.77057,
+      6.55891,
+      7.30434,
+      90.0,
+      90.0,
+      89.99973
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      6.55891,
+      7.30434,
+      4.77057,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 14.2844,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Pnma (62)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Pnma (62)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Al:c",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:d",
+      "Al:c",
+      "Al:c",
+      "Al:c",
+      "Ni:c",
+      "Ni:c",
+      "Ni:c",
+      "Ni:c"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4254,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T10:28:16.511000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.4049159087500005,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-622209_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.4187757031250001,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-622209_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.4187757031250001,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-622209_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-622209",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    }
+   }
+  },
+  {
+   "id": "mp-1487",
+   "kind": "mp",
+   "claimedIdentity": "AlNi",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "AlNi",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.85971,
+      2.85971,
+      2.85971,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      2.85971,
+      2.85971,
+      2.85971,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 11.6933,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Pm-3m (221)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Al:b",
+      "Ni:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4766,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T23:23:46.345000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": -0.6588399950000001,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1487_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.68490115,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1487_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": -0.68490115,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-1487_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "gga_relaxed_conventional_a_archived": {
+     "value": 2.887902,
+     "unit": "A",
+     "source": "https://web.archive.org/web/20210303052244id_/https://materialsproject.org/materials/mp-1487/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Run Type GGA; Final Energy/Atom -5.4217 eV; Formation Energy / Atom -0.659 eV; Hermann Mauguin Pm 3 m [221]; Magnetic Ordering NM; Density 5.91 g/cm^3",
+     "reason": "Read from the archived MP legacy page's embedded 3D-scene JSON (material-viz-data): B2: Ni at 0, +/-2.887902; Al at +/-1.443951 = a/2. Snapshot predates r2SCAN integration (v2022.10.28)."
+    },
+    "served_vs_gga_a_percent": {
+     "value": -0.976,
+     "unit": "%",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-1487 ; https://web.archive.org/web/20210303052244id_/https://materialsproject.org/materials/mp-1487/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(served conventional a 2.85971 / archived GGA a 2.887902 - 1) x 100"
+    }
+   }
+  },
+  {
+   "id": "mp-134",
+   "kind": "mp",
+   "claimedIdentity": "Al (element reference)",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Al",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.85595,
+      2.85595,
+      2.85595,
+      60.0,
+      60.0,
+      60.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      4.03893,
+      4.03893,
+      4.03893,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 16.4717,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Al:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.856,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T22:01:11.232000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-134_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-134_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-134_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-134",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    }
+   }
+  },
+  {
+   "id": "mp-30",
+   "kind": "mp",
+   "claimedIdentity": "Cu (element reference)",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Cu",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.52963,
+      2.52963,
+      2.52962,
+      60.00001,
+      60.0,
+      60.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      3.57743,
+      3.57743,
+      3.57743,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 11.446,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Cu:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.5296,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T15:47:52.005000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-30_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-30_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-30_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "gga_relaxed_conventional_a_archived": {
+     "value": 3.621262,
+     "unit": "A",
+     "source": "https://web.archive.org/web/20211206180012id_/https://materialsproject.org/materials/mp-30/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Run Type GGA; Final Energy/Atom -4.0992 eV; Formation Energy / Atom 0.000 eV; Hermann Mauguin Fm 3 m [225]; Magnetic Ordering NM; Density 8.89 g/cm^3",
+     "reason": "Read from the archived MP legacy page's embedded 3D-scene JSON (material-viz-data): fcc: atom coordinates at multiples of 1.810631 A = a/2. Snapshot predates r2SCAN integration (v2022.10.28)."
+    },
+    "served_vs_gga_a_percent": {
+     "value": -1.21,
+     "unit": "%",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-30 ; https://web.archive.org/web/20211206180012id_/https://materialsproject.org/materials/mp-30/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(served conventional a 3.57743 / archived GGA a 3.621262 - 1) x 100"
+    }
+   }
+  },
+  {
+   "id": "mp-81",
+   "kind": "mp",
+   "claimedIdentity": "Au (element reference)",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Au",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.94955,
+      2.94955,
+      2.94955,
+      60.00001,
+      60.0,
+      60.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      4.17129,
+      4.17129,
+      4.17129,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 18.1447,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Au:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.9495,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T12:21:16.138000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-81_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-81_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-81_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-81",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    }
+   }
+  },
+  {
+   "id": "mp-23",
+   "kind": "mp",
+   "claimedIdentity": "Ni (element reference)",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Ni",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 1,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.4573,
+      2.4573,
+      2.4573,
+      60.00001,
+      60.0,
+      60.00001
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      3.47515,
+      3.47515,
+      3.47515,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 10.492,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Fm-3m (225)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Ni:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4573,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T15:12:01.462000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-23_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-23_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-23_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "gga_relaxed_conventional_a_archived": {
+     "value": 3.505798,
+     "unit": "A",
+     "source": "https://web.archive.org/web/20220614014512id_/https://materialsproject.org/materials/mp-23/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Run Type GGA; Final Energy/Atom -5.7798 eV; Formation Energy / Atom 0.000 eV; Hermann Mauguin Fm 3 m [225]; Magnetic Ordering FM; Density 9.05 g/cm^3",
+     "reason": "Read from the archived MP legacy page's embedded 3D-scene JSON (material-viz-data): fcc: atom coordinates at multiples of 1.752899 A = a/2. Snapshot predates r2SCAN integration (v2022.10.28)."
+    },
+    "served_vs_gga_a_percent": {
+     "value": -0.874,
+     "unit": "%",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-23 ; https://web.archive.org/web/20220614014512id_/https://materialsproject.org/materials/mp-23/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(served conventional a 3.47515 / archived GGA a 3.505798 - 1) x 100"
+    }
+   }
+  },
+  {
+   "id": "mp-72",
+   "kind": "mp",
+   "claimedIdentity": "Ti reference",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Ti",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 3,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      4.56738,
+      4.56737,
+      2.82624,
+      90.0,
+      90.0,
+      119.99999
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      4.56737,
+      4.56737,
+      2.82624,
+      90.0,
+      90.0,
+      120.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 17.0197,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "P6/mmm (191)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "P6/mmm (191)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Ti:a",
+      "Ti:d",
+      "Ti:d"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.637,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T07:57:49.853000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-72_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-72_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-72_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "phase_identity": {
+     "value": "omega-Ti (P6/mmm, 191; 3 atoms: Ti 1a + 2d), NOT hcp alpha-Ti (P6_3/mmc, 194)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib on served cell"
+    },
+    "archived_page_tags": {
+     "value": "Titanium - HP, omega; High pressure experimental phase",
+     "unit": null,
+     "source": "https://web.archive.org/web/20220111205956id_/https://materialsproject.org/materials/mp-72/",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "mp-72: Ti (hexagonal, P6/mmm, 191) ... Tags: Titanium Titanium - HP, omega High pressure experimental phase ... Energy Above Hull / Atom 0.000 eV ... Run Type GGA"
+    },
+    "hcp_alpha_Ti_mp-46_gga_ehull": {
+     "value": {
+      "mp-46 gga_gga+u energy_above_hull": 0.004434846666666381,
+      "mp-46 r2scan energy_above_hull": 0.015169603333331949,
+      "mp-46 space group": "P6_3/mmc (194)"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-46",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "archived 2022-01-11 page: 'mp-46: Ti (hexagonal, P6_3/mmc, 194) ... Energy Above Hull / Atom 0.004 eV ... Run Type GGA'",
+     "archived_source": "https://web.archive.org/web/20220111163446id_/https://materialsproject.org/materials/mp-46/"
+    },
+    "is_gga_hull_ground_state": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-72",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "gga_gga+u energy_above_hull = 0.0 and formation_energy_per_atom = 0.0 for mp-72 (also 0.0 in r2scan and mixed); hcp mp-46 sits 0.0044 eV/atom above in gga_gga+u and 0.0152 in r2scan"
+    }
+   }
+  },
+  {
+   "id": "mp-13",
+   "kind": "mp",
+   "claimedIdentity": "Fe (element reference)",
+   "fields": {
+    "served_formula_reduced": {
+     "value": "Fe",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_nsites": {
+     "value": 2,
+     "unit": "atoms",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "served_cellpar_as_served": {
+     "value": [
+      2.47781,
+      2.47781,
+      4.0543,
+      90.00004,
+      90.00032,
+      109.46984
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "a,b,c,alpha,beta,gamma computed from served lattice_vectors with ASE cellpar()"
+    },
+    "served_conventional_cellpar_spglib": {
+     "value": [
+      2.86304,
+      2.86304,
+      2.86304,
+      90.0,
+      90.0,
+      90.0
+     ],
+     "unit": "A,A,A,deg,deg,deg",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "spglib 2.8.0 standardize_cell(to_primitive=False, symprec=1e-2) on served cell"
+    },
+    "served_volume_per_atom": {
+     "value": 11.7341,
+     "unit": "A^3/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "space_group_spglib_symprec_1e-3": {
+     "value": "Fmmm (69)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived with spglib from served cell; OPTIMADE serves space_group_* fields as null"
+    },
+    "space_group_spglib_symprec_1e-2": {
+     "value": "Im-3m (229)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "wyckoff_sites_spglib": {
+     "value": [
+      "Fe:a",
+      "Fe:a"
+     ],
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "nearest_neighbour_distance": {
+     "value": 2.4778,
+     "unit": "A",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "ASE neighbor_list minimum over served periodic cell"
+    },
+    "optimade_last_modified": {
+     "value": "2023-03-11T01:24:33.174000",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-13_GGA_GGA+U"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[gga_gga+u_r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-13_GGA_GGA+U_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "mp_stability[r2scan]": {
+     "value": {
+      "formation_energy_per_atom": 0.0,
+      "energy_above_hull": 0.0,
+      "thermo_id": "mp-13_R2SCAN"
+     },
+     "unit": "eV/atom",
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r2scan_calculation_exists_for_material": {
+     "value": true,
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "inferred from presence of an 'r2scan' thermo entry in _mp_stability; MP materials builder prefers r2SCAN structures when one exists (see H1 evidence)"
+    },
+    "symmetry_note": {
+     "value": "2-atom cell; spglib gives Fmmm (69) at symprec 1e-3 but Im-3m (229) at 1e-2 (conventional a = 2.863 A): a slightly distorted BCC cell (b/c = 4.0462/4.0543)",
+     "unit": null,
+     "source": "https://optimade.materialsproject.org/v1/structures/mp-13",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    }
+   }
+  },
+  {
+   "id": "water",
+   "kind": "molecule",
+   "claimedIdentity": "water H2O",
+   "fields": {
+    "pubchem_cid": {
+     "value": 962,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "H2O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem canonical (stereo-free) SMILES, returned under ConnectivitySMILES"
+    },
+    "isomeric_smiles": {
+     "value": "O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem no longer returns the 'IsomericSMILES' key; the isomeric SMILES comes back under 'SMILES'"
+    },
+    "inchikey": {
+     "value": "XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r_OH": {
+     "value": 0.958,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=7732185&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "rOH | 0.958 | 1 | 2 | 1979Hoy/Bun:1 | re",
+     "geometry_type": "re",
+     "reference": "A. R. Hoy, P. R. Bunker, J. Mol. Spectrosc. 74, 1-8 (1979), doi 10.1016/0022-2852(79)90019-5"
+    },
+    "angle_HOH": {
+     "value": 104.4776,
+     "unit": "deg",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=7732185&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "aHOH | 104.4776 | 2 | 1 | 3 | 1979Hoy/Bun:1 | equilibrium",
+     "geometry_type": "re (equilibrium)"
+    }
+   }
+  },
+  {
+   "id": "methane",
+   "kind": "molecule",
+   "claimedIdentity": "methane CH4",
+   "fields": {
+    "pubchem_cid": {
+     "value": 297,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "CH4",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem canonical (stereo-free) SMILES, returned under ConnectivitySMILES"
+    },
+    "isomeric_smiles": {
+     "value": "C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem no longer returns the 'IsomericSMILES' key; the isomeric SMILES comes back under 'SMILES'"
+    },
+    "inchikey": {
+     "value": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r_CH": {
+     "value": 1.087,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=74828&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "rCH | 1.087 | 1 | 2 | 1979Hir:213 | re",
+     "geometry_type": "re",
+     "reference": "E. Hirota, J. Mol. Spectrosc. 77, 213-221 (1979), doi 10.1016/0022-2852(79)90103-6"
+    },
+    "angle_HCH": {
+     "value": 109.471,
+     "unit": "deg",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=74828&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "aHCH | 109.471 | 2 | 1 | 3 | 1974sve/kov",
+     "geometry_type": "not stated (tetrahedral by Td symmetry)",
+     "reference": "Sverdlov, Kovner, Krainov, Vibrational Spectra of Polyatomic Molecules, Wiley 1974"
+    },
+    "point_group": {
+     "value": "Td",
+     "unit": null,
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=74828&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Point Group T d"
+    }
+   }
+  },
+  {
+   "id": "ethanol",
+   "kind": "molecule",
+   "claimedIdentity": "ethanol C2H5OH",
+   "fields": {
+    "pubchem_cid": {
+     "value": 702,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C2H6O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CCO",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem canonical (stereo-free) SMILES, returned under ConnectivitySMILES"
+    },
+    "isomeric_smiles": {
+     "value": "CCO",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem no longer returns the 'IsomericSMILES' key; the isomeric SMILES comes back under 'SMILES'"
+    },
+    "inchikey": {
+     "value": "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r_OH": {
+     "value": 0.971,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "rOH | 0.971 | 3 | 4 | 1998Cou/Bou:5789 | rCO | 1.431 | 2 | 3 | 1998Cou/Bou:5789 | rCC | 1.512 | 1 | 2 | 1998Cou/Bou:5789 | rCH | 1.088 | 1 | 5 | ... methyl | rCH | 1.098 | 1 | 6 | ... methyl | rCH | 1.086 | 2 | 8 | ... methylene | aCCO | 107.8 | 1 | 2 | 3 | aHOC | 105.4 | 2 | 3 | 4 |",
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "r_CO": {
+     "value": 1.431,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "r_CC": {
+     "value": 1.512,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "r_CH_methyl_a": {
+     "value": 1.088,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "r_CH_methyl_b": {
+     "value": 1.098,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "r_CH_methylene": {
+     "value": 1.086,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "angle_CCO": {
+     "value": 107.8,
+     "unit": "deg",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "angle_HOC": {
+     "value": 105.4,
+     "unit": "deg",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": null,
+     "geometry_type": "NOT STATED on the CCCBDB page (comment column empty)",
+     "reference": "Coussan, Bouteiller, Perchard, Zheng, J. Phys. Chem. A 102, 5789-5793 (1998), doi 10.1021/jp9805961"
+    },
+    "conformer": {
+     "value": "trans (anti): C1, C2, O3, H4 coplanar (all z = 0.0000 in the CCCBDB Cartesian listing), point group listed as C1",
+     "unit": null,
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=64175&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "C1 1.1879 -0.3829 0.0000 C2 0.0000 0.5526 0.0000 O3 -1.1867 -0.2472 0.0000 H4 -1.9237 0.3850 0.0000",
+     "reason": "CCCBDB rotational constants on the same page cite Kakar & Quade 1980 'gauche ethyl alcohol' (two constant sets listed)"
+    }
+   }
+  },
+  {
+   "id": "benzene",
+   "kind": "molecule",
+   "claimedIdentity": "benzene C6H6",
+   "fields": {
+    "pubchem_cid": {
+     "value": 241,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C6H6",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "C1=CC=CC=C1",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem canonical (stereo-free) SMILES, returned under ConnectivitySMILES"
+    },
+    "isomeric_smiles": {
+     "value": "C1=CC=CC=C1",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem no longer returns the 'IsomericSMILES' key; the isomeric SMILES comes back under 'SMILES'"
+    },
+    "inchikey": {
+     "value": "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "r_CC": {
+     "value": 1.397,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=71432&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "rCC | 1.397 | 1 | 2 | 1966Herzberg",
+     "geometry_type": "NOT STATED on the CCCBDB page",
+     "reference": "Herzberg, Electronic spectra and electronic structure of polyatomic molecules, Van Nostrand 1966"
+    },
+    "r_CH": {
+     "value": 1.084,
+     "unit": "A",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=71432&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "rCH | 1.084 | 1 | 7 | 1966Herzberg",
+     "geometry_type": "NOT STATED on the CCCBDB page"
+    },
+    "angles": {
+     "value": {
+      "aCCC": 120,
+      "aHCC": 120
+     },
+     "unit": "deg",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=71432&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "aCCC | 120 | 1 | 2 | 3 | 1966Herzberg | aHCC | 120 | 1 | 2 | 8 | 1966Herzberg"
+    },
+    "point_group": {
+     "value": "D6h",
+     "unit": null,
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=71432&charge=0",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Point Group D 6h"
+    }
+   }
+  },
+  {
+   "id": "aspirin",
+   "kind": "molecule",
+   "claimedIdentity": "aspirin (PubChem CID 2244)",
+   "fields": {
+    "pubchem_cid": {
+     "value": 2244,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C9H8O4",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CC(=O)OC1=CC=CC=C1C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem canonical (stereo-free) SMILES, returned under ConnectivitySMILES"
+    },
+    "isomeric_smiles": {
+     "value": "CC(=O)OC1=CC=CC=C1C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem no longer returns the 'IsomericSMILES' key; the isomeric SMILES comes back under 'SMILES'"
+    },
+    "inchikey": {
+     "value": "BSYNRYMUTXBXSQ-UHFFFAOYSA-N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "experimental_gas_geometry": {
+     "value": null,
+     "status": "UNVERIFIED",
+     "reason": "CCCBDB has no experimental geometry for aspirin: requesting casno=50782 returned 'Molecule problem. Defaulted to H 2 CO' (formaldehyde).",
+     "retrieved": "2026-10-31",
+     "source": "https://cccbdb.nist.gov/expgeom2x.asp?casno=50782&charge=0"
+    }
+   }
+  },
+  {
+   "id": "water-dimer",
+   "kind": "molecule",
+   "claimedIdentity": "water dimer (app cites S22)",
+   "fields": {
+    "monomer_pubchem_cid": {
+     "value": 962,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "s22_index": {
+     "value": 2,
+     "unit": null,
+     "source": "https://raw.githubusercontent.com/psi4/psi4/master/psi4/share/psi4/databases/S22.py",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "TAGL['%s-%s' % (dbse, 2)] = 'HB-2 Water Dimer, CS'"
+    },
+    "reference_geometry_xyz": {
+     "value": [
+      [
+       "O",
+       -1.551007,
+       -0.11452,
+       0.0
+      ],
+      [
+       "H",
+       -1.934259,
+       0.762503,
+       0.0
+      ],
+      [
+       "H",
+       -0.599677,
+       0.040712,
+       0.0
+      ],
+      [
+       "O",
+       1.350625,
+       0.111469,
+       0.0
+      ],
+      [
+       "H",
+       1.680398,
+       -0.373741,
+       -0.758561
+      ],
+      [
+       "H",
+       1.680398,
+       -0.373741,
+       0.758561
+      ]
+     ],
+     "unit": "A",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "O  -1.551007  -0.114520   0.000000 ... O   1.350625   0.111469   0.000000",
+     "reason": "identical coordinates in psi4 S22.py GEOS S22-2-dimer"
+    },
+    "O...O_distance": {
+     "value": 2.9104,
+     "unit": "A",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "|r(O1) - r(O4)| from the BEGDB/psi4 S22 xyz"
+    },
+    "H...O_hydrogen_bond": {
+     "value": 1.9516,
+     "unit": "A",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "|r(H3) - r(O4)|"
+    },
+    "optimization_level": {
+     "value": "CCSD(T)/cc-pVQZ",
+     "unit": null,
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Optimization level: CCSD(T) /cc-pVQZ"
+    },
+    "interaction_energy_ccsdt_cbs": {
+     "value": -5.02,
+     "unit": "not stated on page (S22 benchmark energies)",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "CCSD(T) /CBS | yes -5.02",
+     "reason": "counterpoise corrected; psi4 BIND_S220 also -5.02"
+    },
+    "dataset_reference": {
+     "value": "P. Jurecka, J. Sponer, J. Cerny, P. Hobza; Phys Chem Chem Phys 2006, 8 (17), 1985-1993 (doi 10.1039/b600027d; metadata https://api.crossref.org/works/10.1039/b600027d)",
+     "unit": null,
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=82",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Dataset reference: P. Jurecka, J. Sponer, J. Cerny, P. Hobza; Phys Chem Chem Phys 2006, 8 (17), 1985-1993"
+    }
+   }
+  },
+  {
+   "id": "methane-dimer",
+   "kind": "molecule",
+   "claimedIdentity": "methane dimer (uncited in app)",
+   "fields": {
+    "monomer_pubchem_cid": {
+     "value": 297,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "s22_index": {
+     "value": 8,
+     "unit": null,
+     "source": "https://raw.githubusercontent.com/psi4/psi4/master/psi4/share/psi4/databases/S22.py",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "TAGL['%s-%s' % (dbse, 8)] = 'DD-1 Methane Dimer, D3D'"
+    },
+    "reference_geometry_xyz": {
+     "value": [
+      [
+       "C",
+       0.0,
+       -0.00014,
+       1.859161
+      ],
+      [
+       "H",
+       -0.888551,
+       0.51306,
+       1.494685
+      ],
+      [
+       "H",
+       0.888551,
+       0.51306,
+       1.494685
+      ],
+      [
+       "H",
+       0.0,
+       -1.026339,
+       1.494868
+      ],
+      [
+       "H",
+       0.0,
+       8.9e-05,
+       2.948284
+      ],
+      [
+       "C",
+       0.0,
+       0.00014,
+       -1.859161
+      ],
+      [
+       "H",
+       0.0,
+       -8.9e-05,
+       -2.948284
+      ],
+      [
+       "H",
+       -0.888551,
+       -0.51306,
+       -1.494685
+      ],
+      [
+       "H",
+       0.888551,
+       -0.51306,
+       -1.494685
+      ],
+      [
+       "H",
+       0.0,
+       1.026339,
+       -1.494868
+      ]
+     ],
+     "unit": "A",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=89",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "C   0.000000  -0.000140   1.859161 ... C   0.000000   0.000140  -1.859161",
+     "reason": "identical coordinates in psi4 S22.py GEOS S22-8-dimer"
+    },
+    "C...C_distance": {
+     "value": 3.7183,
+     "unit": "A",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=89",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "formula": "|r(C1) - r(C6)| from the BEGDB/psi4 S22 xyz"
+    },
+    "optimization_level": {
+     "value": "CCSD(T)/cc-pVTZ",
+     "unit": null,
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=89",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Optimization level: CCSD(T) /cc-pVTZ"
+    },
+    "interaction_energy_ccsdt_cbs": {
+     "value": -0.53,
+     "unit": "not stated on page (S22 benchmark energies)",
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=89",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "CCSD(T) /CBS | yes -0.53"
+    },
+    "dataset_reference": {
+     "value": "P. Jurecka, J. Sponer, J. Cerny, P. Hobza; Phys Chem Chem Phys 2006, 8 (17), 1985-1993 (doi 10.1039/b600027d; metadata https://api.crossref.org/works/10.1039/b600027d)",
+     "unit": null,
+     "source": "http://www.begdb.org/index.php?action=oneMolecule&state=show&id=89",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "app_citation_status": {
+     "value": "methane dimer IS an S22 member (#8, D3d); the app leaves it uncited although the same S22 reference applies",
+     "unit": null,
+     "source": "http://www.begdb.org/index.php?action=oneDataset&id=4&state=show&order=ASC&by=name_m&method=",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "quote": "Methane dimer (listed in 'S22 – benchmark noncovalent complexes')"
+    }
+   }
+  },
+  {
+   "id": "smiles-ethanol",
+   "kind": "smiles",
+   "claimedIdentity": "Ethanol: CCO",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 702,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C2H6O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CCO",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "CCO",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 702,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CCO/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey LFQSCWFLJHTTHZ-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ethanol/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CCO/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CCO; RDKit formula C2H6O"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-water",
+   "kind": "smiles",
+   "claimedIdentity": "Water: O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 962,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "H2O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 962,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey XLYOFNOQVPJJNP-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/water/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity O; RDKit formula H2O"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-methane",
+   "kind": "smiles",
+   "claimedIdentity": "Methane: C",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 297,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methane/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "CH4",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methane/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methane/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methane/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 297,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/C/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey VNWKTOKETHGBQD-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/methane/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/C/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity C; RDKit formula CH4"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-benzene",
+   "kind": "smiles",
+   "claimedIdentity": "Benzene: c1ccccc1",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 241,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C6H6",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "C1=CC=CC=C1",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "C1=CC=CC=C1",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 241,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/c1ccccc1/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey UHOVQNZJYSORNB-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/benzene/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/c1ccccc1/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity C1=CC=CC=C1; RDKit formula C6H6"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-acetic_acid",
+   "kind": "smiles",
+   "claimedIdentity": "Acetic acid: CC(=O)O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 176,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetic%20acid/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C2H4O2",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetic%20acid/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CC(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetic%20acid/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "CC(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetic%20acid/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 176,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey QTBSBXVTEAMEQO-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/acetic%20acid/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CC(=O)O; RDKit formula C2H4O2"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-aspirin",
+   "kind": "smiles",
+   "claimedIdentity": "Aspirin: CC(=O)Oc1ccccc1C(=O)O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 2244,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C9H8O4",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CC(=O)OC1=CC=CC=C1C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "CC(=O)OC1=CC=CC=C1C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 2244,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28%3DO%29Oc1ccccc1C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey BSYNRYMUTXBXSQ-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/aspirin/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28%3DO%29Oc1ccccc1C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CC(=O)OC1=CC=CC=C1C(=O)O; RDKit formula C9H8O4"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-caffeine",
+   "kind": "smiles",
+   "claimedIdentity": "Caffeine: Cn1c(=O)c2c(ncn2C)n(C)c1=O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 2519,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/caffeine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C8H10N4O2",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/caffeine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/caffeine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/caffeine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 2519,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/Cn1c%28%3DO%29c2c%28ncn2C%29n%28C%29c1%3DO/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey RYYVLZVUVIJVGH-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/caffeine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/Cn1c%28%3DO%29c2c%28ncn2C%29n%28C%29c1%3DO/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CN1C=NC2=C1C(=O)N(C(=O)N2C)C; RDKit formula C8H10N4O2"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    }
+   }
+  },
+  {
+   "id": "smiles-alanine",
+   "kind": "smiles",
+   "claimedIdentity": "Alanine: CC(N)C(=O)O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 5950,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/alanine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C3H7NO2",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/alanine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CC(C(=O)O)N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/alanine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "C[C@@H](C(=O)O)N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/alanine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 602,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28N%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey QNAYBMKLOCPYGJ-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/alanine/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28N%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CC(C(=O)O)N; RDKit formula C3H7NO2"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [
+      {
+       "atom_index": 1,
+       "label": "?",
+       "element": "C",
+       "heavy_neighbours": [
+        "C",
+        "C",
+        "N"
+       ],
+       "ring": false
+      }
+     ],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    },
+    "L-alanine_isomeric_smiles_CID5950": {
+     "value": "C[C@@H](C(=O)O)N",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(2S)-2-aminopropanoic acid"
+    },
+    "H4_verdict": {
+     "value": "The app's 'CC(N)C(=O)O' leaves the single alpha-carbon stereocentre unspecified. PubChem resolves it to CID 602 (DL/unspecified alanine, InChIKey ...-UHFFFAOYSA-N), not CID 5950 L-alanine (C[C@@H](C(=O)O)N, ...-REOHCLBHSA-N), even though PubChem's name lookup 'alanine' returns CID 5950.",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28N%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    }
+   }
+  },
+  {
+   "id": "smiles-glucose",
+   "kind": "smiles",
+   "claimedIdentity": "Glucose: OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 5793,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glucose/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C6H12O6",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glucose/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "C(C1C(C(C(C(O1)O)O)O)O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glucose/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "C([C@@H]1[C@H]([C@@H]([C@H](C(O1)O)O)O)O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glucose/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 5793,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/OC%5BC%40H%5D1OC%28O%29%5BC%40H%5D%28O%29%5BC%40%40H%5D%28O%29%5BC%40%40H%5D1O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey WQZGKKKJIJFFOK-GASJEMHNSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/glucose/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/OC%5BC%40H%5D1OC%28O%29%5BC%40H%5D%28O%29%5BC%40%40H%5D%28O%29%5BC%40%40H%5D1O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity C(C1C(C(C(C(O1)O)O)O)O)O; RDKit formula C6H12O6"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [
+      {
+       "atom_index": 4,
+       "label": "?",
+       "element": "C",
+       "heavy_neighbours": [
+        "C",
+        "O",
+        "O"
+       ],
+       "ring": true
+      }
+     ],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    },
+    "D-glucose_isomeric_smiles_CID5793": {
+     "value": "C([C@@H]1[C@H]([C@@H]([C@H](C(O1)O)O)O)O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol; anomeric C unspecified"
+    },
+    "beta-D-glucopyranose_isomeric_smiles_CID64689": {
+     "value": "C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)O)O)O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(2R,3R,4S,5S,6R)-...; anomeric C2 = R"
+    },
+    "alpha-D-glucopyranose_isomeric_smiles_CID79025": {
+     "value": "C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "(2S,3R,4S,5S,6R)-..."
+    },
+    "H4_verdict": {
+     "value": "The app's glucose SMILES specifies ring C2, C3, C4, C5 (CIP R,S,S,R in PubChem oxane numbering 3R,4S,5S,6R; RDKit labels on app atoms 6,8,10,2) in the D-gluco configuration and leaves ONLY the anomeric carbon (oxane C2 = sugar C1, the OC(O) atom) unspecified. Its InChIKey WQZGKKKJIJFFOK-GASJEMHNSA-N equals PubChem CID 5793 (D-glucose, anomer unspecified), not CID 64689 (beta, ...-VFUOTHLCSA-N) or CID 79025 (alpha, ...-DVKNGEFBSA-N).",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/OC%5BC%40H%5D1OC%28O%29%5BC%40H%5D%28O%29%5BC%40%40H%5D%28O%29%5BC%40%40H%5D1O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    }
+   }
+  },
+  {
+   "id": "smiles-ibuprofen",
+   "kind": "smiles",
+   "claimedIdentity": "Ibuprofen: CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+   "fields": {
+    "pubchem_cid_by_name": {
+     "value": 3672,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ibuprofen/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "molecular_formula": {
+     "value": "C13H18O2",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ibuprofen/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "connectivity_smiles": {
+     "value": "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ibuprofen/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    },
+    "isomeric_smiles_by_name": {
+     "value": "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ibuprofen/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "returned under 'SMILES'"
+    },
+    "pubchem_cid_of_app_smiles": {
+     "value": 3672,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28C%29Cc1ccc%28cc1%29C%28C%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "PubChem structure lookup of the app's SMILES; InChIKey HEFNNWSXXWATRW-UHFFFAOYSA-N"
+    },
+    "app_smiles_matches_pubchem_connectivity": {
+     "value": true,
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/ibuprofen/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON ; https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28C%29Cc1ccc%28cc1%29C%28C%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "app SMILES resolves to connectivity CC(C)CC1=CC=C(C=C1)C(C)C(=O)O; RDKit formula C13H18O2"
+    },
+    "app_smiles_stereocentres_unspecified": {
+     "value": [
+      {
+       "atom_index": 10,
+       "label": "?",
+       "element": "C",
+       "heavy_neighbours": [
+        "C",
+        "C",
+        "C"
+       ],
+       "ring": false
+      }
+     ],
+     "unit": null,
+     "source": "RDKit 2026.03.1 FindMolChiralCenters(includeUnassigned=True) on the app SMILES",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED",
+     "reason": "derived locally"
+    },
+    "note": {
+     "value": "Ibuprofen's alpha-carbon stereocentre is unspecified in both the app SMILES and PubChem CID 3672 (racemate)",
+     "unit": null,
+     "source": "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+     "retrieved": "2026-10-31",
+     "status": "VERIFIED"
+    }
+   }
+  }
+ ],
+ "hypotheses": {
+  "H1": {
+   "question": "Does OPTIMADE serve MP's GGA/GGA+U-relaxed cells (as the fixture header claims) or r2SCAN-relaxed cells?",
+   "verdict": "CONFIRMED (the cells are smaller because they are r2SCAN-relaxed, not PBE). MP's OPTIMADE builder copies the materials-collection structure, and the materials builder ranks run types r2SCAN 5 > SCAN 4 > GGA+U 3 > GGA 2 > PBEsol 1 when choosing that structure. 12 of 13 fixture ids have an r2SCAN thermo entry. The exception is mp-1048 (NiTi), which has no r2SCAN entry. For the four ids with archived GGA-era pages, the served conventional a is 0.87-1.21% below MP's own GGA value: Cu 3.5774 vs 3.6213 (-1.21%), Ni 3.4752 vs 3.5058 (-0.87%), AlNi 2.8597 vs 2.8879 (-0.98%), AlFe 2.8455 vs 2.8743 (-1.00%). So the label 'MP's PBE-relaxed cells' is wrong for those 12 ids. The formation energies the app pairs with them, _mp_stability['gga_gga+u'], are GGA numbers for GGA structures, so cells and energies come from different functionals.",
+   "evidence": [
+    "https://raw.githubusercontent.com/materialsproject/emmet/main/emmet-builders-legacy/emmet/builders-legacy/materials/optimade.py (structure = Structure.from_dict(item['mat_doc']['structure']))",
+    "https://raw.githubusercontent.com/materialsproject/emmet/main/emmet-core/emmet/core/settings.py (VASP_STRUCTURE_QUALITY_SCORES {'r2SCAN': 5, 'SCAN': 4, 'GGA+U': 3, 'GGA': 2, 'PBEsol': 1})",
+    "https://raw.githubusercontent.com/materialsproject/emmet/main/emmet-core/emmet/core/vasp/material.py (best_structure_calc = sorted(structure_calcs, key=_structure_eval)[0])",
+    "https://docs.materialsproject.org/downloading-data/using-the-api/querying-data.md ('contains structures relaxed with the PBE, PBE+U, and r2scan functionals')",
+    "https://docs.materialsproject.org/methodology/materials-methodology/calculation-details/r2scan-calculations.md (r2SCAN since v2022.10.28; PBEsol pre-relax then r2SCAN)",
+    "https://optimade.materialsproject.org/v1/structures/<id> (13 ids; last_modified 2023-03-11, after r2SCAN integration)",
+    "https://web.archive.org/web/20211206180012id_/https://materialsproject.org/materials/mp-30/",
+    "https://web.archive.org/web/20220614014512id_/https://materialsproject.org/materials/mp-23/",
+    "https://web.archive.org/web/20210303052244id_/https://materialsproject.org/materials/mp-1487/",
+    "https://web.archive.org/web/20220109183647id_/https://materialsproject.org/materials/mp-2658/"
+   ],
+   "caveat": "No MP page states in prose which functional the OPTIMADE endpoint serves. The conclusion rests on emmet source code (main branch, fetched 2026-10-31), the r2SCAN thermo keys and the measured ~1% contraction. No r2SCAN-relaxed cell was fetched directly to compare, because the MP API needs a key. GGA cells for the other 9 ids were not fetched."
+  },
+  "H2": {
+   "question": "Is mp-72 hcp alpha-Ti, and is it MP's GGA ground state?",
+   "verdict": "mp-72 is omega-Ti (P6/mmm, 191, 3 atoms). MP tags it 'Titanium - HP, omega / High pressure experimental phase'. It IS the GGA (gga_gga+u) hull ground state: E_hull = 0, E_f = 0. hcp alpha-Ti is mp-46 (P6_3/mmc, 194) at +0.0044 eV/atom in GGA (+0.0152 in r2SCAN). Calling mp-72 the 'Ti reference' is internally consistent with MP's GGA formation-energy reference, but it is not the ambient phase of Ti.",
+   "evidence": [
+    "https://optimade.materialsproject.org/v1/structures/mp-72",
+    "https://optimade.materialsproject.org/v1/structures/mp-46",
+    "https://web.archive.org/web/20220111205956id_/https://materialsproject.org/materials/mp-72/",
+    "https://web.archive.org/web/20220111163446id_/https://materialsproject.org/materials/mp-46/"
+   ]
+  },
+  "H3": {
+   "question": "Is mp-985806 (3-atom 'Al2Cu') the experimental theta-Al2Cu (I4/mcm)?",
+   "verdict": "No. mp-985806 is a fluorite-type (C1) Al2Cu. MP's archived GGA page lists it as Fm-3m 225 with no ICSD IDs and no tags, so it is hypothetical. The served (r2SCAN) cell is the same structure with a ~0.7% tetragonal distortion (I4/mmm 139). Its E_hull is 0 in gga_gga+u, gga_gga+u_r2scan and r2scan, so MP's hull treats it as the Al2Cu ground state. The experimental theta phase (khatyrkite, I4/mcm 140, 6-atom primitive cell, 6 ICSD IDs) is mp-998, at E_hull 0.0125 eV/atom (GGA) and 0.0476 (r2SCAN).",
+   "evidence": [
+    "https://optimade.materialsproject.org/v1/structures/mp-985806",
+    "https://optimade.materialsproject.org/v1/structures/mp-998",
+    "https://optimade.materialsproject.org/v1/structures?filter=chemical_formula_reduced%3D%22Al2Cu%22&response_fields=nsites,lattice_vectors,cartesian_site_positions,species_at_sites,_mp_stability,last_modified&page_limit=100",
+    "https://web.archive.org/web/20220108080238id_/https://materialsproject.org/materials/mp-985806/",
+    "https://web.archive.org/web/20220109084450id_/https://materialsproject.org/materials/mp-998/"
+   ]
+  },
+  "H4": {
+   "question": "Stereochemistry of the app's Alanine and Glucose SMILES",
+   "verdict": "Alanine 'CC(N)C(=O)O' leaves its only stereocentre (C-alpha) unspecified. It resolves to PubChem CID 602 (unspecified/DL), not L-alanine CID 5950 'C[C@@H](C(=O)O)N'. Glucose 'OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O' fixes C2-C5 in the D-gluco configuration and leaves only the anomeric C1 unspecified. It resolves to CID 5793 D-glucose 'C([C@@H]1[C@H]([C@@H]([C@H](C(O1)O)O)O)O)O' (same InChIKey WQZGKKKJIJFFOK-GASJEMHNSA-N), not beta-D-glucopyranose CID 64689 'C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)O)O)O)O'.",
+   "evidence": [
+    "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/962,297,702,241,2244,176,2519,5950,602,5793,64689,3672,79025,5288826,107526/property/MolecularFormula,ConnectivitySMILES,IsomericSMILES,SMILES,InChIKey,IUPACName,MolecularWeight/JSON",
+    "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/CC%28N%29C%28%3DO%29O/property/MolecularFormula,ConnectivitySMILES,SMILES,InChIKey/JSON"
+   ]
+  }
+ }
+}

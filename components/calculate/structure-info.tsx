@@ -52,6 +52,7 @@ import {
   parseStructureFile,
   type ParsedStructure,
 } from "@/lib/parse-structure";
+import { CONTRACT } from "@/lib/contract";
 import { Badge } from "@/components/ui/badge";
 import { Formula } from "@/components/ui/formula";
 
@@ -65,6 +66,11 @@ const LARGE_THRESHOLD = 500;
 const VLARGE_THRESHOLD = 2000;
 /** Bounding box dimension (any axis) above this triggers a box size warning. */
 const HUGE_BOX_THRESHOLD = 100; // Angstroms
+/**
+ * Atoms closer than this overlap. Read from the registry, where the engine's
+ * refusal (`overlapping_atoms`) and the validator read the same value (D153).
+ */
+const MIN_DISTANCE = CONTRACT.structureChecks.minInteratomicDistanceA; // Angstroms
 
 // ---------------------------------------------------------------------------
 // Props
@@ -133,7 +139,15 @@ export function StructureInfo({ file }: StructureInfoProps) {
   }
 
   if (!parsed) return null;
+  return <ParsedStructureInfo parsed={parsed} />;
+}
 
+/**
+ * The summary and warnings for a structure that has been parsed. Split from
+ * `StructureInfo` (which parses in an effect) so that it can be rendered, and
+ * tested, with a structure in hand.
+ */
+export function ParsedStructureInfo({ parsed }: { parsed: ParsedStructure }) {
   // ── Compute warnings ──
   const atomCount = parsed.atomCount;
   const isVeryLarge = atomCount > VLARGE_THRESHOLD;
@@ -152,8 +166,8 @@ export function StructureInfo({ file }: StructureInfoProps) {
       : "text-success border-success/40 bg-success/10";
 
   // ── Geometry sanity checks ──
-  const hasOverlap = parsed.minNeighborDist < 0.4;
-  const hasWarnings = isLarge || isVeryLarge || isHugeBox || parsed.isPlanar || hasOverlap;
+  const hasOverlap = parsed.minNeighborDist < MIN_DISTANCE;
+  const hasWarnings = isLarge || isVeryLarge || isHugeBox || parsed.isPlanar || hasOverlap || parsed.notes.length > 0;
 
   // ── Geometry details — tight key/value rows (Materials-Project style:
   //    bold label left, value right, hairline rule between rows). Precision
@@ -235,17 +249,27 @@ export function StructureInfo({ file }: StructureInfoProps) {
 
       {/* ── Warnings ── */}
 
-      {/* Overlapping atoms — red critical (distance < 0.4 Å) */}
+      {/* Overlapping atoms — red critical (closer than MIN_DISTANCE) */}
       {hasOverlap && (
         <div className="flex items-start gap-2 rounded border border-error/40 bg-error/10 p-3 text-sm text-error">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div>
             <strong>Overlapping atoms detected</strong> (min distance{" "}
-            {parsed.minNeighborDist.toFixed(3)} Å). This usually indicates
-            corrupted or incorrectly generated coordinates.
+            {parsed.minNeighborDist.toFixed(3)} Å, closer than {MIN_DISTANCE} Å).
+            This usually indicates corrupted or incorrectly generated
+            coordinates, and the calculation refuses it.
           </div>
         </div>
       )}
+
+      {/* What the reader had to decide about this file (read as plain XYZ, a
+          placeholder cell ignored, symmetry it cannot expand…). */}
+      {parsed.notes.map((note) => (
+        <div key={note} className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <div>{note}</div>
+        </div>
+      ))}
 
       {/* Flat molecule — amber (all atoms coplanar with >3 atoms) */}
       {parsed.isPlanar && (
@@ -362,7 +386,6 @@ export function StructureInfo({ file }: StructureInfoProps) {
  *     )}
  *
  *   Examples of future warnings:
- *   - Overlapping atoms (distance < 0.5 A)
  *   - Missing hydrogen atoms
  *   - Unsupported elements for selected model
  *   - Very small structures (< 3 atoms)

@@ -34,7 +34,8 @@ Every number must be finite; booleans are not numbers; step counts must be whole
 
 | Limit | hosted | local |
 | --- | --- | --- |
-| `customModels` | false | true |
+| `customModels` | false | false |
+| `devices` | cpu | cpu, cuda |
 | `maxUploadBytes` | 2,000,000 | 50,000,000 |
 | `maxModelUploadBytes` | 0 | 500,000,000 |
 | `maxAtoms (single-point)` | 5,000 | 50,000 |
@@ -48,6 +49,8 @@ Every number must be finite; booleans are not numbers; step counts must be whole
 | `maxSmilesLength` | 500 | 2,000 |
 | `maxBenchmarkStructures` | 30 | 100 |
 | `maxBenchmarkUploads` | 5 | 20 |
+| `maxBenchmarkUploadBytes` | 4,000,000 | 200,000,000 |
+| `maxCalculationsPerHour` | 120 | 10,000 |
 | `trajectoryFloatBudget` | 150,000 | 1,500,000 |
 | `maxTrajectoryFrames` | 500 | 2,000 |
 
@@ -70,8 +73,14 @@ before it is unpickled ([ADR-0020](../adr/0020-trusted-checkpoint-loading.md)).
 | Convention | Description | Enforced by the validator (eV/atom) | Typical (eV/atom) |
 | --- | --- | --- | --- |
 | `mp` | PBE/PBE+U DFT reference energies (Materials Project convention) | -20 to 100 | -15 to -1 |
-| `off` | ωB97M-D3(BJ) total energies including core electrons — large and negative, and much larger for Br and I | -800 to 100 | -600 to -100 |
+| `off` | ωB97M-D3(BJ) total energies including core electrons. E/N has no element-independent range (water -693.7, CH2Br2 -28232.6 eV/atom), so no raw band is enforced; results are judged by relativeToIsolatedAtoms (D52) | -10 to 1, relative to the model's isolated atoms | -6 to -0.5, relative |
 | `unknown` | No convention known (custom checkpoint); the energy range check is skipped | skipped | — |
 
 The enforced band is what the advisory validator checks: below the minimum is a warning,
-above the maximum an issue. The typical band is for orientation only.
+above the maximum an issue. The typical band is for orientation only. MACE-OFF's energy per
+atom depends on which elements are present, so it is judged relative to the model's own
+isolated atoms (`result.properties.energyPerAtomVsIsolatedAtoms`).
+
+## Structure checks
+
+Atoms closer than 0.5 Å are refused (`overlapping_atoms`): Below 0.5 Å MACE returns NaN or absurd numbers (+3.9e15 eV for a water whose H sat on its own image) that look like results. The engine refuses (overlapping_atoms), the preview warns and the validator reports an issue, all at this one value (D89, D153).

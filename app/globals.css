@@ -158,7 +158,7 @@ html {
 
   /* ── Status (tuned for a light canvas) ── */
   --color-success: #2F7A49;          /* was #3F8F5B (3.5–4.0:1) */
-  --color-warning: #946414;          /* was #B07A1E (3.3–3.7:1) */
+  --color-warning: #7F5510;          /* was #946414 (3.7–4.3:1 on its own tints), before that #B07A1E; now 4.7:1 or more on every tier and 10–15 % tint */
   --color-error: #C0392B;
 
   /* ── Paul Tol colorblind-safe data visualization palette (unchanged) ── */

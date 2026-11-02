@@ -39,6 +39,11 @@ export interface CalculationParams {
    */
   precision?: Precision;
   device: Device;
+  /**
+   * Only in `CalculationResult.params`, and only when it differs from `device`:
+   * the device asked for before a local CUDA->CPU fallback (ADR-0031).
+   */
+  requestedDevice?: Device;
 
   // Calculation type
   calculationType: CalculationType;
@@ -96,6 +101,46 @@ export interface CalculationParams {
   nptBulkModulusGPa?: number;
   /** Set when the deployment's time budget ended the run early. */
   stoppedEarly?: StoppedEarly;
+  /**
+   * NPT only: the structure was rotated rigidly into ASE's lower-triangular
+   * standard form before the run, because the barostat needs a triangular cell
+   * matrix (`rotate_to_standard_form()` in mace-api/calculate.py). Energies,
+   * temperatures and pressure are unchanged; positions, forces and the lattice
+   * in the result are in the rotated frame. Absent when no rotation was needed.
+   */
+  cellRotation?: CellRotation;
+}
+
+/** The rigid rotation applied to an NPT cell; `rotation` is the 3x3 matrix Q of `rcell @ Q = cell`. */
+export interface CellRotation {
+  reason: string;
+  form: "lower-triangular";
+  rotation: number[][];
+}
+
+/**
+ * MD statistics the backend computes (`md_summary()`, D53). Mean temperature
+ * discards the first `warmupFraction` of the recorded frames. No uncertainty is
+ * given for one trajectory (D174). The NVE drift is a least-squares slope of total
+ * energy per atom against time and is present for NVE only.
+ */
+export interface MdSummary {
+  warmupFraction: number;
+  warmupFrames?: number;
+  meanTemperature?: number;
+  /** Results stored before D174 only: an error bar SimpleAtom no longer claims. */
+  temperatureStdError?: number;
+  /** Results stored before D174 only: the old five-block error. */
+  temperatureBlocks?: number;
+  nveDriftMeVPerAtomPerPs?: number;
+}
+
+/** Where a result's reference energy and forces were read from in the input file. */
+export interface ReferenceSource {
+  /** The energy key, e.g. "REF_energy", "energy" or "free_energy". */
+  energy?: string;
+  /** The forces key, e.g. "REF_forces" or "forces". */
+  forces?: string;
 }
 
 /** A run ended by the deployment's time budget, with an honest partial result. */
@@ -112,6 +157,8 @@ export interface CalculationResult {
   positions?: number[][];
   /** Cell vectors (Å); null for a non-periodic structure (D7). */
   lattice?: number[][] | null;
+  /** Along which axes the structure is periodic (D179). */
+  pbc?: boolean[];
   symbols?: string[];
   trajectory?: {
     /**
@@ -147,6 +194,27 @@ export interface CalculationResult {
     stress?: number[] | null;
     /** Pressure in GPa, −trace(stress)/3. Fully periodic cells only (D6). */
     pressure?: number | null;
+    /**
+     * True when `stress` and `pressure` include the ideal-gas (kinetic) term,
+     * which an MD result's pressure needs (D54); false for a single point or
+     * an optimisation, where the virial alone is the stress. Present only when
+     * a stress was computed.
+     */
+    stressIncludesKineticTerm?: boolean;
+    /**
+     * Sum of the loaded MACE model's own isolated-atom energies E0 for these
+     * atoms (eV), read off the model. Absent for a custom checkpoint that is not
+     * a MACE model the backend can read it from.
+     */
+    isolatedAtomsEnergy?: number;
+    /**
+     * (energy − isolatedAtomsEnergy) / N atoms, in eV/atom (D52). Unlike energy
+     * per atom it does not depend on which elements are present, so it is the
+     * quantity the MACE-OFF band in the registry
+     * (`energyConventions.off.relativeToIsolatedAtoms`) applies to. Absent
+     * whenever `isolatedAtomsEnergy` is.
+     */
+    energyPerAtomVsIsolatedAtoms?: number;
   };
   message?: string;
   params?: Partial<CalculationParams>;
@@ -193,6 +261,17 @@ export interface CalculationResult {
   /** Reference data extracted from input file (for accuracy metrics) */
   referenceEnergy?: number;
   referenceForces?: number[][];
+  /** The input-file keys the reference values came from; absent when the file had none. */
+  referenceSource?: ReferenceSource;
+
+  /**
+   * Indices (0-based) of the atoms a constraint of the input file acts on, e.g.
+   * POSCAR selective dynamics (D132). Absent when nothing was constrained.
+   */
+  constrainedAtoms?: number[];
+
+  /** MD only: warm-up, mean temperature and its error, and the NVE drift (D53). */
+  mdSummary?: MdSummary;
 
   /**
    * The model's licence notice when it carries one (MACE-OFF is ASL:
@@ -392,4 +471,23 @@ export interface BenchmarkResult {
     errorCount: number;
     totalTime: number;
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SMILES conversion (mace-api/smiles_to_xyz.py → POST /api/smiles-to-xyz)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** What the SMILES converter answers with on success. */
+export interface SmilesToXyzResponse {
+  /** Extended XYZ; its comment line carries the quoted SMILES and the generator. */
+  xyz: string;
+  num_atoms: number;
+  smiles_canonical: string;
+  formula: string;
+  /**
+   * The force field that optimised the geometry: "MMFF94", "UFF" when MMFF94
+   * had no parameters, or null when neither did and the coordinates are raw
+   * ETKDG output (D118).
+   */
+  force_field: "MMFF94" | "UFF" | null;
 }

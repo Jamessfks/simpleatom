@@ -120,6 +120,7 @@ export function BenchmarkDashboard({ result }: DashboardProps) {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="gap-5">
         <TabsList
+          aria-label="Benchmark views"
           variant="line"
           className="w-full justify-start overflow-x-auto rounded-none border-b border-border-subtle bg-transparent p-0"
         >

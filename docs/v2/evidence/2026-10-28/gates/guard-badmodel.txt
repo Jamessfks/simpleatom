@@ -1,0 +1,3 @@
+$ python mace-api/calculate_local.py public/demo/ethanol.xyz {"modelType":"MACE-MP"}
+{"status": "error", "message": "Unsupported modelType 'MACE-MP'. Supported models: MACE-MPA-0, MACE-MP-0, MACE-OFF, custom, MACE-OFF23.", "error": {"code": "unsupported_model", "message": "Unsupported modelType 'MACE-MP'. Supported models: MACE-MPA-0, MACE-MP-0, MACE-OFF, custom, MACE-OFF23.", "field": "modelType", "status": 400}}
+[exit 1]

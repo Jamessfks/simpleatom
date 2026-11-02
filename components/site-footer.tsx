@@ -57,12 +57,12 @@ export function SiteFooter() {
             <h2 className="text-xs font-semibold text-text-muted">
               Product
             </h2>
-            <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
+            <ul className="mt-2 sm:mt-3">
               {PRODUCT_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong sm:inline sm:min-h-0"
+                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong"
                   >
                     {link.label}
                   </Link>
@@ -76,14 +76,14 @@ export function SiteFooter() {
             <h2 className="text-xs font-semibold text-text-muted">
               Resources
             </h2>
-            <ul className="mt-2 sm:mt-4 sm:space-y-2.5">
+            <ul className="mt-2 sm:mt-3">
               {RESOURCE_LINKS.map((link) => (
                 <li key={link.href}>
                   <a
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong sm:inline sm:min-h-0"
+                    className="flex min-h-11 items-center text-sm text-text-secondary transition-colors hover:text-accent-strong"
                   >
                     {link.label}
                   </a>
@@ -101,7 +101,7 @@ export function SiteFooter() {
               href="https://github.com/ACEsuit/mace"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-text-secondary underline-offset-2 hover:underline"
+              className="py-3.5 text-text-secondary underline-offset-2 hover:underline"
             >
               MACE
             </a>{" "}
@@ -110,7 +110,7 @@ export function SiteFooter() {
               href="https://github.com/Jamessfks/simpleatom"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-text-secondary underline-offset-2 hover:underline"
+              className="py-3.5 text-text-secondary underline-offset-2 hover:underline"
             >
               Zicheng Zhao
             </a>

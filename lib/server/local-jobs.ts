@@ -13,7 +13,7 @@
 
 import type { ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { ApiError } from "@/lib/server/backend";
+import { ApiError, pythonExecutable } from "@/lib/server/backend";
 import type { ProfileName } from "@/lib/contract";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -76,7 +76,7 @@ async function start(job: LocalJob) {
 
   job.status = "running";
   job.startedAt = Date.now();
-  const child = spawn("python3", [join(process.cwd(), "mace-api", "calculate_local.py"), ...job.args, "--progress"], {
+  const child = spawn(pythonExecutable(), [join(process.cwd(), "mace-api", "calculate_local.py"), ...job.args, "--progress"], {
     env: {
       ...process.env,
       PYTHONUNBUFFERED: "1",
@@ -86,6 +86,22 @@ async function start(job: LocalJob) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   job.child = child;
+
+  // D95: a Python that cannot be spawned (ENOENT) emits "error" and never
+  // "close", which left the job "running" forever and blocked the queue.
+  child.on("error", (error: Error) => {
+    if (job.status !== "running") return;
+    job.error = {
+      code: "python_unavailable",
+      message:
+        `Could not start the local Python (${pythonExecutable()}): ${error.message}. ` +
+        "Set SIMPLEATOM_PYTHON to an environment built from mace-api/requirements.lock.txt. Nothing was computed.",
+      field: null,
+      status: 503,
+    };
+    finish(job, "failed");
+    void pump();
+  });
 
   let stdout = "";
   let stderrTail = "";
@@ -111,6 +127,7 @@ async function start(job: LocalJob) {
   });
 
   child.on("close", () => {
+    if (job.status !== "running") return;
     if (job.cancelRequested) {
       finish(job, "cancelled");
     } else {

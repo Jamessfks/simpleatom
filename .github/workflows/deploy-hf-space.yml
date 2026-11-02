@@ -22,8 +22,16 @@ jobs:
     environment: hf-production
     timeout-minutes: 45
     steps:
+      # A manual run used to deploy whatever branch it was started from,
+      # skipping the CI gates the workflow_call path requires (D50).
+      - name: Refuse a manual deploy from any branch but main
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Manual deploys run only from main (got $GITHUB_REF)."
+          exit 1
+
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Stage the backend
         run: scripts/stage-hf-space.sh "$RUNNER_TEMP/stage"

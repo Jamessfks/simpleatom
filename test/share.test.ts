@@ -27,6 +27,16 @@ describe("MACE Link", () => {
     expect(out.result.energy).toBe(-1);
   });
 
+  it("drops a stored trajectory with no arrays instead of letting the page throw (D64)", () => {
+    for (const trajectory of [{}, null, [], "x", { energies: [1] }]) {
+      const out = normalizeSharedResult(base({ trajectory }));
+      expect(out.result.trajectory).toBeUndefined();
+      expect(out.result.energy).toBe(-1);
+    }
+    const kept = { energies: [1, 2], step: [0, 1], positions: [[[0, 0, 0]], [[0, 0, 1]]] };
+    expect(normalizeSharedResult(base({ trajectory: kept })).result.trajectory).toEqual(kept);
+  });
+
   it("keeps a validation block that actually ran", () => {
     const out = normalizeSharedResult(base({ validation: { status: "ran", valid: true } }));
     expect(out.result.validation?.status).toBe("ran");

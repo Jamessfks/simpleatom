@@ -22,6 +22,46 @@ export type SupportedCalculationType = (typeof CONTRACT.calculationTypes)[number
 export type MdEnsemble = (typeof CONTRACT.mdEnsembles)[number];
 export type NumericParam = keyof typeof CONTRACT.params;
 
+export type Device = (typeof CONTRACT.devices)[number];
+
+/** What a deployment can actually run on (ADR-0031): CPU always, CUDA only when usable. */
+export interface DeviceReport {
+  available: Device[];
+  /** Why CUDA is not offered, or null when it is. */
+  unavailableReason: string | null;
+}
+
+const CPU_ONLY_REASON = "This deployment is CPU-only: the public server runs on 2 shared vCPUs.";
+
+/** The report a profile implies before any machine is asked: a CPU-only profile never offers CUDA. */
+export function profileDeviceReport(name: ProfileName): DeviceReport {
+  const offersCuda = (CONTRACT.profiles[name].devices as readonly string[]).includes("cuda");
+  return {
+    available: ["cpu"],
+    unavailableReason: offersCuda ? "Checking whether this machine has a usable CUDA device…" : CPU_ONLY_REASON,
+  };
+}
+
+/**
+ * Read a device report from a backend payload, trusting nothing: unknown
+ * devices are dropped, CPU is always present, and anything malformed falls
+ * back to CPU-only with a reason, so the UI never offers a device the server
+ * did not vouch for.
+ */
+export function deviceReportFrom(raw: unknown, fallbackReason: string): DeviceReport {
+  const r = (raw ?? {}) as { available?: unknown; unavailableReason?: unknown };
+  const listed = Array.isArray(r.available) ? r.available : [];
+  if (!Array.isArray(r.available) || listed.some((d) => !(CONTRACT.devices as readonly unknown[]).includes(d))) {
+    return { available: ["cpu"], unavailableReason: fallbackReason };
+  }
+  const available: Device[] = ["cpu", ...(listed.includes("cuda") ? (["cuda"] as Device[]) : [])];
+  const reason = typeof r.unavailableReason === "string" ? r.unavailableReason : null;
+  return {
+    available,
+    unavailableReason: available.includes("cuda") ? null : (reason ?? fallbackReason),
+  };
+}
+
 export const APP_VERSION: string = CONTRACT.appVersion;
 export const DEFAULT_MODEL_TYPE: ModelId = CONTRACT.defaultModelType;
 export const MODELS: readonly ModelEntry[] = CONTRACT.models;
@@ -110,11 +150,32 @@ function violation(code: string, message: string, field: string | null, status =
   return { code, message, field, status };
 }
 
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+/** The trimmed string, as contract.resolve_choice() compares it; other values unchanged. */
+const trimmed = (raw: unknown) => (typeof raw === "string" ? raw.replace(ASCII_EDGE_SPACE, "") : raw);
+
+// Both mirrors strip exactly this set (D124): JavaScript's trim() and Python's
+// str.strip() disagree on Unicode spaces (U+0085, U+FEFF, U+001C-001F).
+const ASCII_EDGE_SPACE = /^[ \t\n\r\f\v]+|[ \t\n\r\f\v]+$/g;
+
+/** Absent: missing, null, or a string that is empty after trimming (D123, as in contract.is_blank). */
+const isBlank = (raw: unknown) => raw === undefined || raw === null || trimmed(raw) === "";
+
+// Request keys the contract knows (D139), as in contract.py REQUEST_KEYS + params.
+const REQUEST_KEYS = new Set<string>([
+  "calculationType", "modelType", "modelSize", "precision", "device", "dispersion", "mdEnsemble", "customModelName",
+  ...Object.keys(CONTRACT.params),
+]);
+
 function checkNumber(params: Record<string, unknown>, field: NumericParam): ContractViolation | null {
   const raw = params[field];
-  if (raw === undefined || raw === null || raw === "") return null;
+  if (isBlank(raw)) return null;
   const spec = PARAMS[field];
-  const value = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  // Strings must be plain decimals, as in contract.py: Number() alone also
+  // takes "0x10" and "0b11", which Python refuses.
+  const value =
+    typeof raw === "number" ? raw : typeof raw === "string" && DECIMAL.test(trimmed(raw) as string) ? Number(trimmed(raw)) : NaN;
   if (typeof raw === "boolean" || !Number.isFinite(value)) {
     return violation("invalid_number", `Invalid ${field}: expected a finite number.`, field);
   }
@@ -144,13 +205,21 @@ export function checkCalculationParams(
   profileName: ProfileName,
   hasModelFile = false,
 ): ContractViolation | null {
+  const unknown = Object.keys(params).filter((key) => !REQUEST_KEYS.has(key)).sort();
+  if (unknown.length > 0) {
+    return violation(
+      "unknown_parameter",
+      `Unknown parameter${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}. Nothing was computed.`,
+      unknown[0],
+    );
+  }
   const calcType = params.calculationType;
-  if (calcType !== undefined && calcType !== null && calcType !== "") {
+  if (!isBlank(calcType)) {
     const supported = CONTRACT.calculationTypes as readonly string[];
-    if (typeof calcType !== "string" || !supported.includes(calcType.trim())) {
+    if (typeof calcType !== "string" || !supported.includes(trimmed(calcType) as string)) {
       const hint =
         typeof calcType === "string"
-          ? (CONTRACT.refusedCalculationTypes as Record<string, string>)[calcType.trim().toLowerCase()]
+          ? (CONTRACT.refusedCalculationTypes as Record<string, string>)[(trimmed(calcType) as string).toLowerCase()]
           : undefined;
       return violation(
         "unsupported_calculation",
@@ -165,19 +234,21 @@ export function checkCalculationParams(
     return violation(
       "custom_models_disabled",
       "Custom model checkpoints are disabled on this deployment: loading a MACE .model file " +
-        "executes code from the file. Run SimpleAtom locally to use your own checkpoint.",
+        "executes code from the file. " +
+        (profileName === "local"
+          ? "Restart with ALLOW_CUSTOM_MODELS=1 to load your own checkpoint."
+          : "Run SimpleAtom locally with ALLOW_CUSTOM_MODELS=1 to use your own checkpoint."),
       "model",
       403,
     );
   }
 
   const modelRaw = params.modelType;
-  const model =
-    modelRaw === undefined || modelRaw === null || modelRaw === ""
-      ? findModel(hasModelFile ? "custom" : DEFAULT_MODEL_TYPE)
-      : typeof modelRaw === "string"
-        ? findModel(modelRaw.trim())
-        : undefined;
+  const model = isBlank(modelRaw)
+    ? findModel(hasModelFile ? "custom" : DEFAULT_MODEL_TYPE)
+    : typeof modelRaw === "string"
+      ? findModel(trimmed(modelRaw) as string)
+      : undefined;
   if (!model) {
     return violation(
       "unsupported_model",
@@ -196,10 +267,8 @@ export function checkCalculationParams(
   if (
     !hasModelFile &&
     model.loader !== "checkpoint" &&
-    size !== undefined &&
-    size !== null &&
-    size !== "" &&
-    !(typeof size === "string" && Object.keys(model.sizes).includes(size))
+    !isBlank(size) &&
+    !(typeof size === "string" && Object.keys(model.sizes).includes(trimmed(size) as string))
   ) {
     return violation(
       "unsupported_model_size",
@@ -212,15 +281,26 @@ export function checkCalculationParams(
     ["precision", CONTRACT.precisions],
     ["device", CONTRACT.devices],
   ] as const) {
-    const raw = params[field];
+    const raw = trimmed(params[field]);
     if (raw !== undefined && raw !== null && raw !== "" && !(choices as readonly unknown[]).includes(raw)) {
       return violation(`unsupported_${field}`, `Unsupported ${field} '${String(raw)}'.`, field);
     }
   }
+  // ADR-0031: a device the contract knows but this profile cannot provide is
+  // refused, not silently replaced (the public server is CPU-only).
+  const device = trimmed(params.device);
+  if (typeof device === "string" && device && !(CONTRACT.profiles[profileName].devices as readonly string[]).includes(device)) {
+    return violation(
+      "device_unavailable",
+      `Device '${device}' is not available on this deployment, which runs on: ` +
+        `${CONTRACT.profiles[profileName].devices.join(", ")}. Nothing was computed.`,
+      "device",
+    );
+  }
   // Same rule as contract.resolve_bool(): a real boolean, or the strings
   // "true"/"false"; anything else is refused.
   const dispersion = params.dispersion;
-  const dispersionText = typeof dispersion === "string" ? dispersion.trim().toLowerCase() : null;
+  const dispersionText = typeof dispersion === "string" ? (trimmed(dispersion) as string).toLowerCase() : null;
   if (
     dispersion !== undefined &&
     dispersion !== null &&
@@ -234,8 +314,8 @@ export function checkCalculationParams(
   // Only the fields this calculation type reads are checked — exactly what
   // calculate._resolve_run_params() resolves — so a stray mdSteps on a
   // single-point is ignored here just as it is by the backend.
-  const calc = typeof calcType === "string" && calcType.trim() ? calcType.trim() : "single-point";
-  const ensemble = params.mdEnsemble;
+  const calc = typeof calcType === "string" && !isBlank(calcType) ? (trimmed(calcType) as string) : "single-point";
+  const ensemble = trimmed(params.mdEnsemble);
   if (calc === "molecular-dynamics" && ensemble !== undefined && ensemble !== null && ensemble !== "" &&
       !(CONTRACT.mdEnsembles as readonly unknown[]).includes(ensemble)) {
     return violation("unsupported_mdEnsemble", `Unsupported mdEnsemble '${String(ensemble)}'.`, "mdEnsemble");
@@ -253,7 +333,7 @@ export function checkCalculationParams(
 
   const caps = profile(profileName);
   const opt = Number(params.maxOptSteps);
-  if (params.calculationType === "geometry-opt" && Number.isFinite(opt) && opt > caps.maxOptSteps) {
+  if (calc === "geometry-opt" && Number.isFinite(opt) && opt > caps.maxOptSteps) {
     return violation(
       "limit_exceeded",
       `maxOptSteps = ${opt} exceeds this deployment's limit of ${caps.maxOptSteps}.`,
@@ -262,7 +342,7 @@ export function checkCalculationParams(
     );
   }
   const md = Number(params.mdSteps);
-  if (params.calculationType === "molecular-dynamics" && Number.isFinite(md) && md > caps.maxMdSteps) {
+  if (calc === "molecular-dynamics" && Number.isFinite(md) && md > caps.maxMdSteps) {
     return violation(
       "limit_exceeded",
       `mdSteps = ${md} exceeds this deployment's limit of ${caps.maxMdSteps}.`,

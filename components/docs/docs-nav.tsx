@@ -64,7 +64,7 @@ export function DocsSidebar() {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "block rounded-md px-3 py-1.5 text-sm transition-colors",
+                      "flex min-h-11 items-center rounded-md px-3 py-1.5 text-sm transition-colors",
                       active
                         ? "bg-accent-soft font-medium text-accent-strong"
                         : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary",
@@ -94,7 +94,7 @@ export function DocsPager({ pathname }: { pathname: string }) {
       {prev ? (
         <Link
           href={prev.href}
-          className="group flex flex-col text-sm text-text-secondary transition-colors hover:text-accent-strong"
+          className="group flex min-h-11 flex-col justify-center text-sm text-text-secondary transition-colors hover:text-accent-strong"
         >
           <span className="text-xs text-text-muted">
             Previous
@@ -107,7 +107,7 @@ export function DocsPager({ pathname }: { pathname: string }) {
       {next && (
         <Link
           href={next.href}
-          className="group flex flex-col text-right text-sm text-text-secondary transition-colors hover:text-accent-strong"
+          className="group flex min-h-11 flex-col justify-center text-right text-sm text-text-secondary transition-colors hover:text-accent-strong"
         >
           <span className="text-xs text-text-muted">Next</span>
           <span className="font-medium">{next.title} →</span>

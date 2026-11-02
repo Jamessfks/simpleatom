@@ -33,10 +33,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Eye, X, AlertTriangle } from "lucide-react";
+import type { GLViewer } from "3dmol";
 import {
   parseStructureFile,
   type ParsedStructure,
 } from "@/lib/parse-structure";
+import { createLatestRequest } from "./latest-request";
 import { WeasViewer } from "./weas-viewer";
 import { Button } from "@/components/ui/button";
 import { Formula } from "@/components/ui/formula";
@@ -80,23 +82,30 @@ export function StructurePreview({ files }: StructurePreviewProps) {
   // Viewer engine toggle
   const [engine, setEngine] = useState<PreviewEngine>("weas");
 
+  // Which parse is the current one: a slow parse of an earlier file must not
+  // overwrite the preview of a newer one, or one the user has closed.
+  const [latest] = useState(createLatestRequest);
+
   // 3Dmol viewer refs (only used when engine === "3dmol")
   const viewerRef = useRef<HTMLDivElement>(null);
-  const viewerInstance = useRef<any>(null);
+  const viewerInstance = useRef<GLViewer | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Reset when files change
   useEffect(() => {
+    latest.cancel();
     setIsOpen(false);
     setParsed(null);
     setRawXYZ("");
     setError(null);
-  }, [files]);
+    setLoading(false);
+  }, [files, latest]);
 
   // Parse the first file when the user clicks "Preview structure"
   const handlePreview = async () => {
     if (files.length === 0) return;
 
+    const isLatest = latest.begin();
     setIsOpen(true);
     setLoading(true);
     setError(null);
@@ -104,6 +113,7 @@ export function StructurePreview({ files }: StructurePreviewProps) {
 
     try {
       const structure = await parseStructureFile(files[0]);
+      if (!isLatest()) return;
 
       if (structure.atomCount === 0) {
         throw new Error("No atoms found in file. Check the file format.");
@@ -119,16 +129,19 @@ export function StructurePreview({ files }: StructurePreviewProps) {
 
       setParsed(structure);
     } catch (err) {
+      if (!isLatest()) return;
       setError(
         err instanceof Error ? err.message : "Failed to parse structure file."
       );
     } finally {
-      setLoading(false);
+      if (isLatest()) setLoading(false);
     }
   };
 
   // Close preview
   const handleClose = () => {
+    latest.cancel();
+    setLoading(false);
     setIsOpen(false);
     setParsed(null);
     setRawXYZ("");
@@ -141,13 +154,17 @@ export function StructurePreview({ files }: StructurePreviewProps) {
     if (engine !== "3dmol") return;
     if (!viewerRef.current || !parsed) return;
 
+    // The import is async: if the effect is cleaned up first (another file, the
+    // engine toggle, close), it must not draw a viewer nothing will tear down.
+    let cancelled = false;
+
     const resize = () => {
       viewerInstance.current?.resize?.();
       viewerInstance.current?.render?.();
     };
 
     import("3dmol").then(($3Dmol) => {
-      if (!viewerRef.current || !parsed) return;
+      if (cancelled || !viewerRef.current) return;
 
       viewerRef.current.innerHTML = "";
       viewerInstance.current = $3Dmol.createViewer(viewerRef.current, {
@@ -167,11 +184,12 @@ export function StructurePreview({ files }: StructurePreviewProps) {
     });
 
     return () => {
+      cancelled = true;
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       viewerInstance.current?.clear?.();
     };
-  }, [parsed, engine]);
+  }, [parsed, rawXYZ, engine]);
 
   // Don't render anything if no files uploaded
   if (files.length === 0) return null;

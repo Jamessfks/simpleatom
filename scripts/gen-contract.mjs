@@ -68,7 +68,8 @@ function renderDocs(c) {
     const out = {};
     for (const [k, v] of Object.entries(p)) {
       if (k === "description") continue;
-      if (v && typeof v === "object") for (const [k2, v2] of Object.entries(v)) out[`${k} (${k2})`] = v2;
+      if (Array.isArray(v)) out[k] = v.join(", ");
+      else if (v && typeof v === "object") for (const [k2, v2] of Object.entries(v)) out[`${k} (${k2})`] = v2;
       else out[k] = v;
     }
     return out;
@@ -107,13 +108,27 @@ function renderDocs(c) {
       row([
         `\`${k}\``,
         v.description,
-        v.enforced ? `${v.enforced.minEvPerAtom} to ${v.enforced.maxEvPerAtom}` : "skipped",
-        v.typical ? `${v.typical.minEvPerAtom} to ${v.typical.maxEvPerAtom}` : "—",
+        v.enforced
+          ? `${v.enforced.minEvPerAtom} to ${v.enforced.maxEvPerAtom}`
+          : v.relativeToIsolatedAtoms
+            ? `${v.relativeToIsolatedAtoms.enforced.minEvPerAtom} to ${v.relativeToIsolatedAtoms.enforced.maxEvPerAtom}, relative to the model's isolated atoms`
+            : "skipped",
+        v.typical
+          ? `${v.typical.minEvPerAtom} to ${v.typical.maxEvPerAtom}`
+          : v.relativeToIsolatedAtoms
+            ? `${v.relativeToIsolatedAtoms.typical.minEvPerAtom} to ${v.relativeToIsolatedAtoms.typical.maxEvPerAtom}, relative`
+            : "—",
       ]),
     ),
     "",
     "The enforced band is what the advisory validator checks: below the minimum is a warning,",
-    "above the maximum an issue. The typical band is for orientation only.",
+    "above the maximum an issue. The typical band is for orientation only. MACE-OFF's energy per",
+    "atom depends on which elements are present, so it is judged relative to the model's own",
+    "isolated atoms (`result.properties.energyPerAtomVsIsolatedAtoms`).",
+    "",
+    "## Structure checks",
+    "",
+    `Atoms closer than ${c.structureChecks.minInteratomicDistanceA} Å are refused (\`overlapping_atoms\`): ${c.structureChecks.minInteratomicDistanceWhy}`,
     "",
   );
   return lines.join("\n");

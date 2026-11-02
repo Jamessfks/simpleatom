@@ -4,8 +4,8 @@
  * MetricsDashboard — Tabbed scientific analysis dashboard for MACE results.
  *
  * Replaces the flat results layout with a rich, tabbed interface that
- * MACE researchers actually need. Prioritizes Force/Energy MAE, RMSE,
- * and R² when reference data is available.
+ * MACE researchers actually need. Prioritizes Force/Energy MAE and RMSE
+ * when reference data is available.
  *
  * Tabs:
  *   1. Summary   — key metrics cards + accuracy metrics (if reference data)
@@ -26,7 +26,8 @@
  *   conventions (CLAUDE.md, "Energy Reference Conventions").
  */
 
-import { CONTRACT, findModel, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { energyReference } from "./energy-reference";
 import { useState, useMemo } from "react";
 import {
   BarChart3,
@@ -43,6 +44,10 @@ import {
 import { computeRmsForce } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { PDFReportButton } from "./pdf-report";
+import { runOutcome, stopCause, warningsBeyondOutcome } from "./run-outcome";
+import { referenceAccuracy, type ReferenceAccuracy } from "./reference-accuracy";
+import { limitationsFor } from "./limitations";
+import { GIT_COMMIT_PATTERN, visibleRows } from "@/lib/share";
 import { ParityPlot } from "./charts/parity-plot";
 import { ErrorHistogram } from "./charts/error-histogram";
 import { EnergyConvergence } from "./charts/energy-convergence";
@@ -118,104 +123,6 @@ const FORCE_DECIMALS = 4; // eV/Å — per-atom, RMS, and max force
 const VOLUME_DECIMALS = 2; // Å³
 const MEV_DECIMALS = 1; // meV, meV/Å, meV/atom — accuracy metrics
 
-/**
- * MACE foundation models are fit to different DFT/DFT-like references, so a
- * raw total energy is meaningless without knowing which model produced it
- * (CLAUDE.md, "Energy Reference Conventions"). Ranges are typical orders of
- * magnitude, not hard bounds — flag, don't block.
- */
-const CONVENTION_METHODS: Record<string, string> = {
-  mp: "PBE(+U) DFT reference",
-  off: "ωB97M-D3BJ reference",
-};
-
-/** The reference convention a model's energies are on, from the registry. */
-function energyConventionFor(
-  modelType: string | undefined,
-): { method: string; range: [number, number] } | undefined {
-  const model = findModel(modelType);
-  if (!model) return undefined;
-  const typical = CONTRACT.energyConventions[model.energyConvention].typical;
-  const method = CONVENTION_METHODS[model.energyConvention];
-  if (!typical || !method) return undefined;
-  return { method, range: [typical.minEvPerAtom, typical.maxEvPerAtom] };
-}
-
-// ---------------------------------------------------------------------------
-// Accuracy metric computation
-// ---------------------------------------------------------------------------
-
-interface AccuracyMetrics {
-  forceMAE: number | null;
-  forceRMSE: number | null;
-  energyMAE: number | null;
-  /** R² of predicted vs. reference energy. Only meaningful with ≥2 pairs. */
-  energyR2: number | null;
-  /**
-   * Signed energy error (predicted − reference), eV. This is what's shown
-   * instead of R² when only a single reference energy is available.
-   */
-  energyError: number | null;
-  /** Signed energy error per atom, eV/atom. */
-  energyErrorPerAtom: number | null;
-}
-
-function computeAccuracyMetrics(result: CalculationResult): AccuracyMetrics {
-  const metrics: AccuracyMetrics = {
-    forceMAE: null,
-    forceRMSE: null,
-    energyMAE: null,
-    energyR2: null,
-    energyError: null,
-    energyErrorPerAtom: null,
-  };
-
-  const refForces = result.referenceForces;
-  const predForces = result.forces;
-
-  if (refForces && predForces && refForces.length === predForces.length) {
-    let sumAbsErr = 0;
-    let sumSqErr = 0;
-    let count = 0;
-
-    for (let i = 0; i < refForces.length; i++) {
-      for (let c = 0; c < 3; c++) {
-        const err = predForces[i][c] - refForces[i][c];
-        sumAbsErr += Math.abs(err);
-        sumSqErr += err * err;
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      metrics.forceMAE = (sumAbsErr / count) * 1000;
-      metrics.forceRMSE = Math.sqrt(sumSqErr / count) * 1000;
-    }
-  }
-
-  const refEnergy = result.referenceEnergy;
-  const predEnergy = result.energy;
-  const atomCount = result.symbols?.length ?? 0;
-
-  // CalculationResult only ever carries a single (predicted, reference)
-  // energy pair per run — never an array of points — so R² (variance
-  // explained across ≥2 points) is not statistically defined here.
-  // Report the signed error instead of a fabricated R² = 1.0.
-  if (refEnergy != null && predEnergy != null) {
-    const energyError = predEnergy - refEnergy;
-    metrics.energyError = energyError;
-    if (atomCount > 0) {
-      metrics.energyMAE = (Math.abs(energyError) / atomCount) * 1000;
-      metrics.energyErrorPerAtom = energyError / atomCount;
-    }
-    // energyR2 intentionally stays null: fewer than 2 energy pairs are
-    // available. If a future result shape supplies multiple predicted/
-    // reference energy pairs, compute R² from those here instead.
-  }
-
-  return metrics;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -225,12 +132,17 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
 
   const isMD = result.params?.calculationType === "molecular-dynamics";
   const hasTraj =
-    !!result.trajectory &&
+    Array.isArray(result.trajectory?.positions) &&
     result.trajectory.positions.length > 1 &&
     !!result.symbols?.length;
-  const hasRefForces = !!result.referenceForces?.length;
-  const hasRefEnergy = result.referenceEnergy != null;
-  const hasRef = hasRefForces || hasRefEnergy;
+  // The reference data in an uploaded file describes the input geometry. Parity
+  // plots and error histograms compare it with the run's final energy and
+  // forces, which is fair only for a single point (D90); an optimisation or MD
+  // run gets one honest energy comparison at step 0 and a sentence saying why.
+  const accuracy = useMemo(() => referenceAccuracy(result), [result]);
+  const hasRef = !!result.referenceForces?.length || result.referenceEnergy != null;
+  const hasRefForces = accuracy.basis === "final-geometry" && !!result.referenceForces?.length;
+  const hasRefEnergy = accuracy.basis === "final-geometry" && result.referenceEnergy != null;
 
   const atomCount = result.symbols?.length ?? 0;
   const ePerAtom =
@@ -251,7 +163,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
     });
   }
 
-  const accuracy = useMemo(() => computeAccuracyMetrics(result), [result]);
+  const outcome = runOutcome(result);
 
   const tabs: Tab[] = [
     { id: "summary", label: "Summary", icon: <BarChart3 className="h-4 w-4" strokeWidth={1.75} /> },
@@ -294,11 +206,25 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
   return (
     <div className="space-y-5">
       {/* ═══ Status Banner ═══ */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 px-5 py-3.5">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-3.5 ${
+          outcome.tone === "success"
+            ? "border-success/20 bg-success/5"
+            : "border-warning/30 bg-warning/5"
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-3">
-          <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
-          <span className="font-sans text-sm font-semibold text-success">
-            Calculation complete
+          {outcome.tone === "success" ? (
+            <div aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
+          ) : (
+            <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" strokeWidth={1.75} />
+          )}
+          <span
+            className={`font-sans text-sm font-semibold ${
+              outcome.tone === "success" ? "text-success" : "text-warning"
+            }`}
+          >
+            {outcome.headline}
           </span>
           {/* Name the structure the numbers came from — this banner is also
               the header of a shared result, where the file is not otherwise
@@ -326,7 +252,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
                   ? pairedDurationDecimals(result.timeTaken, result.clientRoundTrip)
                   : undefined,
               )}{" "}
-              compute
+              compute{result.params?.device ? ` on ${result.params.device === "cuda" ? "GPU" : "CPU"}` : ""}
             </span>
           )}
           {result.clientRoundTrip != null && (
@@ -352,7 +278,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             </Badge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
           {actions}
           <PDFReportButton result={result} />
           <Separator orientation="vertical" className="hidden h-6 sm:block" />
@@ -361,6 +287,7 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             disabled={!result.forces}
             variant="outline"
             size="sm"
+            className="min-h-11"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> CSV
           </Button>
@@ -368,20 +295,27 @@ export function MetricsDashboard({ result, filename, actions }: MetricsDashboard
             onClick={downloadJSON}
             variant="outline"
             size="sm"
+            className="min-h-11"
           >
             <Download className="h-4 w-4" strokeWidth={1.75} /> JSON
           </Button>
         </div>
+        {/* What stopped the run and what that means for the numbers: the body
+            of the banner, not a second card (and not repeated as a warning). */}
+        {outcome.detail && (
+          <p className="w-full basis-full text-sm text-text-primary">{outcome.detail}</p>
+        )}
       </div>
 
       {/* ═══ Backend warnings ═══ */}
-      <ResultWarnings warnings={result.warnings} />
+      <ResultWarnings warnings={warningsBeyondOutcome(result)} />
 
       {/* ═══ Tabs ═══ */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
         <TabsList
+          aria-label="Result sections"
           variant="line"
-          className="h-auto w-full flex-wrap justify-start gap-x-6 gap-y-0 rounded-none border-b border-border bg-transparent p-0 max-sm:gap-x-5"
+          className="h-auto w-full flex-wrap justify-start gap-x-6 gap-y-0 rounded-none border-b border-border bg-transparent p-0 max-sm:flex-nowrap max-sm:gap-x-5 max-sm:overflow-x-auto max-sm:overscroll-x-contain"
         >
           {tabs.map((tab) => (
             <TabsTrigger
@@ -456,17 +390,15 @@ function SummaryTab({
   maxForce: number;
   maxForceIdx: number;
   atomCount: number;
-  accuracy: AccuracyMetrics;
+  accuracy: ReferenceAccuracy;
   hasRef: boolean;
 }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const convention = energyConventionFor(modelType);
-  const ePerAtomNum = result.energy != null && atomCount > 0 ? result.energy / atomCount : null;
-  const energyInRange =
-    convention && ePerAtomNum != null
-      ? ePerAtomNum >= convention.range[0] && ePerAtomNum <= convention.range[1]
-      : null;
+  const reference = energyReference(result);
+  const energyInRange = reference?.inRange ?? null;
+  // One rule with the validator (D176): only outside the enforced band is a warning.
+  const energyAccepted = reference?.withinEnforced ?? null;
 
   // Dense "Properties" table — computed (output) quantities only, MP-style
   // rows. Run-time inputs (model, thresholds, ensemble) stay in Run
@@ -510,9 +442,7 @@ function SummaryTab({
   if (accuracy.energyMAE != null) {
     accuracyRows.push({ label: "Energy MAE", value: `${accuracy.energyMAE.toFixed(MEV_DECIMALS)} meV/atom` });
   }
-  if (accuracy.energyR2 != null) {
-    accuracyRows.push({ label: "Energy R²", value: accuracy.energyR2.toFixed(4) });
-  } else if (accuracy.energyError != null) {
+  if (accuracy.energyError != null) {
     accuracyRows.push({
       label: "Energy error vs. reference",
       value: (
@@ -559,14 +489,27 @@ function SummaryTab({
           sub={
             <>
               <div>{ePerAtom} eV/atom</div>
+              {reference?.basis === "vs-isolated-atoms" && reference.value !== null && (
+                <div>
+                  {reference.value.toFixed(EV_PER_ATOM_DECIMALS)} eV/atom relative to the model&apos;s
+                  isolated atoms
+                </div>
+              )}
               {modelType && (
-                <div className={energyInRange === false ? "text-warning" : undefined}>
+                <div className={energyAccepted === false ? "text-warning" : undefined}>
                   {modelType === "custom" ? "Custom model" : modelType}
                   {modelSize ? ` (${modelSize})` : ""} &middot;{" "}
-                  {convention?.method ?? "reference convention unknown"}
-                  {energyInRange === false &&
-                    convention &&
-                    ` — outside typical ${convention.range[0]} to ${convention.range[1]} eV/atom`}
+                  {reference?.method ?? "reference convention unknown"}
+                  {energyAccepted === false &&
+                    reference?.enforced &&
+                    ` — outside the validator's range ${reference.enforced[0]} to ${reference.enforced[1]} eV/atom` +
+                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "")}
+                  {energyAccepted !== false &&
+                    energyInRange === false &&
+                    reference &&
+                    ` — outside typical ${reference.band[0]} to ${reference.band[1]} eV/atom` +
+                      (reference.basis === "vs-isolated-atoms" ? " relative to the isolated atoms" : "") +
+                      "; the validator accepts it"}
                 </div>
               )}
             </>
@@ -616,7 +559,7 @@ function SummaryTab({
 
 
       {/* Accuracy metrics (when reference data is present) */}
-      {hasRef && accuracyRows.length > 0 && (
+      {hasRef && (accuracyRows.length > 0 || accuracy.note) && (
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">
             <CardTitle className="font-serif text-sm font-semibold text-accent-strong">
@@ -624,7 +567,15 @@ function SummaryTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <PropertyRows rows={accuracyRows} />
+            {accuracyRows.length > 0 && <PropertyRows rows={accuracyRows} />}
+            {accuracy.note && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{accuracy.note}</p>
+            )}
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Reference values are taken from the uploaded file&rsquo;s energy and force
+              keys (energy, REF_energy, REF_forces and similar). They are comparable only if
+              they were computed with the same reference convention as this model.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -661,26 +612,12 @@ function SummaryTab({
           Limitations and uncertainty
         </h4>
         <ul className="space-y-1 text-xs leading-relaxed text-muted-foreground">
-          <li>
-            <span className="font-medium text-text-secondary">ML potential, not QM:</span>{" "}
-            MACE is a machine-learned surrogate for DFT, not a first-principles calculation.
-            Accuracy depends on the training data distribution.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">Out-of-distribution risk:</span>{" "}
-            Structures or chemistries far from the training set (exotic bonding, extreme pressures,
-            charged species) may produce unreliable results with no built-in warning.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">No uncertainty estimates:</span>{" "}
-            These models do not provide prediction confidence intervals. Consider running
-            multiple model sizes (small/medium/large) and comparing results to gauge robustness.
-          </li>
-          <li>
-            <span className="font-medium text-text-secondary">MACE-OFF scope:</span>{" "}
-            Trained on neutral, closed-shell organic molecules only (H, C, N, O, F, P, S, Cl, Br, I).
-            Not suitable for metals, radicals, ions, or extended solid-state systems.
-          </li>
+          {limitationsFor(result.params?.modelType).map((row) => (
+            <li key={row.title}>
+              <span className="font-medium text-text-secondary">{row.title}:</span>{" "}
+              {row.text}
+            </li>
+          ))}
         </ul>
       </div>
     </div>
@@ -825,7 +762,9 @@ function ForcesTab({
             Per-Atom Force Magnitudes (eV/Å)
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Upload a structure with reference forces (REF_forces in extxyz) for parity plots and error analysis.
+            {result.referenceForces?.length && !hasRefForces
+              ? "The uploaded reference forces describe the input geometry, not the structure this run ended at, so there is no parity plot. Run a single point to compare."
+              : "Upload a structure with reference forces (REF_forces in extxyz) for parity plots and error analysis."}
           </p>
         </CardHeader>
         <CardContent className="px-4">
@@ -964,7 +903,7 @@ function EnergyTab({
       )}
 
       {/* Fallback if no trajectory data */}
-      {(!result.trajectory || result.trajectory.energies.length <= 1) &&
+      {(result.trajectory?.energies?.length ?? 0) <= 1 &&
         !hasRefEnergy && (
           <Card className="py-6">
             <CardContent className="px-6 text-center">
@@ -1591,12 +1530,13 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
     });
   }
 
-  if (code?.gitCommit) {
+  if (typeof code?.gitCommit === "string" && code.gitCommit) {
     rows.push({
       label: "Source commit",
       value: (
         <span className="inline-flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <HashValue value={code.gitCommit} label="git commit" prefixChars={7} />
+          {GIT_COMMIT_PATTERN.test(code.gitCommit) && (
           <a
             href={`${REPO_URL}/commit/${code.gitCommit}`}
             target="_blank"
@@ -1606,6 +1546,7 @@ function ProvenanceSection({ provenance }: { provenance?: CalculationProvenance 
             view
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
           </a>
+          )}
           {code.gitDirty === true ? (
             <span className="text-warning">uncommitted changes</span>
           ) : code.gitDirty === false ? (
@@ -1736,7 +1677,7 @@ function PropertyRows({ rows }: { rows: { label: string; value: React.ReactNode 
 function EnergyReferenceNote({ result }: { result: CalculationResult }) {
   const modelType = result.params?.modelType;
   const modelSize = result.params?.modelSize;
-  const conv = energyConventionFor(modelType);
+  const conv = energyReference(result);
 
   return (
     <div className="rounded-lg border border-border bg-muted px-4 py-3">
@@ -1744,13 +1685,26 @@ function EnergyReferenceNote({ result }: { result: CalculationResult }) {
         <span className="font-bold text-text-secondary">
           Note{modelType ? ` (${modelType}${modelSize ? `, ${modelSize}` : ""})` : ""}:
         </span>{" "}
-        Energy is the total electronic energy from the MACE model (including all-electron
-        atomic contributions) &mdash; not a directly measurable quantity.{" "}
-        {conv ? (
+        Energy is the total energy the MACE model predicts, on the reference of the data it was
+        trained on
+        {isMaceOffModel(modelType) ? " (all-electron totals, which include core electrons)" : ""}
+        {" "}&mdash; not a directly measurable quantity.{" "}
+        {conv?.basis === "vs-isolated-atoms" ? (
+          <>
+            This model is referenced to{" "}
+            <span className="text-text-secondary">{conv.method}</span>. Its raw energy per atom
+            depends on the elements present (water is about &minus;694 eV/atom,
+            CH<sub>2</sub>Br<sub>2</sub> about &minus;28233), so it has no range of its own;
+            relative to the model&apos;s own isolated atoms, typical values fall between{" "}
+            {conv.band[0]} and {conv.band[1]} eV/atom for {modelType}.{" "}
+            {conv.value === null &&
+              "This result does not carry the energy relative to the model's isolated atoms, so it is not compared with that range."}
+          </>
+        ) : conv ? (
           <>
             This model is referenced to{" "}
             <span className="text-text-secondary">{conv.method}</span>; typical
-            values fall between {conv.range[0]} and {conv.range[1]} eV/atom for {modelType}.
+            values fall between {conv.band[0]} and {conv.band[1]} eV/atom for {modelType}.
           </>
         ) : modelType === "custom" ? (
           <>
@@ -1788,6 +1742,9 @@ function ForcesTable({
   symbols: string[];
   maxForceIdx: number;
 }) {
+  // A very large structure would otherwise draw one row per atom; the CSV and
+  // JSON exports carry every row.
+  const { shown, hidden } = visibleRows(forces);
   return (
     <>
       <div className="max-h-72 overflow-auto rounded border border-border">
@@ -1811,7 +1768,7 @@ function ForcesTable({
             </tr>
           </thead>
           <tbody className="text-text-secondary">
-            {forces.map((force, i) => {
+            {shown.map((force, i) => {
               const mag = Math.sqrt(force[0] ** 2 + force[1] ** 2 + force[2] ** 2);
               const isMax = i === maxForceIdx;
               return (
@@ -1835,6 +1792,7 @@ function ForcesTable({
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         {forces.length} atoms &middot; Max |F| highlighted
+        {hidden > 0 && ` · first ${shown.length} shown; the CSV and JSON exports have all ${forces.length}`}
       </p>
     </>
   );
@@ -2027,11 +1985,15 @@ function buildTrajectoryRows(
 
   if (temperatures.length > 0) {
     const target = result.params?.temperature;
+    // The same warm-up-discarded mean the message states (D181); results without a
+    // summary say plainly that every frame was averaged.
+    const summaryMean = result.mdSummary?.meanTemperature;
+    const afterWarmUp = typeof summaryMean === "number" && Number.isFinite(summaryMean);
     rows.push({
-      label: "Temperature (mean)",
+      label: afterWarmUp ? "Temperature (mean after warm-up)" : "Temperature (mean, all frames)",
       value: (
         <>
-          {meanOf(temperatures).toFixed(1)} K
+          {(afterWarmUp ? summaryMean : meanOf(temperatures)).toFixed(1)} K
           <span className="text-muted-foreground">
             {" "}
             ({minOf(temperatures).toFixed(0)}–
@@ -2048,7 +2010,9 @@ function buildTrajectoryRows(
       label: "Converged",
       value: result.converged
         ? "Yes — reached fmax"
-        : "No — stopped at the step limit",
+        : stopCause(result) === "time-budget"
+          ? "No — stopped at the time budget"
+          : "No — stopped at the step limit",
     });
     if (result.params?.finalFmax != null) {
       rows.push({

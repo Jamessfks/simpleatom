@@ -275,15 +275,14 @@ def build_cif(
 ) -> tuple[str, float, float]:
     """Write the same cell as CIF, and measure the round-trip error.
 
-    WHY CIF AND NOT THE EXTENDED XYZ ABOVE
-        mace-api/calculate.py's detect_format() maps a ".xyz" extension to ASE's
-        "xyz" format, which is ase.io.xyz.simple_read_xyz — a reader that
-        ignores the comment line. Extended-XYZ Lattice= and pbc= are therefore
-        discarded and the structure is computed as an isolated cluster. Measured
-        on MP's primitive FCC Cu (mp-30): -0.93 eV/atom instead of -4.08. CIF
-        carries the cell in the body of the file, so ".cif" survives the trip.
-        This is a workaround for a backend bug, not a preference; see the note
-        in lib/benchmark-structures.ts.
+    WHY THE BENCHMARK SENDS THE CIF
+        Historically mace-api/calculate.py read ".xyz" with ASE's plain reader,
+        which dropped Lattice= and pbc= and computed every crystal as an
+        isolated cluster (MP's FCC Cu, mp-30: -0.93 eV/atom instead of -4.08).
+        calculate.py now reads ".xyz" as extended XYZ and keeps the cell, and the
+        2026-10-31 structure audit found the XYZ and CIF of each entry identical
+        (energy difference at most 3.3e-9 eV). The benchmark still sends the CIF,
+        which carries its cell in the body of the file.
 
     Returns (cif_text, max_distance_deviation_A, max_cellpar_deviation).
 
@@ -463,19 +462,28 @@ def emit_fixture(entries: list[FetchedEntry], api_version: str) -> str:
  *   3. no compound contains an element that attracts MP2020 anion corrections;
  *   4. every element of every compound has a reference structure in this set.
  *
- * Geometries are MP's PBE-relaxed cells, served by OPTIMADE as lattice_vectors
- * + cartesian_site_positions, and written here twice: as extended XYZ (human
- * readable, positions in A to 8 decimal places) and as ASE-generated CIF.
+ * Geometries are the structures MP's OPTIMADE endpoint serves for each id, as
+ * lattice_vectors + cartesian_site_positions. MP serves the structure from its
+ * best-ranked calculation (r2SCAN, then GGA+U, then GGA), so 12 of the 13 cells
+ * here are r2SCAN-relaxed. Only mp-1048 (NiTi) has no r2SCAN entry, and its cell
+ * is from the GGA/GGA+U calculation. They are not PBE cells: for the four
+ * ids with archived GGA-era pages (Cu, Ni, AlNi, AlFe) the served conventional
+ * cell is 0.87-1.21 % smaller than MP's own GGA cell
+ * (docs/v2/validation/structure-references.json, H1). Each cell is written twice,
+ * as extended XYZ (positions in A to 8 decimal places) and as an ASE-generated CIF.
  *
- * The CIF is the one that gets calculated. mace-api/calculate.py maps a ".xyz"
- * extension onto ASE's plain-xyz reader, which discards `Lattice=` and `pbc=`
- * and would have every crystal here evaluated as an isolated cluster. Each CIF
- * was checked to survive a write/read round trip with no loss of minimum-image
- * interatomic distances or cell parameters — the measured deviations are below.
+ * The benchmark sends the CIF (lib/benchmark-structures.ts). The extended XYZ
+ * would compute the same thing: mace-api/calculate.py reads a ".xyz" with ASE's
+ * extended-XYZ reader, which honours the `Lattice=` and `pbc="T T T"` on the
+ * comment line. The 2026-10-31 structure audit confirmed each pair describes one
+ * structure (energy difference at most 3.3e-9 eV). Each CIF was also checked to
+ * survive a write/read round trip with no loss of minimum-image interatomic
+ * distances or cell parameters; the measured deviations are below.
  *
  * Formation energies are from MP's own `_mp_stability["{MP_DATASET_KEY}"]` —
  * PBE / PBE+U, matching MACE-MP-0's training level of theory. The r2SCAN keys
- * MP also exposes are deliberately not used.
+ * MP also exposes are deliberately not used. So the cells (r2SCAN) and the
+ * energies compared with them (GGA/GGA+U) come from different functionals.
  */
 
 /** One Materials Project entry: a structure plus MP's published value for it. */
@@ -667,9 +675,8 @@ def verify(model_size: str) -> int:
     print(f"Fixture: {FIXTURE_PATH.relative_to(REPO_ROOT)} — {len(entries)} entries")
     print(f"Model:   MACE-MP-0 ({model_size}), single-point, float64, cpu, no dispersion")
     print(f"Path:    {CALC_SCRIPT.relative_to(REPO_ROOT)} (identical to app/api/benchmark)")
-    print("Format:  .cif — NOT .xyz. calculate.py's detect_format() sends '.xyz' to ASE's")
-    print("         plain-xyz reader, which drops Lattice=/pbc= and would evaluate every")
-    print("         crystal here as an isolated cluster.")
+    print("Format:  .cif, as the benchmark sends it (the extended XYZ of each entry is")
+    print("         numerically identical: calculate.py reads .xyz as extended XYZ).")
     if os.environ.get("KMP_DUPLICATE_LIB_OK"):
         print(f"Note:    KMP_DUPLICATE_LIB_OK={os.environ['KMP_DUPLICATE_LIB_OK']} "
               "(macOS duplicate-libomp workaround; sanity-check the energies below)")

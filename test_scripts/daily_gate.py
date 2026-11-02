@@ -45,8 +45,13 @@ DEFECTS = ROOT / "docs" / "v2" / "defects.json"
 # Re-measured 2026-10-20: eslint-config-next 16.4.2 added React-compiler rules
 # that scored the unchanged code at 40; fixing real defects among them (a
 # conditional hook, a component recreated each render, untyped Plotly code)
-# brought it to 15. A number that only ever goes down.
-LINT_BASELINE = 15
+# brought it to 15. Numbers that only ever go down.
+# Errors and warnings are counted separately (D88): with one total, a new error
+# passed whenever a warning was fixed in the same change. Measured 2026-11-01:
+# 13 errors and 1 warning, then 11 and 0 after the viewer fixes (D69, F27). The rest
+# are react-hooks compiler rules (setState in effects, manual memoization).
+LINT_ERROR_BASELINE = 11
+LINT_WARNING_BASELINE = 0
 
 # public/demo/silicon.cif — correct nearest-neighbour is a*sqrt(3)/4. If
 # parseCIF stops converting fractional coordinates this collapses to ~0.43 A
@@ -54,7 +59,6 @@ LINT_BASELINE = 15
 SILICON_NN_ANGSTROM = 2.3516
 SILICON_NN_TOLERANCE = 0.002
 
-PROVENANCE_TEST_COUNT = 40
 
 # Daily work accumulates here and is never auto-merged. `main` auto-deploys to
 # Vercel, so anything landing there is live; this branch lets a month of daily
@@ -75,12 +79,14 @@ RUN_TOKEN_BUDGET = 2_500_000
 # a calculation or model that never ran. Note the contract: calculate_local.py
 # exits 0 and reports refusal as {"status": "error"} on stdout, so checking the
 # exit code alone would pass every one of these while they were broken.
+# (name, params, the refusal code it must produce, why). D88: any error used to
+# count, so a crash would have passed as a refusal.
 GUARDS = [
-    ("guard:phonon", '{"calculationType":"phonon"}',
+    ("guard:phonon", '{"calculationType":"phonon"}', "unsupported_calculation",
      "an unimplemented calculationType must be refused, not run as single-point"),
-    ("guard:custom-no-ckpt", '{"modelType":"custom"}',
+    ("guard:custom-no-ckpt", '{"modelType":"custom"}', "custom_model_missing",
      "custom with no checkpoint must be refused, not answered with MACE-MP-0 numbers"),
-    ("guard:bad-model", '{"modelType":"MACE-MP"}',
+    ("guard:bad-model", '{"modelType":"MACE-MP"}', "unsupported_model",
      "an unrecognised modelType must be refused, not coerced to MACE-MP-0"),
 ]
 
@@ -131,14 +137,17 @@ def gate_lint() -> Result:
         if p.returncode == 0:
             return Result("lint", True, "0 problems")
         return Result("lint", False, f"could not parse eslint output (rc={p.returncode})")
-    total = int(m.group(1))
-    if total > LINT_BASELINE:
-        return Result("lint", False,
-                      f"{total} problems, baseline {LINT_BASELINE} — {total - LINT_BASELINE} new",
+    errors, warnings = int(m.group(2)), int(m.group(3))
+    over = [f"{n} {kind}, baseline {base}" for n, kind, base in
+            ((errors, "errors", LINT_ERROR_BASELINE), (warnings, "warnings", LINT_WARNING_BASELINE))
+            if n > base]
+    if over:
+        return Result("lint", False, "; ".join(over),
                       "You added these today. Clear them or raise the baseline deliberately.")
-    note = f"{total} problems (baseline {LINT_BASELINE})"
-    if total < LINT_BASELINE:
-        note += f" — {LINT_BASELINE - total} fewer; lower LINT_BASELINE to {total} to lock it in"
+    note = (f"{errors} errors (baseline {LINT_ERROR_BASELINE}), "
+            f"{warnings} warnings (baseline {LINT_WARNING_BASELINE})")
+    if errors < LINT_ERROR_BASELINE or warnings < LINT_WARNING_BASELINE:
+        note += " — below baseline; lower the constants to lock it in"
     return Result("lint", True, note)
 
 
@@ -151,60 +160,58 @@ def gate_validator() -> Result:
     except subprocess.TimeoutExpired:
         return Result("validator", False, "validator timed out after 30 min")
     out = p.stdout + p.stderr
-    if '"all_passed": true' in out or "all_passed: true" in out or "ALL PASSED" in out.upper():
+    # D79: judge the JSON verdict, never the exit code or a substring. A run
+    # that printed all_passed: false and exited 0 used to pass this gate.
+    verdict = None
+    try:
+        verdict = json.loads(p.stdout[p.stdout.index("{"):]).get("all_passed")
+    except (ValueError, AttributeError):
+        pass
+    if verdict is True and p.returncode == 0:
         return Result("validator", True, "all_passed: true")
-    if p.returncode == 0:
-        return Result("validator", True, f"exit 0 (no all_passed marker found)")
     tail = [ln for ln in out.splitlines() if ln.strip()][-3:]
     return Result("validator", False, "validator FAILED: " + " / ".join(tail),
                   "A scientific gate is red. Nothing cosmetic matters today.")
 
 
-def gate_provenance() -> Result:
-    try:
-        p = run([sys.executable, "-m", "unittest", "discover",
-                 "-s", "test_scripts", "-p", "test_provenance.py"], timeout=900)
-    except subprocess.TimeoutExpired:
-        return Result("provenance-tests", False, "provenance suite timed out")
-    out = p.stdout + p.stderr
-    m = re.search(r"Ran (\d+) tests?", out)
-    ran = int(m.group(1)) if m else 0
-    passed = "\nOK" in out or out.rstrip().endswith("OK")
-    if not passed:
-        fails = re.findall(r"^(FAIL|ERROR): (\S+)", out, re.M)
-        return Result("provenance-tests", False,
-                      f"{ran} tests, FAILED: " + ", ".join(n for _, n in fails[:4]))
-    if ran < PROVENANCE_TEST_COUNT:
-        return Result("provenance-tests", False,
-                      f"only {ran} tests ran, expected {PROVENANCE_TEST_COUNT} — tests were deleted or skipped")
-    return Result("provenance-tests", True, f"{ran} tests OK")
+# The Python suites are exactly the run_suite.py commands in .github/workflows/ci.yml,
+# with CI's own --min floors (D145). A second hand-kept list here drifted (contract 20
+# against CI's 60) and its backend-unit check had no floor at all.
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
-# Minimum test counts for the suites added in v2.2.0. Like the provenance
-# count, a drop below these is a regression (deleted or skipped tests).
-SUITES = [
-    ("contract-tests", "test_backend_contract.py", 20),
-    ("science-regressions", "test_science_regressions.py", 9),
+def ci_suites() -> list[list[str]]:
+    """Each `python test_scripts/run_suite.py ARGS` line in ci.yml, as an argument list."""
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    return [line.split() for line in re.findall(r"python test_scripts/run_suite\.py ([^\n]+)", text)]
+
+
+# The frontend half of CI's checks: (gate name, command, minimum test count or None).
+# Without these the gate could be green while CI's frontend job was red.
+FRONTEND_CHECKS = [
+    ("vitest", ["npx", "vitest", "run"], 340),
+    ("typecheck", ["npm", "run", "typecheck"], None),
+    ("contract-sync", ["npm", "run", "check:contract"], None),
 ]
-
 
 def gate_suites() -> list[Result]:
     results = []
-    for name, pattern, minimum in SUITES:
+    for args in ci_suites():
+        args = [a.strip('"') for a in args]
+        name = args[0] if "--start-dir" not in args else f"{args[args.index('--start-dir') + 1]}/{args[0]}"
         try:
-            p = run([sys.executable, "-m", "unittest", "discover",
-                     "-s", "test_scripts", "-p", pattern], timeout=1800)
+            p = run([sys.executable, str(ROOT / "test_scripts" / "run_suite.py"), *args], timeout=1800)
         except subprocess.TimeoutExpired:
-            results.append(Result(name, False, f"{pattern} timed out"))
+            results.append(Result(name, False, "timed out"))
             continue
         out = p.stdout + p.stderr
         m = re.search(r"Ran (\d+) tests?", out)
         ran = int(m.group(1)) if m else 0
         if p.returncode != 0:
             fails = re.findall(r"^(FAIL|ERROR): (\S+)", out, re.M)
-            results.append(Result(name, False, f"{ran} tests, FAILED: " + ", ".join(n for _, n in fails[:4])))
-        elif ran < minimum:
-            results.append(Result(name, False, f"only {ran} tests ran, expected at least {minimum}"))
+            floor = re.search(r"run_suite: .*", out)
+            detail = ", ".join(n for _, n in fails[:4]) or (floor.group(0) if floor else f"rc={p.returncode}")
+            results.append(Result(name, False, f"{ran} tests, FAILED: {detail}"))
         else:
             results.append(Result(name, True, f"{ran} tests OK"))
     return results
@@ -212,9 +219,9 @@ def gate_suites() -> list[Result]:
 
 def gate_guards() -> list[Result]:
     results = []
-    demo = ROOT / "public" / "demo" / "ethanol.xyz"
+    demo = ROOT / "test" / "fixtures" / "ethanol-golden.xyz"
     cli = ROOT / "mace-api" / "calculate_local.py"
-    for name, params, why in GUARDS:
+    for name, params, expected, why in GUARDS:
         if not demo.exists() or not cli.exists():
             results.append(Result(name, False, "fixture or CLI missing"))
             continue
@@ -223,18 +230,22 @@ def gate_guards() -> list[Result]:
         except subprocess.TimeoutExpired:
             results.append(Result(name, False, "timed out — a refusal should be instant"))
             continue
-        refused = False
+        code = None
         for line in p.stdout.splitlines():
             line = line.strip()
             if not line.startswith("{"):
                 continue
             try:
-                if json.loads(line).get("status") == "error":
-                    refused = True
+                doc = json.loads(line)
             except json.JSONDecodeError:
-                pass
-        if refused:
-            results.append(Result(name, True, "refused loudly"))
+                continue
+            if doc.get("status") == "error":
+                code = (doc.get("error") or {}).get("code")
+        if code == expected:
+            results.append(Result(name, True, f"refused loudly ({code})"))
+        elif code is not None:
+            results.append(Result(name, False, f"refused with {code}, expected {expected} — {why}",
+                                  "A different failure is not the refusal this guard protects."))
         else:
             results.append(Result(name, False, f"NO LONGER REFUSED — {why}",
                                   "A silent fallthrough is back. This returns invented "
@@ -433,8 +444,8 @@ def main() -> int:
         gates.append(gate_build())
     gates.append(gate_lint())
     gates.append(gate_validator())
-    gates.append(gate_provenance())
     gates.extend(gate_suites())
+    gates.extend(gate_frontend_checks())
     gates.extend(gate_guards())
     gates.append(gate_silicon_fixture())
 

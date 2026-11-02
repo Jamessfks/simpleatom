@@ -1,4 +1,191 @@
-# Gauntlet loop — state and how to resume
+# Resume here — 2026-11-01
+
+Morning report: [`reports/morning-2026-11-01.md`](reports/morning-2026-11-01.md).
+
+**Overnight brief (owner decisions 2026-10-30, relayed by the parent session):**
+* push and open PRs, no merge;
+* audit plus fixes only, with device honesty (ADR-0031 accepted);
+* D51 gets a visible warning;
+* no vibrations, cell relaxation or Feedback build. ADR-0032 and ADR-0033 stay proposed.
+
+The plan is `~/.claude/plans/run-it-overnight-auto-mode-zesty-pond.md`, Steps 4–5.
+
+| Step | State |
+|---|---|
+| Integration | Security branch merged (`df27d8b`); PR **#20** open, stacked on #19; CI green on `23e2339` (run 41290053046, new docker-smoke and lock steps included) |
+| 4.1 release blockers | D40, D41, D43, D57 fixed |
+| 4.2 Track 1, device honesty | done; parent verdict PASS |
+| 4.3 D51 | done; parent verdict PASS (batch 1, `6ee0c31`) |
+| 4.4 owner-free defects | batch 2 (`3ee1d64`): 12 of 16 PASS; the four reopened rows refixed |
+| 4.5 D72–D162 | in [`defects.json`](defects.json). Batch 3 (`23e2339`) verified 49 rows; batch 4 (`1270bf4`) is with two verifiers. Open: D30, D32 (owner), D69 (F27 viewer effects), D86 and D158 (backend writer) |
+| 4.6 permanent gates | done: zero-test runs fail, the validator gate can fail, MPA-0/D3 goldens, the lock recompiled in CI, docker-smoke offline MPA-0, the invariant suite (D78/D80), every `test_scripts` suite in CI and the daily gate (a test enforces it) |
+
+**Release note for the owner (no code needed).** `main` and `v2.2` still ship the broken
+diamonds and si-111 in the catalog (D57). Merging #19 alone does not fix the catalog; #20 is
+needed.
+
+**Measured on Vercel Sandbox (2026-11-01):** see
+[`hosted-compute-memo.md`](hosted-compute-memo.md), "Measured on Vercel Sandbox"; raw
+numbers are in `evidence/2026-11-01/sandbox/`.
+
+**UI check.** The PR's Vercel preview is behind Vercel deployment protection, so no session
+can open it without the owner's login. verify-ui ran on the local dev build at 1280 and 375
+instead (2026-11-01), and the design critic scored it 35/60. Its contrast failure (tab labels)
+and the two phone-layout faults are fixed (`e761cf3`, `f9ee76f`). Its other notes are a
+restyle, out of scope: a neutral "waiting for structure" pill, an amber-tinted warning card,
+and plainer device wording.
+
+**Who has what.** Both writers of the first round have finished. A second backend writer
+has D86 (optimizer tests through `_run_geometry_opt`), the D158 wording and the D130 evidence
+(D151 and D154 are in). The lead owns the contract, routes, CI, Dockerfile, staging,
+`main.py`, `safe_load.py`, `jobs.py`, the validator and the docs.
+
+**D119 done.** The demo and hero are trans ethanol relaxed with MACE-OFF23 medium in float64,
+against CCCBDB: C–C 1.512 Å and C–C–O 108.0° agree, O–H is 0.013 Å short and H–O–C 3.4° wide
+(`evidence/2026-11-01/demo-ethanol`). The strained file is `test/fixtures/ethanol-golden.xyz`,
+pinned by hash; every golden, docker-smoke run, gate guard and science suite reads it.
+
+**MD timestep (decided with the parent, under the approved plan).** Keep the 4 fs cap: the
+verified divergence stop (`md_diverged`, D130) is the control. Relaxed ethanol and water under
+MACE-OFF NVT diverge at 2 fs (steps 587/902); every run at ≤ 1.5 fs stayed bound. An
+H-aware warning above 1 fs is an option for the morning report, not a change.
+
+**How this branch is pushed.** Only an explicit SHA where every committed test has its fix:
+`git push origin <sha>:refs/heads/audit-next-feature`. A writer commits its failing test
+before its fix, so HEAD is often red for a few minutes. Run the suites on an export of that
+SHA (`git archive <sha> | tar -x`), not on the working tree, which holds the writers'
+uncommitted edits. Commit as the GitHub no-reply identity
+(`git -c user.name=… -c user.email=<id>+<login>@users.noreply.github.com`), never the
+checkout's configured address.
+
+**Owner actions, in order** (none performed by any session):
+1. Pause the Space, or merge #19 (the live checkpoint RCE).
+2. Supabase: apply `0003_lockdown.sql` after setting `SUPABASE_SERVICE_ROLE_KEY` on Vercel.
+3. Set `MACE_API_TOKEN` on Vercel and the Space before this branch deploys (D43).
+4. Protect `main` with the CI checks (Vercel does not wait for CI).
+5. Create the `hf-production` environment with a main-only rule and move `HF_TOKEN` into it (D50).
+6. Resend, if Feedback is ever built.
+7. Track 2/3 decisions (vibrations vs cell relaxation; ADR-0032, ADR-0033).
+8. A free Materials Project API key, to refetch the GGA task structures for the benchmark (D106).
+
+**Flagged for the owner: `CLAUDE.md` changes on this branch.**
+* Pitfall 3 dropped the unsourced "0.1–0.5 eV/atom overbinding" band (D85).
+* Energy Reference Conventions: MACE-OFF is judged by energy per atom relative to the model's
+  own isolated atoms (typical −6 to −0.5, enforced −10 to +1 eV/atom), not a raw E/N band (D52).
+* The validator check list describes minimum-image distances and per-ensemble MD checks (D81).
+* The lint baseline is two constants, `LINT_ERROR_BASELINE` / `LINT_WARNING_BASELINE` (D88).
+* CI wording and the ADR count were corrected.
+
+---
+
+# State at STOP-1, 2026-10-30
+
+**Update 2026-10-30.** The parent session relayed the owner's go-ahead ("continue … Run it,
+improve"), scoped to the plan's release-blocker defects only. Done on
+`audit-next-feature`, with tests committed first, local commits only and nothing pushed:
+
+* **D57** (`3798e67`, `31a20f1`);
+* **D40** (`f9fa6b7`, `925de6d`);
+* **D41 code half and D43** (`5fc6b47`, `fccf1be`).
+
+The full gate is green with the build (`evidence/2026-10-30/daily-gate.txt`), and
+`science-critic` verified D57 (`evidence/2026-10-30/science-critic-d57.md`).
+
+The owner is on **Vercel Pro**. [`hosted-compute-memo.md`](hosted-compute-memo.md), renamed
+from hosted-gpu-memo, now compares HF `cpu-basic`, Vercel Functions or the container runtime,
+and Sandbox, with arithmetic per-run costs. It covers:
+* Sandbox for custom uploads (recommended against for now; preconditions listed);
+* WAF rate limits as the edge half of D41 and for Feedback;
+* Spend Management as a prerequisite for anything metered;
+* Web Analytics for usage data.
+
+`plan-2026-10-28.md` has a "Revision 2026-10-30" section with optional tracks T4 (a
+container-runtime pilot) and T5 (two analytics events). New owner action: **set
+`MACE_API_TOKEN` on Vercel and the Space before this branch deploys** (D43).
+
+**Still the owner's to decide:**
+* the feature (vibrations vs cell relaxation);
+* ADR-0031 to 0033;
+* D51;
+* T4 and T5;
+* any Sandbox ADR.
+
+**Not started:** vibrations, cell relaxation, Feedback. When D31's PR (`acf14fa`) lands,
+rebase this branch onto it.
+
+---
+
+# State at STOP-1, 2026-10-28
+
+**Status: Phases 0–3 of `.claude/prompts/simpleatom-audit-next-feature.md` are done. The
+work is waiting for the owner's approval (STOP-1).** Nothing has been pushed, merged or
+deployed, and no Space, Vercel or Supabase setting has been touched.
+
+* Branch: `audit-next-feature`, cut from `v2.2` (`daed8bc`), local commits only.
+* The lock-index fix for D31 lives on `claude/quizzical-herschel-7d5e13` (`acf14fa`), the
+  containment session's branch. That session owns D30 (S3 live).
+
+## Deliverables
+
+| What | Where |
+|---|---|
+| Production parity table, delta audit, device trace, baseline gates | [`docs/audits/2026-10-28.md`](../audits/2026-10-28.md) |
+| Defects D30–D69 (and D23 resolved) | [`defects.json`](defects.json) |
+| Verbatim gate outputs, device traces, golden cases and noise, feasibility scripts and results | [`evidence/2026-10-28/`](evidence/2026-10-28/) |
+| Needs matrix (15 rows) and workflow map | [`needs-2026-10-28.md`](needs-2026-10-28.md) |
+| Scored candidates, recommendation, strongest counter-argument, file-by-file plan, parallel tracks | [`plan-2026-10-28.md`](plan-2026-10-28.md) |
+| ADR drafts (status `proposed`) | [0031 device](../adr/0031-device-honesty.md), [0032 vibrations scope](../adr/0032-molecular-vibrations-thermochemistry.md), [0033 Feedback email](../adr/0033-feedback-by-email.md) |
+| Hosted-compute memo (was hosted-GPU) | [`hosted-compute-memo.md`](hosted-compute-memo.md) |
+| New tools | [`.claude/agents/science-critic.md`](../../.claude/agents/science-critic.md), [`.claude/skills/verify-science/`](../../.claude/skills/verify-science/SKILL.md) (`SKILL.md`, `noise.py`) |
+
+## Decision waiting for the owner
+
+The recommendation is **harmonic vibrations and ideal-gas thermochemistry for isolated
+molecules** (ADR-0032), reached from a converged geometry optimisation through "Compute
+frequencies". It ships with **device honesty** (ADR-0031) and **Feedback by email**
+(ADR-0033). The runner-up is cell relaxation + EOS, which tied at 42 weighted points and
+lost the tie-break on value and verifiability.
+
+## How to resume Phase 4 after approval
+
+1. Re-verify production. Has D30 been contained (`GET https://jamessfks-mace-api.hf.space/health`
+   → `gitCommit`)? Is `acf14fa` merged?
+2. Python env: `uv venv --python 3.11 <dir>`, then
+   `uv pip install --no-deps -r <(grep -E '^[A-Za-z0-9_.-]+==' mace-api/requirements.lock.txt | sed -E 's/ \\$//; s/\+cpu//')`.
+   That gives macOS wheels at the lock's versions. `npm ci`. `export KMP_DUPLICATE_LIB_OK=TRUE`.
+3. Work the plan's release blockers first (D31, D40, D41, D43). Then Track 1 → Track 2 in
+   series, with Track 3 in parallel. Tests and golden values are committed first, in every track.
+4. Verify each piece with `verify-science` + `science-critic` (numbers) and `verify-ui` +
+   `design-critic` (screens), and record the verdicts in `progress.json`.
+
+## Owner actions still needed
+
+* Contain D30: pause the Space, or approve the v2.2 + `acf14fa` PR. **Do not delete the
+  Space**: a new Docker Space needs a paid plan.
+* Supabase: set `SUPABASE_SERVICE_ROLE_KEY` on Vercel, then apply `0003_lockdown.sql` (D32).
+* `MACE_API_TOKEN` on Vercel and the Space (D43).
+* Resend:
+  * `vercel integration add resend/resend-email` (after a yes);
+  * DNS records for a `simpleatom.app` subdomain;
+  * `FEEDBACK_TO_EMAIL` and `FEEDBACK_FROM_EMAIL`.
+* Branch protection on `main`; check that `hf-production` restricts deploy branches (D50).
+* GPU spending: none recommended.
+
+## Harness traps found this session (in addition to those below)
+
+* A **hidden browser pane** never loads `?demo=true` and lays out nothing. Use Playwright
+  for UI evidence.
+* The guards **exit 1** on refusal in v2.2, which makes D39's "exit 0" stale. Judge them by
+  their JSON either way.
+* **Disk:** parallel Docker builds drove free space down to 441 MiB, and a run failed with
+  "No usable temporary directory". Check `df -h /` before heavy runs.
+* The lock is x86_64-manylinux, so on macOS install it without hashes and without `+cpu`
+  (above). Green local gates do not prove the Linux lock installs (D31).
+
+---
+
+# History (written 2026-08-10)
+
 
 Last updated 2026-08-10, on `main` at `9efa649`. Everything described here is committed and
 pushed; there is no unsaved work. Live dashboard: `/v2` (renders `docs/v2/progress.json`).

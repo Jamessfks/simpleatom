@@ -19,7 +19,7 @@
  * panel says so rather than guessing, and this page warns before the run.
  */
 
-import { MODELS, isMaceOffModel, isMaterialsModel } from "@/lib/contract";
+import { MODELS, isMaceOffModel } from "@/lib/contract";
 import { MACE_OFF_ELEMENTS } from "@/lib/model-domain";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Play, AlertTriangle, Info, Upload, X, File as FileIcon } from "lucide-react";
@@ -27,6 +27,9 @@ import { MLPEG_CATALOG, type CatalogCategory, type CatalogEntry } from "@/lib/ml
 import {
   MP_REFERENCE_ENTRIES,
   MP_REFERENCE_PROVENANCE,
+  mpCellFunctional,
+  mpEntryLabel,
+  mpEntryNote,
   type MpReferenceEntry,
 } from "@/lib/mp-reference";
 import { MP_CATEGORY_ID } from "@/lib/benchmark-structures";
@@ -36,6 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { ModelType, ModelSize } from "@/types/mace";
 import { Formula } from "@/components/ui/formula";
+import { useCapabilities } from "@/lib/use-capabilities";
 
 export interface SelectedModel {
   type: ModelType;
@@ -81,16 +85,19 @@ const MODEL_GROUPS = MODELS.filter((m) => m.loader !== "checkpoint").map((m) => 
 
 /** One-line description for an MP entry, with its published value inline. */
 function mpEntryDescription(e: MpReferenceEntry): string {
+  const note = mpEntryNote(e);
   if (e.role === "element-reference") {
     return (
       `MP's reference phase for ${e.element} (${e.mpId}). Formation energy is ` +
-      "0 eV/atom by definition; supplies e_ref for the compounds above."
+      "0 eV/atom by definition; supplies e_ref for the compounds above." +
+      (note ? ` ${note}` : "")
     );
   }
   return (
     `MP published formation energy ${e.mpFormationEnergyPerAtom >= 0 ? "+" : ""}` +
     `${e.mpFormationEnergyPerAtom.toFixed(4)} eV/atom (${MP_REFERENCE_PROVENANCE.datasetKey}), ` +
-    "hull ground state. MP's PBE-relaxed cell."
+    `hull ground state. Cell: ${mpCellFunctional(e)}-relaxed, as MP serves it; energy: GGA/GGA+U.` +
+    (note ? ` ${note}` : "")
   );
 }
 
@@ -104,12 +111,12 @@ const MP_CATEGORY: CatalogCategory = {
   id: MP_CATEGORY_ID,
   name: "Materials Project reference set",
   description:
-    "MP's own PBE-relaxed cells with published formation energies. Compounds plus the " +
-    "elemental reference phases they need — both halves are required.",
+    "The cells MP serves (r2SCAN-relaxed, except NiTi) with MP's published PBE/PBE+U formation " +
+    "energies. Compounds plus the elemental reference phases they need — both halves are required.",
   mlpegPath: MP_REFERENCE_PROVENANCE.endpoint,
   entries: MP_REFERENCE_ENTRIES.map((e) => ({
     id: e.id,
-    name: e.name,
+    name: mpEntryLabel(e),
     description: mpEntryDescription(e),
     formula: e.formula,
     atomCount: e.atomCount,
@@ -151,6 +158,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
   const [selectedStructures, setSelectedStructures] = useState<Set<string>>(
     new Set(ALL_CATEGORIES.flatMap((c) => c.entries.map((e) => e.id)))
   );
+  const caps = useCapabilities();
   const [customModel, setCustomModel] = useState<File | null>(null);
   const [userStructures, setUserStructures] = useState<File[]>([]);
 
@@ -224,14 +232,6 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
       (m) => isMaceOffModel(m.type) && selectedModels.has(modelKey(m))
     );
   }, [selectedModels]);
-
-  const hasAnyMP0 = useMemo(() => {
-    return MODEL_OPTIONS.some(
-      (m) => isMaterialsModel(m.type) && selectedModels.has(modelKey(m))
-    );
-  }, [selectedModels]);
-
-  const onlyOFF = hasAnyOFF && !hasAnyMP0;
 
   const incompatibleIds = useMemo(() => {
     if (!hasAnyOFF) return new Set<string>();
@@ -411,39 +411,43 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           ))}
 
           {/* Custom model upload */}
-          <div className="mb-3">
-            <p className="mb-1.5 text-sm text-text-secondary">
-              Custom model
-            </p>
-            {customModel ? (
-              <div className="flex items-center gap-2 rounded-lg border border-accent-primary/50 bg-accent-primary/10 px-3 py-1.5">
-                <Upload className="h-3 w-3 text-accent-strong" />
-                <span className="min-w-0 truncate font-mono text-xs text-accent-strong">
-                  {customModel.name}
-                </span>
-                <Button
-                  onClick={() => setCustomModel(null)}
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ml-auto text-text-muted hover:text-text-primary"
-                  aria-label="Remove custom model"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : (
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary">
-                <Upload className="h-3 w-3" />
-                Upload .model file
-                <input
-                  type="file"
-                  accept=".model"
-                  className="hidden"
-                  onChange={(e) => setCustomModel(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            )}
-          </div>
+          {/* Hidden on a deployment that refuses custom checkpoints (hosted):
+              the server would answer 403, so the control is not offered. */}
+          {caps.customModels && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-sm text-text-secondary">
+                Custom model
+              </p>
+              {customModel ? (
+                <div className="flex items-center gap-2 rounded-lg border border-accent-primary/50 bg-accent-primary/10 px-3 py-1.5">
+                  <Upload className="h-3 w-3 text-accent-strong" />
+                  <span className="min-w-0 truncate font-mono text-xs text-accent-strong">
+                    {customModel.name}
+                  </span>
+                  <Button
+                    onClick={() => setCustomModel(null)}
+                    variant="ghost"
+                    size="icon-xs"
+                    className="ml-auto text-text-muted hover:text-text-primary"
+                    aria-label="Remove custom model"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="relative flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border-emphasis px-3 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-secondary has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
+                  <Upload className="h-3 w-3" />
+                  Upload .model file
+                  <input
+                    type="file"
+                    accept=".model"
+                    className="sr-only"
+                    onChange={(e) => setCustomModel(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+            </div>
+          )}
 
           {totalModels > 3 && (
             <div role="status" className="mt-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
@@ -460,7 +464,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
                 <div>
                   <p>
                     MACE-OFF does not support {unsupportedElements.join(", ")}.
-                    {onlyOFF ? " These structures are excluded:" : " These structures will only run on MACE-MP-0:"}
+                    {" These structures are excluded while a MACE-OFF model is selected:"}
                   </p>
                   <p className="mt-1 text-text-secondary">
                     {incompatibleNames.join(", ")}
@@ -473,7 +477,7 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
           {/* Precision note */}
           <div className="mt-4 flex items-start gap-1.5 text-sm text-text-muted">
             <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-            All calculations run at float64 precision on CPU for fair comparison.
+            Foundation-model calculations run at float64 precision on CPU for a fair comparison; a custom checkpoint keeps its own precision.
           </div>
         </div>
 
@@ -651,13 +655,14 @@ export function BenchmarkConfig({ onRun, isRunning }: BenchmarkConfigProps) {
             <div
               onDrop={handleStructureDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="relative rounded-lg border border-dashed border-border-emphasis px-3 py-3 text-center transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/5"
+              className="relative rounded-lg border border-dashed border-border-emphasis px-3 py-3 text-center transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
             >
               <input
                 type="file"
                 multiple
                 accept={ACCEPTED_STRUCTURE_FORMATS.join(",")}
                 onChange={handleStructureFileInput}
+                aria-label="Upload structure files"
                 className="absolute inset-0 cursor-pointer opacity-0"
               />
               <div className="flex items-center justify-center gap-2">

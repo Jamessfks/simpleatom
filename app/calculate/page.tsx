@@ -21,19 +21,31 @@ import {
   Trash2,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
-import {
-  parseStructureFile,
-  type ParsedStructure,
-} from "@/lib/parse-structure";
+import { parseStructureFile } from "@/lib/parse-structure";
+import { parsedFor, type ParseResult } from "@/components/calculate/parse-state";
 import { FileUploadSection } from "@/components/calculate/file-upload-section";
 import { ParameterPanel } from "@/components/calculate/parameter-panel";
-import { foundationModelFor } from "@/lib/model-domain";
 import { RunLedger } from "@/components/calculate/run-ledger";
+import { effectiveRunParams } from "@/components/calculate/effective-params";
 import { useCapabilities } from "@/lib/use-capabilities";
-import { ApiRequestError, runCalculationJob, type JobView } from "@/lib/api-client";
-import { DEFAULT_MODEL_TYPE } from "@/lib/contract";
+import { ApiRequestError, isSmilesGenerated, runCalculationJob, type JobView } from "@/lib/api-client";
+import { checkCalculationParams, DEFAULT_MODEL_TYPE } from "@/lib/contract";
 import { MetricsDashboard } from "@/components/calculate/metrics-dashboard";
 import { ModelComparison } from "@/components/calculate/model-comparison";
+import { runOutcome, shareCaveats, type RunOutcome } from "@/components/calculate/run-outcome";
+import {
+  STAGES,
+  completionAnnouncement,
+  stageAnnouncement,
+  stageIndex,
+  stepSummary,
+} from "@/components/calculate/job-stage";
+import {
+  foundationParamsFor,
+  isCustomResult,
+  snapshotRun,
+  type RunSnapshot,
+} from "@/components/calculate/run-snapshot";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,9 +60,8 @@ import {
 import type {
   CalculationParams,
   CalculationResult,
-  CalculationType,
 } from "@/types/mace";
-import { saveResult } from "@/lib/share";
+import { SHARE_DISCLOSURE, saveResult } from "@/lib/share";
 import {
   addHistory,
   clearHistory,
@@ -77,141 +88,6 @@ const KetcherEditor = dynamic(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Real progress (docs/adr/0023)
-// ---------------------------------------------------------------------------
-
-/**
- * The stages a job reports, in order. The progress bar used to be a guess
- * from elapsed time (capped at 95%, phases advanced on a timer); every value
- * shown now comes from the backend: its phase, and the BFGS or MD step.
- */
-const STAGES: { key: string; label: string }[] = [
-  { key: "queued", label: "Queued" },
-  { key: "reading-structure", label: "Reading structure" },
-  { key: "loading-model", label: "Loading model" },
-  { key: "computing", label: "Computing" },
-];
-
-function stageIndex(job: JobView | null): number {
-  if (!job || job.status === "queued") return 0;
-  const phase = job.progress.phase;
-  if (phase === "reading-structure") return 1;
-  if (phase === "loading-model") return 2;
-  return 3;
-}
-
-function stepSummary(job: JobView | null): string | null {
-  const p = job?.progress;
-  if (!p || p.step == null) return null;
-  if (p.phase === "geometry-opt") {
-    const fmax = typeof p.fmax === "number" ? ` · max force ${p.fmax.toFixed(3)} eV/Å` : "";
-    return `BFGS step ${p.step} of at most ${p.totalSteps}${fmax}`;
-  }
-  if (p.phase === "molecular-dynamics") {
-    const t = typeof p.temperature === "number" ? ` · ${p.temperature.toFixed(0)} K` : "";
-    return `MD step ${p.step} of ${p.totalSteps}${t}`;
-  }
-  return `Step ${p.step}${p.totalSteps ? ` of ${p.totalSteps}` : ""}`;
-}
-
-// ---------------------------------------------------------------------------
-// Effective run parameters
-// ---------------------------------------------------------------------------
-
-/**
- * Parameters that describe EVERY run, whatever its type.
- *
- * `customModelName` is here because a custom checkpoint is part of the model
- * identity regardless of what was computed with it.
- */
-const COMMON_PARAM_KEYS = [
-  "calculationType",
-  "modelType",
-  "modelSize",
-  "precision",
-  "device",
-  "dispersion",
-  "customModelName",
-] as const satisfies readonly (keyof CalculationParams)[];
-
-/**
- * Parameters that only mean something for a given calculation type.
- *
- * A single-point has no timestep, no thermostat and no convergence criterion —
- * the backend never reads those keys on that path, so printing them describes
- * a run that did not happen. This table is what stops the client form state
- * (which always holds every field, defaults included) from leaking into the
- * displayed configuration.
- *
- * Kept deliberately in step with what `mace-api/calculate.py` puts into
- * `effective_params`: `_run_geometry_opt` adds forceThreshold/maxOptSteps and
- * the convergence outcome; `_run_md` adds temperature/timeStep/friction/
- * mdSteps/mdEnsemble/seed and comMomentumRemoved. `pressure` is the one MD
- * input the backend does not echo (it is read straight into the NPT
- * integrator), so the client copy is the only record of it.
- */
-const PARAM_KEYS_BY_CALC_TYPE: Record<
-  CalculationType,
-  readonly (keyof CalculationParams)[]
-> = {
-  "single-point": [],
-  "geometry-opt": ["forceThreshold", "maxOptSteps", "converged", "optSteps", "finalFmax"],
-  "molecular-dynamics": [
-    "temperature",
-    "pressure",
-    "timeStep",
-    "friction",
-    "mdSteps",
-    "mdEnsemble",
-    "seed",
-    "comMomentumRemoved",
-  ],
-  // No backend implementation — a phonon request is rejected, never run, so
-  // there is no configuration to describe. See CLAUDE.md.
-  phonon: [],
-};
-
-/**
- * The configuration to DISPLAY for a finished run.
- *
- * The backend echo (`result.params`) is the source of truth: it is a small
- * allow-list of the parameters that were actually effective, with defaults
- * resolved, the CUDA→CPU fallback applied, `dispersion` true only if a D3
- * calculator was really built, and `precision` read back off the loaded model.
- * It wins on every key it carries.
- *
- * Client form state is only consulted for keys the backend does not echo, and
- * only after filtering to the calculation type that actually ran — so a
- * single-point can no longer render a temperature, a timestep, a friction
- * coefficient, an ensemble or an fmax target. When the echo is missing
- * entirely (an older backend, or a remote API that predates it) the filtered
- * request is all there is, and it is at least type-consistent.
- */
-function effectiveRunParams(
-  requested: CalculationParams,
-  echoed: Partial<CalculationParams> | undefined,
-): Partial<CalculationParams> {
-  const ranType = echoed?.calculationType ?? requested.calculationType;
-  const allowed = new Set<keyof CalculationParams>([
-    ...COMMON_PARAM_KEYS,
-    ...(PARAM_KEYS_BY_CALC_TYPE[ranType] ?? []),
-  ]);
-
-  // Pressure is an input to the NPT integrator alone. On NVT/NVE nothing reads
-  // it, so "0 GPa" would state a constraint that was never imposed.
-  const ensemble = echoed?.mdEnsemble ?? requested.mdEnsemble;
-  if (ensemble !== "NPT") allowed.delete("pressure");
-
-  const filtered: Record<string, unknown> = {};
-  for (const key of allowed) {
-    const value = requested[key];
-    if (value !== undefined) filtered[key] = value;
-  }
-
-  return { ...(filtered as Partial<CalculationParams>), ...(echoed ?? {}) };
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Main Page
 // ═══════════════════════════════════════════════════════════════════════════
@@ -232,8 +108,7 @@ function CalculatePageInner() {
    * periodicity gate — which stay inert while this is null, so nothing warns
    * before a structure is loaded.
    */
-  const [parsedStructure, setParsedStructure] =
-    useState<ParsedStructure | null>(null);
+  const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [params, setParams] = useState<CalculationParams>({
     modelSize: "medium",
     modelType: DEFAULT_MODEL_TYPE,
@@ -258,16 +133,26 @@ function CalculatePageInner() {
   });
   const [customModelFile, setCustomModelFile] = useState<File | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
+  /**
+   * What the result on screen was computed from, captured when the run
+   * started. The form stays editable, so the dashboard, Share and Compare read
+   * this, never the live form (D58).
+   */
+  const [lastRun, setLastRun] = useState<RunSnapshot | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [job, setJob] = useState<JobView | null>(null);
   const caps = useCapabilities();
   const runAbort = useRef<AbortController | null>(null);
+  const compareAbort = useRef<AbortController | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [confirmShareOpen, setConfirmShareOpen] = useState(false);
+  const keepPrivateRef = useRef<HTMLButtonElement>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyFailed, setShareCopyFailed] = useState(false);
   const [lastHistoryId, setLastHistoryId] = useState<string | null>(null);
 
   // Top-level tab: "calculator" or "draw"
@@ -283,29 +168,29 @@ function CalculatePageInner() {
   // would be worse than one that stays quiet.
   useEffect(() => {
     const file = uploadedFiles[0];
-    if (!file) {
-      setParsedStructure(null);
-      return;
-    }
+    if (!file) return;
     let cancelled = false;
     parseStructureFile(file)
       .then((s) => {
-        if (!cancelled) setParsedStructure(s);
+        if (!cancelled) setParsed({ file, structure: s });
       })
       .catch(() => {
-        if (!cancelled) setParsedStructure(null);
+        if (!cancelled) setParsed({ file, structure: null });
       });
     return () => {
       cancelled = true;
     };
   }, [uploadedFiles]);
+  // The structure of the file that is current NOW. While a new file is still
+  // being read there is none, and Run waits for it (D98).
+  const { structure: parsedStructure, parsing: parsingStructure } = parsedFor(uploadedFiles[0], parsed);
 
   const handleFilesChange = useCallback(
     (files: File[]) => {
       setUploadedFiles(files);
       if (
         files.length > 0 &&
-        files[0].name.startsWith("smiles_") &&
+        isSmilesGenerated(files[0]) &&
         params.modelType !== "custom"
       ) {
         setParams((prev) => ({
@@ -351,6 +236,13 @@ function CalculatePageInner() {
     if (!result || isCalculating) return;
     const el = resultsRef.current;
     if (!el) return;
+    // The Run button was inactive during the run, so keyboard focus is on
+    // <body> or still on that button. Hand it to the results, without
+    // stealing it from a control the user has since moved to.
+    const active = document.activeElement;
+    if (!active || active === document.body || active.closest("[data-run-button]")) {
+      el.focus({ preventScroll: true });
+    }
     const { top } = el.getBoundingClientRect();
     if (top >= 0 && top < window.innerHeight * 0.6) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -383,42 +275,67 @@ function CalculatePageInner() {
   const runBlockedReason: string | null =
     uploadedFiles.length === 0
       ? "Choose or upload a structure to enable the run button."
-      : isCustomModel && !customModelFile
+      : parsingStructure
+        ? "Reading the structure…"
+        : isCustomModel && !customModelFile
         ? "Upload a MACE .model checkpoint to run a custom model — or switch to a foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF). A foundation-model result labelled “custom” would attribute the numbers to a model that was never loaded."
         : params.calculationType === "phonon"
           ? "Phonon spectrum is not implemented. Choose single-point, geometry optimization, or molecular dynamics."
-          : null;
+          : // The TypeScript mirror of the contract: anything the backend would
+            // refuse (an invalid seed, an out-of-range number) blocks the run here.
+            (checkCalculationParams(params as unknown as Record<string, unknown>, caps.profile, isCustomModel)?.message ?? null);
 
   const handleRunFoundation =
     useCallback(async (): Promise<CalculationResult | null> => {
-      if (uploadedFiles.length === 0) return null;
+      if (!lastRun || lastRun.files.length === 0) return null;
 
-      // Picked from the parsed structure, never from the uploaded FILENAME:
-      // a periodic crystal can be named "offcut.cif", and matching that name
-      // against "off" used to send it to MACE-OFF, crossing two incompatible
-      // energy conventions and printing a meaningless deltaE.
-      const foundationParams: CalculationParams = {
-        ...params,
-        modelType: foundationModelFor(parsedStructure),
-      };
-
+      // The structure and settings the shown result was computed from, with
+      // the foundation model picked from its PARSED structure, never from the
+      // uploaded FILENAME: a periodic crystal can be named "offcut.cif", and
+      // matching that name against "off" used to send it to MACE-OFF, crossing
+      // two incompatible energy conventions and printing a meaningless deltaE.
       const formData = new FormData();
-      uploadedFiles.forEach((file) => formData.append("files", file));
-      formData.append("params", JSON.stringify(foundationParams));
+      lastRun.files.forEach((file) => formData.append("files", file));
+      formData.append("params", JSON.stringify(foundationParamsFor(lastRun)));
 
-      return runCalculationJob(formData);
-    }, [uploadedFiles, params, parsedStructure]);
+      const abort = new AbortController();
+      compareAbort.current = abort;
+      return runCalculationJob(formData, { signal: abort.signal });
+    }, [lastRun]);
+
+  // Leaving the page (route change, tab close, reload) stops the jobs it
+  // started. The abort event itself sends the DELETE, with keepalive, so the
+  // shared CPU is not left computing for a page nobody is looking at.
+  useEffect(() => {
+    const stop = () => {
+      runAbort.current?.abort();
+      compareAbort.current?.abort();
+    };
+    window.addEventListener("pagehide", stop);
+    return () => {
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, []);
 
   const handleCalculate = async () => {
+    if (isCalculating) return;
     // Same gate as the Run button, restated here so the check cannot be
     // bypassed by anything that calls this directly.
     if (runBlockedReason) {
       setError(runBlockedReason);
       return;
     }
+    const run = snapshotRun({
+      files: uploadedFiles,
+      params,
+      structure: parsedStructure,
+      customModelName: params.customModelName || customModelFile?.name,
+    });
     setIsCalculating(true);
     setError(null);
     setResult(null);
+    setLastRun(run);
     setShareUrl(null);
     setJob(null);
 
@@ -428,9 +345,9 @@ function CalculatePageInner() {
 
     try {
       const formData = new FormData();
-      uploadedFiles.forEach((file) => formData.append("files", file));
-      formData.append("params", JSON.stringify(params));
-      if (customModelFile && params.modelType === "custom") {
+      run.files.forEach((file) => formData.append("files", file));
+      formData.append("params", JSON.stringify(run.params));
+      if (customModelFile && run.params.modelType === "custom") {
         formData.append("model", customModelFile);
       }
 
@@ -452,17 +369,17 @@ function CalculatePageInner() {
       // Only the former belongs in a result. See effectiveRunParams().
       setResult({
         ...data,
-        params: effectiveRunParams(params, data.params),
+        params: effectiveRunParams(run.params, data.params),
         clientRoundTrip,
       });
 
       // Record a compact summary in local (account-free) history.
       if (data.status === "success") {
         const entries = addHistory({
-          filename: uploadedFiles[0]?.name,
-          modelType: params.modelType,
-          modelSize: params.modelSize,
-          calculationType: params.calculationType,
+          filename: run.filename,
+          modelType: run.params.modelType,
+          modelSize: run.params.modelSize,
+          calculationType: run.params.calculationType,
           energy: typeof data.energy === "number" ? data.energy : undefined,
           atoms: data.symbols?.length,
         });
@@ -481,13 +398,17 @@ function CalculatePageInner() {
 
   const handleCancel = () => runAbort.current?.abort();
 
+  // Called only from the confirmation sheet: the user has just been told the
+  // link is public and permanent (SHARE_DISCLOSURE), and agreeing is the
+  // consent the server requires.
   const handleShare = async () => {
+    setConfirmShareOpen(false);
     if (!result || result.status !== "success") return;
     setIsSharing(true);
     try {
       // Share the effective params off the result, not the request — a shared
       // result should describe the run that happened.
-      const { url } = await saveResult(result, uploadedFiles[0]?.name);
+      const { url } = await saveResult(result, lastRun?.filename, true);
       setShareUrl(url);
       if (lastHistoryId) updateHistoryShareUrl(lastHistoryId, url);
     } catch (err) {
@@ -497,15 +418,30 @@ function CalculatePageInner() {
     }
   };
 
-  const handleCopyShareUrl = () => {
+  const handleCopyShareUrl = async () => {
     if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl);
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopyFailed(false);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (insecure origin, permission denied): the link is
+      // on screen, so say so rather than showing a "copied" tick that is false.
+      setShareCopyFailed(true);
+    }
   };
 
   const currentStage = stageIndex(job);
   const stepText = stepSummary(job);
+  // One persistent, visually hidden status region. It says the stage while a
+  // job runs (never the ticking timer) and how the run ended, so completion is
+  // announced on a phone too, where the status pill is not displayed.
+  const announcement = isCalculating
+    ? stageAnnouncement(job)
+    : result
+      ? completionAnnouncement(runOutcome(result), result)
+      : "";
   const stepPct =
     job?.progress.step != null && job.progress.totalSteps
       ? Math.min(100, Math.round((job.progress.step / job.progress.totalSteps) * 100))
@@ -514,10 +450,13 @@ function CalculatePageInner() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
 
       {/* Page sub-header */}
       <div className="border-b border-border-subtle bg-bg-primary/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold tracking-tight text-text-primary">
               Calculator
@@ -527,7 +466,10 @@ function CalculatePageInner() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <StatusPill isCalculating={isCalculating} hasResult={!!result} />
+            <StatusPill
+              isCalculating={isCalculating}
+              outcome={result ? runOutcome(result) : null}
+            />
             <RecentCalculations />
           </div>
         </div>
@@ -536,7 +478,7 @@ function CalculatePageInner() {
       {/* Main content */}
       <main id="main" className="mx-auto max-w-screen-2xl px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList aria-label="How to provide a structure">
             <TabsTrigger value="calculator" className="gap-1.5">
               <CalculatorIcon className="h-4 w-4" />
               Calculator
@@ -582,9 +524,13 @@ function CalculatePageInner() {
                 >
                   <Button
                     onClick={handleCalculate}
-                    disabled={isCalculating || runBlockedReason != null}
+                    // Mid-run the button is aria-disabled, not disabled, so the
+                    // keyboard focus that clicked it is not thrown to <body>.
+                    disabled={!isCalculating && runBlockedReason != null}
+                    aria-disabled={isCalculating || undefined}
+                    data-run-button=""
                     size="lg"
-                    className={result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}
+                    className={`aria-disabled:pointer-events-none aria-disabled:opacity-50 ${result != null && !isCalculating ? "h-11 w-full rounded-full" : "h-12 w-full rounded-full text-base"}`}
                   >
                     {isCalculating ? (
                       <>
@@ -607,10 +553,14 @@ function CalculatePageInner() {
 
                   {/* Progress feedback — every value here is reported by the backend */}
                   {isCalculating && (
-                    <div className="mt-5 space-y-4" aria-live="polite">
+                    <div className="mt-5 space-y-4">
                       <ol className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                         {STAGES.map((stage, i) => (
-                          <li key={stage.key} className="flex items-center gap-1.5">
+                          <li
+                            key={stage.key}
+                            className="flex items-center gap-1.5"
+                            aria-current={i === currentStage ? "step" : undefined}
+                          >
                             {i < currentStage ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             ) : i === currentStage ? (
@@ -626,6 +576,7 @@ function CalculatePageInner() {
                               }`}
                             >
                               {stage.label}
+                              {i < currentStage && <span className="sr-only"> (done)</span>}
                               {stage.key === "queued" && job?.queuePosition
                                 ? ` (position ${job.queuePosition + 1})`
                                 : ""}
@@ -698,17 +649,24 @@ function CalculatePageInner() {
 
                 {/* Results */}
                 {result && !isCalculating && (
-                  <div ref={resultsRef} className="animate-fade-in-up scroll-mt-20 space-y-6">
+                  <div
+                    ref={resultsRef}
+                    tabIndex={-1}
+                    role="region"
+                    aria-label="Calculation results"
+                    className="animate-fade-in-up scroll-mt-20 space-y-6 outline-none"
+                  >
                     <MetricsDashboard
                       result={result}
-                      filename={uploadedFiles[0]?.name}
+                      filename={lastRun?.filename}
                       actions={
                         !shareUrl ? (
                           <Button
-                            onClick={handleShare}
+                            onClick={() => setConfirmShareOpen(true)}
                             disabled={isSharing || result.status !== "success"}
                             variant="outline"
                             size="sm"
+                            className="min-h-11"
                           >
                             {isSharing ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -740,19 +698,20 @@ function CalculatePageInner() {
                                 <Copy className="h-3.5 w-3.5" />
                               )}
                             </button>
+                            {shareCopyFailed && (
+                              <span role="alert" className="shrink-0 text-xs text-error">
+                                Could not copy; select the link instead.
+                              </span>
+                            )}
                           </div>
                         )
                       }
                     />
 
-                    {isCustomModel && (
+                    {isCustomResult(result) && (
                       <ModelComparison
                         customResult={result}
-                        customModelName={
-                          params.customModelName ||
-                          customModelFile?.name ||
-                          "Custom model"
-                        }
+                        customModelName={lastRun?.customModelName || "Custom model"}
                         onRunFoundation={handleRunFoundation}
                       />
                     )}
@@ -768,6 +727,46 @@ function CalculatePageInner() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Sheet open={confirmShareOpen} onOpenChange={setConfirmShareOpen}>
+        {/* A bottom sheet on a phone, a centred dialog from 768 px up. Publishing
+            is public and permanent, so the safe choice gets focus. */}
+        <SheetContent
+          side="bottom" className="mx-auto w-full max-w-xl rounded-t-2xl md:top-0 md:my-auto md:h-fit md:rounded-2xl md:border"
+          onOpenAutoFocus={(event) => { event.preventDefault(); keepPrivateRef.current?.focus(); }}
+        >
+          <SheetHeader>
+            <SheetTitle className="font-serif text-xl">Publish this result?</SheetTitle>
+            <SheetDescription>{SHARE_DISCLOSURE}</SheetDescription>
+          </SheetHeader>
+          {lastRun?.filename && (
+            <p className="px-4 text-sm text-text-secondary">
+              File name that will be published:{" "}
+              <span className="font-mono text-text-primary">{lastRun.filename}</span>
+            </p>
+          )}
+          {result && shareCaveats(result).length > 0 && (
+            <div role="note" className="mx-4 space-y-1 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+              <p className="font-semibold">Check before you publish</p>
+              {shareCaveats(result).map((caveat) => (
+                <p key={caveat}>{caveat}</p>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end">
+            <Button ref={keepPrivateRef}
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setConfirmShareOpen(false)}
+            >
+              Keep private
+            </Button>
+            <Button className="min-h-11" onClick={handleShare}>
+              Publish public link
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Demo guided overlay */}
       {demoStep != null && demoStep < DEMO_STEPS.length && (
@@ -823,10 +822,10 @@ function CalculatePageInner() {
 
 function StatusPill({
   isCalculating,
-  hasResult,
+  outcome,
 }: {
   isCalculating: boolean;
-  hasResult: boolean;
+  outcome: RunOutcome | null;
 }) {
   const state = isCalculating
     ? {
@@ -834,12 +833,10 @@ function StatusPill({
         dot: "bg-warning",
         text: "text-warning",
       }
-    : hasResult
-      ? {
-          label: "Complete",
-          dot: "bg-success",
-          text: "text-success",
-        }
+    : outcome
+      ? outcome.tone === "success"
+        ? { label: outcome.pill, dot: "bg-success", text: "text-success" }
+        : { label: outcome.pill, dot: "bg-warning", text: "text-warning" }
       : {
           label: "Ready",
           dot: "bg-text-muted",
@@ -847,11 +844,8 @@ function StatusPill({
         };
 
   return (
-    <span
-      className="hidden items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium sm:inline-flex"
-      role="status"
-      aria-live="polite"
-    >
+    // Presentational: the persistent status region above announces state.
+    <span className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-medium">
       <span className={`h-2 w-2 rounded-full ${state.dot}`} aria-hidden />
       <span className={state.text}>{state.label}</span>
     </span>

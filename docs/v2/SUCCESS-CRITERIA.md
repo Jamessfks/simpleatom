@@ -34,7 +34,7 @@ Run by `python3 test_scripts/daily_gate.py`. Every number here was measured, not
 | Gate | Bar | Notes |
 |---|---|---|
 | `npm run build` | compiles | A type error blocks every other piece |
-| `npx eslint .` | **≤ 15 problems** | Re-measured 2026-10-20 under eslint-config-next 16.4.2 (`LINT_BASELINE`). Monotonically non-increasing |
+| `npx eslint .` | **≤ 11 errors and 0 warnings** | Counted separately since 2026-11-01 (D88; `LINT_ERROR_BASELINE`, `LINT_WARNING_BASELINE`), so a new error cannot hide behind a fixed warning. Monotonically non-increasing |
 | `validate_calculation.py --test` | `all_passed: true` | The scientific gate |
 | `test_provenance.py` | **40 tests, OK** | Count is part of the gate; deletions are regressions |
 | `test_backend_contract.py` | **≥ 20 tests, OK** | Contract, checkpoint trust, CLI guards, shared fixtures (v2.2.0) |
@@ -51,8 +51,9 @@ python3 mace-api/calculate_local.py public/demo/ethanol.xyz '{"modelType":"custo
 python3 mace-api/calculate_local.py public/demo/ethanol.xyz '{"modelType":"MACE-MP"}'
 ```
 
-`calculate_local.py` **exits 0 and reports refusal as `{"status":"error"}` on stdout**, so a
-check on the exit code alone passes every one of these while they are broken. Check the JSON.
+Judge each guard by its JSON, never by its exit code. `calculate_local.py` reports a refusal
+as `{"status":"error","error":{"code":…}}` on stdout. Older builds exited 0 on refusal
+(v2.2.0 exits 1), so an exit-code check passed every guard while they were broken.
 
 Set `KMP_DUPLICATE_LIB_OK=TRUE` or the Python gates die with OMP Error #15 on macOS.
 
@@ -90,11 +91,14 @@ without writing a line of UI. It publishes what the model SimpleAtom runs actual
 
 | Model | Rank | F1 | DAF | MAE | RMSD | κ<sub>SRME</sub> | CPS |
 |---|---|---|---|---|---|---|---|
-| **MACE-MP-0** (SimpleAtom's default) | 34 | 0.669 | 3.777 | 0.057 eV | 0.091 Å | 0.682 | 0.637 |
-| MACE-MPA-0 | 21 | 0.852 | 5.582 | 0.028 eV | 0.073 Å | 0.412 | 0.795 |
+| MACE-MP-0 | 36 | 0.669 | 3.777 | 0.057 eV | 0.091 Å | 0.682 | 0.637 |
+| **MACE-MPA-0** (SimpleAtom's default since v2.2.0) | 22 | 0.852 | 5.582 | 0.028 eV | 0.073 Å | 0.412 | 0.795 |
+
+Ranks are of 43 models on the leaderboard, retrieved 2026-10-28 (they were 34 and 21 on
+2026-09-11). Ranks move; the single source the app renders is `app/v2/bars.ts`.
 
 Two criteria follow directly. **(a)** No SimpleAtom surface may imply DFT-equivalent accuracy
-without the qualifier these numbers support — MACE-MP-0 is rank 34, and "DFT-accuracy" in the
+without the qualifier these numbers support — MACE-MP-0 is rank 36 of 43, and "DFT-accuracy" in the
 README is a claim this table adjudicates. **(b)** MACE-MPA-0 beats MACE-MP-0 on every metric
 published; until v2.2.0 SimpleAtom offered it nowhere (it is now the default). That was a product gap a critic could name without
 opening a browser.

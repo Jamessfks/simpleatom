@@ -152,8 +152,8 @@ export function SharedResultView({ shared }: Props) {
           summary.model ? `, ${summary.model}` : ""
         }${summary.convention ? ` (${summary.convention})` : ""}.`
       : null,
-    result.provenance?.timestampUtc
-      ? `Computed: ${result.provenance.timestampUtc}`
+    typeof result.provenance?.timestampUtc === "string"
+      ? `Computed (as recorded by the sharer): ${result.provenance.timestampUtc}`
       : null,
     `Result: ${url}`,
     `Accessed: ${new Date().toISOString().slice(0, 10)} (UTC)`,
@@ -264,10 +264,12 @@ export function SharedResultView({ shared }: Props) {
           {summary.hasProvenance ? (
             <>
               <span className="font-medium text-text-primary">
-                Reproducibility manifest attached.
+                Reproducibility manifest attached, as recorded by the sharer.
               </span>{" "}
               The checkpoint SHA-256, library versions, structure hash, source
               commit and any RNG seed are listed under Provenance below.
+              SimpleAtom does not recompute or sign them, so a result is only
+              as reliable as the browser that submitted it.
             </>
           ) : (
             <>
@@ -280,7 +282,7 @@ export function SharedResultView({ shared }: Props) {
             </>
           )}{" "}
           {summary.hasValidation
-            ? "Validator findings are attached and shown under Validation."
+            ? "Validator findings, as recorded by the sharer, are shown under Validation."
             : "No validator findings were stored with it."}
         </p>
 

@@ -64,6 +64,21 @@ NPT_THERMOSTAT_TIME_FS = 25.0
 NPT_BAROSTAT_TIME_FS = 75.0
 NPT_BULK_MODULUS_GPA = 100.0
 
+# MD divergence (D130). A run whose kinetic temperature passes
+# max(10 × target, 5000 K), or whose NVE total energy has moved more than
+# 0.1 eV/atom from its start, has blown up: it stops with md_diverged instead
+# of being reported as completed. Measured on the pinned stack (MACE-OFF small
+# float64, 300 K, 1000 steps, seed 42; ethanol relaxed and as shipped, water
+# relaxed; dt 0.5–4 fs): the worst NVE drift of any run that stayed bound was
+# 0.0146 eV/atom (shipped ethanol, 2.0 fs; relaxed molecules ≤ 0.004), and
+# every run that came apart passed 0.1 eV/atom at or before its temperature
+# limit. NVT and NPT exchange energy with a bath, so only the temperature
+# test applies to them. Silicon (MACE-MPA-0, 300/1500 K, 1–4 fs) stays far
+# inside both limits.
+MD_DIVERGENCE_TEMPERATURE_FACTOR = 10.0
+MD_DIVERGENCE_TEMPERATURE_FLOOR_K = 5000.0
+MD_NVE_DRIFT_LIMIT_EV_PER_ATOM = 0.1
+
 
 class RunCancelled(Exception):
     """The caller withdrew the request; the partial run is discarded."""
@@ -113,24 +128,11 @@ class RunHooks:
 
 def resolve_seed(raw) -> int:
     """Normalise and validate an RNG seed. Missing/empty -> DEFAULT_MD_SEED."""
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if contract.is_blank(raw):
         return DEFAULT_MD_SEED
-    if isinstance(raw, bool):  # bool is an int subclass — reject explicitly
-        raise ContractError("Invalid seed: expected a non-negative integer, got a boolean.",
-                            code="invalid_number", field="seed")
-    try:
-        seed = int(raw)
-    except (TypeError, ValueError):
-        raise ContractError(f"Invalid seed: expected a non-negative integer, got {raw!r}.",
-                            code="invalid_number", field="seed")
-    if seed < 0:
-        raise ContractError(f"Invalid seed: must be non-negative, got {seed}.",
-                            code="out_of_range", field="seed")
-    if seed > _CONTRACT["params"]["seed"]["max"]:
-        raise ContractError(
-            f"Invalid seed: must be at most {_CONTRACT['params']['seed']['max']}, got {seed}.",
-            code="out_of_range", field="seed")
-    return seed
+    # The contract's own number rule (D48): int() truncated 3.7 to 3 and
+    # raised OverflowError — a 500 — on infinity.
+    return int(contract.resolve_number({"seed": raw}, "seed"))
 
 
 def validate_calculation_type(raw) -> str:
@@ -199,7 +201,7 @@ def resolve_precision(raw, model_type: str, calc_type: str) -> tuple[str, bool]:
     Returns (precision, was_explicitly_requested). A missing/empty value takes
     upstream's default for this model family and calculation type.
     """
-    if raw is None or (isinstance(raw, str) and not raw.strip()):
+    if contract.is_blank(raw):
         return upstream_default_precision(model_type, calc_type), False
 
     if not isinstance(raw, str):
@@ -209,7 +211,7 @@ def resolve_precision(raw, model_type: str, calc_type: str) -> tuple[str, bool]:
             code="unsupported_precision", field="precision",
         )
 
-    precision = raw.strip()
+    precision = contract.clean_text(raw)
     if precision not in SUPPORTED_PRECISIONS:
         raise ContractError(
             f"Unsupported precision '{precision}'. "
@@ -371,17 +373,79 @@ def detect_format(filename: str) -> str:
     return "xyz"
 
 
-def resolve_device(requested) -> str:
-    """Resolve compute device, falling back to CPU if CUDA is unavailable."""
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except ImportError:
+        return False
+
+
+def resolve_device(requested, profile_name: str) -> tuple[str, str | None]:
+    """
+    The device a calculation runs on, and the warning to attach if that is not
+    the one requested (ADR-0031).
+
+    A device this profile does not offer is refused: the public server is
+    CPU-only, so "cuda" there is a client error, not a silent CPU run. Locally,
+    CUDA that PyTorch cannot see falls back to CPU (CLAUDE.md: fall back
+    gracefully) and says so — the numbers are the same physics, the timing is
+    not, and a user who chose a GPU must not be left believing one ran (D33).
+    """
     requested = contract.resolve_choice(requested, "device", _CONTRACT["devices"], "cpu")
-    if requested == "cuda":
-        try:
-            import torch
-            if not torch.cuda.is_available():
-                return "cpu"
-        except ImportError:
-            return "cpu"
-    return requested
+    offered = contract.allowed_devices(profile_name)
+    if requested not in offered:
+        raise ContractError(
+            f"Device '{requested}' is not available on this deployment, which runs on: "
+            f"{', '.join(offered)}. Run SimpleAtom locally on a CUDA machine to use a GPU. "
+            "Nothing was computed.",
+            code="device_unavailable", field="device", status=400,
+        )
+    if requested == "cuda" and not _cuda_available():
+        return "cpu", (
+            "CUDA was requested but is not available on this machine "
+            "(torch.cuda.is_available() is False), so the calculation ran on CPU. "
+            "A single point or a short optimization computed on CPU agrees with a GPU run "
+            "to round-off; an MD trajectory will diverge from a GPU run over time, because "
+            "round-off grows in chaotic dynamics, while its averages and statistics do not. "
+            "The timing is CPU timing."
+        )
+    return requested, None
+
+
+def device_report(profile_name: str) -> dict:
+    """
+    The devices this deployment can actually run on, for /capabilities and the
+    local GET /api/calculate: CPU always, CUDA only when the profile offers it
+    AND PyTorch can see a device. The UI lists exactly these (ADR-0031).
+    """
+    import torch
+    cuda_ok = _cuda_available()
+    offered = contract.allowed_devices(profile_name)
+    available = ["cpu"] + (["cuda"] if "cuda" in offered and cuda_ok else [])
+    if "cuda" in available:
+        reason = None
+    elif "cuda" not in offered:
+        reason = "This deployment is CPU-only: the public server runs on 2 shared vCPUs."
+    else:
+        reason = "No CUDA device is visible to PyTorch on this machine (torch.cuda.is_available() is False)."
+    return {
+        "available": available,
+        "unavailableReason": reason,
+        "cuda": {
+            "available": cuda_ok,
+            "torchCuda": torch.version.cuda,
+            "name": torch.cuda.get_device_name(0) if cuda_ok else None,
+        },
+    }
+
+
+def _is_cuda_oom(exc: BaseException) -> bool:
+    try:
+        import torch
+        return isinstance(exc, torch.OutOfMemoryError)
+    except ImportError:
+        return False
 
 
 def get_mace_calculator(model_type: str, model_size: str | None, device: str, dispersion: bool, precision: str = "float32"):
@@ -424,42 +488,96 @@ def get_custom_calculator(model_path: str, device: str):
     if not Path(model_path).exists():
         raise ValueError(f"Model file not found: {model_path}")
 
-    device = resolve_device(device)
-
     try:
         return MACECalculator(model_paths=model_path, device=device)
     except Exception as e:
+        # D101: a CUDA out-of-memory is not a bad file. Re-raised as is, so
+        # run_calculation() reports cuda_out_of_memory (507), not "invalid".
+        if _is_cuda_oom(e):
+            raise
         raise ValueError(
             f"Failed to load custom model '{Path(model_path).name}': {e}. "
             "Ensure the file is a valid MACE .model checkpoint."
-        )
+        ) from e
 
 
 def extract_reference_data(atoms) -> dict:
-    """Extract reference energy/forces from extended XYZ info/arrays."""
-    ref = {}
+    """
+    Reference energy/forces carried by the input file, and where each came from.
+
+    MACE's training keys (REF_energy, ...) stay in atoms.info/arrays. ASE
+    >= 3.23 moves the standard `energy=`, `free_energy=` and `forces` fields of
+    extended XYZ into a SinglePointCalculator instead (D91), which is exactly
+    what ase.io.write produces for any DFT result, so those are read from
+    atoms.calc.results; `energy` is preferred to `free_energy`. Must run before
+    the MACE calculator replaces atoms.calc.
+    """
+    import numpy as np
+
+    ref, source = {}, {}
+    results = dict(getattr(atoms.calc, "results", None) or {}) if atoms.calc is not None else {}
 
     for key in ("REF_energy", "ref_energy", "energy", "dft_energy"):
         if key in atoms.info:
             try:
                 ref["referenceEnergy"] = float(atoms.info[key])
+                source["energy"] = key
                 break
             except (TypeError, ValueError):
                 pass
+    if "referenceEnergy" not in ref:
+        for key in ("energy", "free_energy"):
+            value = results.get(key)
+            if value is not None and np.isfinite(float(value)):
+                ref["referenceEnergy"] = float(value)
+                source["energy"] = key
+                break
 
     for key in ("REF_forces", "ref_forces", "forces", "dft_forces"):
         if key in atoms.arrays:
             try:
                 ref["referenceForces"] = atoms.arrays[key].tolist()
+                source["forces"] = key
                 break
             except Exception:
                 pass
+    if "referenceForces" not in ref and results.get("forces") is not None:
+        forces = np.asarray(results["forces"], dtype=float)
+        if forces.shape == (len(atoms), 3) and np.isfinite(forces).all():
+            ref["referenceForces"] = forces.tolist()
+            source["forces"] = "forces"
 
+    if source:
+        ref["referenceSource"] = source
     return ref
 
 
+def isolated_atoms_energy(atoms) -> float | None:
+    """
+    Sum of the loaded MACE model's own isolated-atom energies E0 for these
+    atoms, read off the model (atomic_energies_fn), or None when the attached
+    calculator is not a MACE model (or a D3 SumCalculator around one, whose
+    D3 term is zero for isolated atoms).
+    """
+    calc = atoms.calc
+    candidates = [calc] + list(getattr(getattr(calc, "mixer", None), "calcs", None) or getattr(calc, "calcs", None) or [])
+    for candidate in candidates:
+        models = getattr(candidate, "models", None)
+        if not models:
+            continue
+        try:
+            model = models[0]
+            energies = model.atomic_energies_fn.atomic_energies.detach().cpu().double().numpy().ravel()
+            table = {int(z): float(e) for z, e in zip(model.atomic_numbers, energies)}
+            return float(sum(table[int(z)] for z in atoms.get_atomic_numbers()))
+        except Exception:  # noqa: BLE001 — an optional diagnostic must never lose a result
+            return None
+    return None
+
+
 def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
-                  effective_params, trajectory=None, warnings=None, manifest=None):
+                  effective_params, trajectory=None, warnings=None, manifest=None,
+                  kinetic_stress=False):
     """
     Assemble the standard JSON result dict.
 
@@ -484,7 +602,10 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
     lattice = atoms.get_cell().tolist() if atoms.pbc.any() else None
     warnings = list(warnings or [])
 
-    properties = {"volume": float(atoms.get_volume()) if atoms.pbc.any() else None,
+    # A slab may leave its non-periodic vector zero (MACE computes it exactly
+    # as with vacuum); it then has no volume, rather than crashing here.
+    properties = {"volume": float(atoms.get_volume())
+                  if atoms.pbc.any() and atoms.cell.rank == 3 else None,
                   "stress": None, "pressure": None}
     # Stress and pressure only for a fully periodic cell (D6). For a molecule
     # or a slab the "volume" a stress would be divided by is a padding box
@@ -495,14 +616,31 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
     if atoms.pbc.all():
         try:
             from ase import units
-            stress_gpa = atoms.get_stress(voigt=True) / units.GPa
+            # After MD the atoms move, so the pressure is virial plus the
+            # ideal-gas (kinetic) term, -Σ p_i p_j / (m V) on the stress (D54):
+            # the virial alone read 0.30 GPa for an NPT run held at 0 GPa.
+            stress_gpa = atoms.get_stress(voigt=True, include_ideal_gas=kinetic_stress) / units.GPa
             properties["stress"] = [float(x) for x in stress_gpa]
             properties["pressure"] = float(-stress_gpa[:3].mean())
+            properties["stressIncludesKineticTerm"] = bool(kinetic_stress)
         except Exception as exc:  # noqa: BLE001 — a missing stress must not lose the result
             warnings.append(
                 f"Stress could not be computed ({type(exc).__name__}: {exc}); "
                 "pressure is not reported."
             )
+        if properties["stress"] is not None and not all(math.isfinite(x) for x in properties["stress"]):
+            # Same rule as energy and forces (D129): never pass a NaN through.
+            properties["stress"] = properties["pressure"] = None
+            warnings.append("The model returned a non-finite stress; stress and pressure are not reported.")
+
+    # D52: the energy per atom relative to the model's own isolated atoms.
+    # MACE-OFF's E/N is dominated by core electrons (water -693.7 eV/atom,
+    # CH2Br2 -28232.6), so no band on it fits; this quantity does not depend
+    # on which elements are present (contract.json energyConventions).
+    reference = isolated_atoms_energy(atoms)
+    if reference is not None and len(atoms):
+        properties["isolatedAtomsEnergy"] = reference
+        properties["energyPerAtomVsIsolatedAtoms"] = (float(energy) - reference) / len(atoms)
 
     if warnings:
         msg = f"{msg} | Warnings: {' '.join(warnings)}"
@@ -514,6 +652,9 @@ def _build_result(atoms, energy, forces, msg, calc_start, ref_data,
         "positions": atoms.get_positions().tolist(),
         "symbols": symbols,
         "lattice": lattice,
+        # Along which axes the structure is periodic (D179): the lattice alone cannot
+        # say it for a slab whose third vector is short but not zero.
+        "pbc": [bool(flag) for flag in atoms.pbc],
         "properties": properties,
         "params": dict(effective_params),
         "message": msg,
@@ -608,7 +749,8 @@ def attach_validation(result: dict) -> dict:
 
     First, the validator's checks are plausibility heuristics with soft
     thresholds (max force > 50 eV/Å, net force > 0.1 eV/Å, minimum interatomic
-    distance < 0.4 Å). Every one of them has a legitimate counterexample: a
+    distance below contract.json's minInteratomicDistanceA). Every one of them
+    has a legitimate counterexample: a
     single-point on a deliberately strained or clashing geometry is a normal
     thing to ask MACE for, and it is exactly the case where the user most needs
     the number. Throwing away a completed calculation because a heuristic
@@ -710,7 +852,324 @@ def _resolve_run_params(calc_type: str, params: dict, profile_name: str) -> dict
     return {}
 
 
-def _read_structure(filepath: str, display: str, warnings: list[str]):
+# Atoms closer than this (minimum image) are refused before any model I/O.
+# The shortest bond in chemistry is H2 at 0.74 Å; 0.5 Å is well inside it, so
+# nothing physical is refused, while a misplaced or duplicated atom (0 Å), a
+# CIF site that lands on another after symmetry expansion, or a molecule in a
+# 1 Å placeholder cell (0.48 Å to its own image, D89) is. MACE returns NaN at
+# 0 Å and absurd numbers (+3.9e15 eV for that water) just above it: numbers
+# that look like results and are not (ADR-0004).
+MIN_INTERATOMIC_DISTANCE_A = float(_CONTRACT["structureChecks"]["minInteratomicDistanceA"])  # D153: one value
+
+# Space groups that International Tables vol. A lists with two origin choices.
+# For these an H-M symbol alone does not say which operators apply; ASE always
+# assumes origin choice 1, so origin-2 coordinates came out as a wrong crystal
+# (diamond Si: 16 atoms 1.92 Å apart, D114).
+_TWO_ORIGIN_GROUPS = frozenset({48, 50, 59, 68, 70, 85, 86, 88, 125, 126, 129, 130, 133, 134,
+                                137, 138, 141, 142, 201, 203, 222, 224, 227, 228})
+
+
+def refuse_invalid_cell(atoms, display: str) -> None:
+    """
+    Every periodic axis needs a lattice vector, and those vectors must span as
+    many dimensions as there are periodic axes (D137). A periodic file with no
+    Lattice, or a flat cell, used to reach the model and fail after it loaded
+    ("You have 0 lattice vectors", "Singular matrix"). A non-periodic axis may
+    keep a zero vector: a slab without a vacuum vector computes exactly like
+    one with it.
+    """
+    import numpy as np
+    periodic = np.flatnonzero(atoms.pbc)
+    if len(periodic) == 0:
+        return
+    vectors = np.asarray(atoms.cell)[periodic]
+    lengths = np.linalg.norm(vectors, axis=1)
+    if lengths.min() < 1e-6 or np.linalg.matrix_rank(vectors, tol=1e-6 * lengths.max()) < len(periodic):
+        axes = "".join("abc"[i] for i in periodic)
+        missing = [("abc"[i]) for i, length in zip(periodic, lengths) if length < 1e-6]
+        problem = (f"has no lattice vector along {', '.join(missing)}" if missing else
+                   "its lattice vectors there are not independent (the cell is flat)")
+        raise ContractError(
+            f"'{display}' is periodic along {axes} but {problem} "
+            f"(cell {np.round(np.asarray(atoms.cell), 4).tolist()}). Give a Lattice with a "
+            "non-zero, independent vector for every periodic axis, or mark the structure "
+            "non-periodic. Nothing was computed.",
+            code="invalid_cell", field="structure", status=422)
+
+
+def _is_triangular(cell) -> bool:
+    import numpy as np
+    m = np.asarray(cell)
+    return bool(np.all(m[np.triu_indices(3, 1)] == 0.0) or np.all(m[np.tril_indices(3, -1)] == 0.0))
+
+
+def rotate_to_standard_form(atoms) -> dict:
+    """
+    Rotate atoms and cell rigidly into ASE's lower-triangular standard form
+    (rcell @ Q = cell, so positions go to positions @ Q.T). Returns the record
+    that goes into result["params"]["cellRotation"].
+    """
+    import numpy as np
+    rcell, q = atoms.cell.standard_form()
+    rcell = np.tril(np.asarray(rcell))  # exact zeros above the diagonal
+    atoms.set_positions(atoms.get_positions() @ q.T)
+    atoms.set_cell(rcell, scale_atoms=False)
+    return {"reason": "NPT needs a triangular cell", "form": "lower-triangular",
+            "rotation": [[float(x) for x in row] for row in q]}
+
+
+def refuse_overlaps(atoms, display: str) -> None:
+    """Refuse two atoms closer than MIN_INTERATOMIC_DISTANCE_A (minimum image)."""
+    # D154: ASE's neighbour list completes a missing periodic vector with a 1 Å
+    # one, so on a periodic file with no Lattice it measured a box nobody gave
+    # (demo water: a 0.479 Å pair that does not exist). The cell is checked
+    # here too, so no caller can reach the distances before it.
+    refuse_invalid_cell(atoms, display)
+    pair = closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A)
+    if pair is None:
+        return
+    raise ContractError(
+        f"'{display}' has {describe_pair(atoms, pair)}, closer than the "
+        f"{MIN_INTERATOMIC_DISTANCE_A} Å this server accepts (the shortest real bond, H2, is "
+        "0.74 Å). That is a duplicated or misplaced atom, a CIF site that lands on another "
+        "after symmetry expansion, or a cell too small for its contents. Nothing was computed.",
+        code="overlapping_atoms", field="structure", status=422,
+    )
+
+
+def normalise_element(raw: str, *, from_label: bool) -> str:
+    """
+    The element a CIF type symbol (or, failing that, a site label) names (D113).
+
+    A type symbol is an element symbol in any case, optionally followed by a
+    charge or oxidation state ("NA", "na", "Na1+", "Fe2+", "O2-"). ASE matched
+    [A-Z][a-z]? instead, so "NA" read as N and "CL" as C. A label is read the
+    same way, except that an all-capitals label whose first two letters spell an
+    element different from its first letter ("CA1": calcium, or an alpha carbon?)
+    is refused rather than guessed.
+    """
+    import re
+    from ase.data import chemical_symbols
+
+    text = str(raw).strip()
+    letters = re.match(r"[A-Za-z]+", text)
+    if not letters:
+        raise ContractError(f"CIF site symbol {text!r} does not start with an element symbol. "
+                            "Nothing was computed.", code="unknown_element", field="structure", status=422)
+    letters = letters.group(0)
+    one = letters[0].upper()
+    two = one + letters[1].lower() if len(letters) > 1 else None
+    known = set(chemical_symbols[1:]) | {"D"}  # D: deuterium, which ASE reads as H of mass 2
+    two_ok, one_ok = two in known, one in known
+    if from_label and two_ok and one_ok and letters[:2].isupper():
+        raise ContractError(
+            f"CIF site label {text!r} could be {two} or {one}, and the file has no "
+            "_atom_site_type_symbol column to say which. Add one. Nothing was computed.",
+            code="ambiguous_element", field="structure", status=422)
+    if two_ok and (not from_label or letters[1].islower() or not one_ok):
+        return two
+    if one_ok and (len(letters) == 1 or from_label or not two_ok):
+        return one
+    raise ContractError(f"CIF site symbol {text!r} is not an element symbol. Nothing was computed.",
+                        code="unknown_element", field="structure", status=422)
+
+
+def _cif_spacegroup(block):
+    """(International Tables number or None, explicit origin setting or None)."""
+    import re
+    hm = block._get_spacegroup_name()
+    no = block._get_spacegroup_number()
+    colon = re.search(r":\s*([12])\s*$", str(hm)) if hm is not None else None
+    explicit = block.get("_symmetry_space_group_setting")
+    setting = int(colon.group(1)) if colon else (int(explicit) if explicit is not None else None)
+    if no is None and hm is not None:
+        from ase.spacegroup import Spacegroup
+        try:
+            no = Spacegroup(re.sub(r"\s*:\s*\S+\s*$", "", str(hm))).no
+        except Exception:  # noqa: BLE001 — ASE's own reader reports the bad symbol
+            no = None
+    return (int(no) if no is not None else None), setting
+
+
+def count_symmetry_images(scaled_positions, spacegroup, chunk: int = 2000) -> int:
+    """
+    How many atoms `spacegroup` makes of these sites, without building them
+    (D133). Every site's images under every operation (centring and inversion
+    included) are wrapped into the cell and counted once on a 1e-3 grid (ASE's
+    own symprec), so a special position counts its true multiplicity (NaCl's
+    two sites under Fm-3m's 192 operations count 8, not 384) and a redundant
+    full-cell listing (the demo silicon) counts each atom once. Costs one sort
+    of sites × operations integers; ASE's expansion compares each new atom
+    against every atom so far, which grew as N^1.9 (8000 Fm-3m sites: 165 s).
+    """
+    import numpy as np
+    rotations, translations = spacegroup.get_op()
+    positions = np.asarray(scaled_positions, dtype=float)
+    keys = []
+    for start in range(0, len(positions), chunk):
+        images = np.einsum("oij,sj->soi", rotations, positions[start:start + chunk])
+        grid = np.rint(np.mod(images + translations[None, :, :], 1.0) * 1000).astype(np.int64) % 1000
+        keys.append(np.unique(grid[..., 0] * 1_000_000 + grid[..., 1] * 1000 + grid[..., 2]))
+    return int(len(np.unique(np.concatenate(keys)))) if keys else 0
+
+
+def _expand_cif(block, tags: dict, setting: int | None, display: str, max_atoms: int | None = None):
+    """
+    Apply the block's symmetry, in origin `setting` when it is given. ASE merges
+    a site that lands on an earlier one (keeping the first) with only a Python
+    warning. The same element twice is a redundant listing (the demo silicon
+    lists all eight atoms) and merging it is right; two different elements on
+    one position is hidden disorder, and keeping either would invent a
+    composition the file does not state.
+    """
+    import re
+    import warnings as pywarnings
+    from ase.io.cif import CIFBlock
+    from ase.spacegroup import crystal
+
+    if setting is not None:
+        tags = dict(tags)
+        hm = block._get_spacegroup_name()
+        if hm is not None:
+            # ASE cannot parse 'F d -3 m :2'; the setting travels separately.
+            tags["_symmetry_space_group_name_h-m"] = re.sub(r"\s*:\s*\S+\s*$", "", str(hm))
+            tags.pop("_space_group_name_h-m_alt", None)
+        tags["_symmetry_space_group_setting"] = setting
+        block = CIFBlock(block.name, tags)
+    spacegroup = block.get_spacegroup(subtrans_included=True)
+    sites = block.get_unsymmetrized_structure()
+    if max_atoms is not None:
+        # Every listed position is itself an atom of the result, so more
+        # sites than the cap is over it without counting anything.
+        expected = (len(sites) if len(sites) > max_atoms else
+                    count_symmetry_images(sites.get_scaled_positions(wrap=False), spacegroup))
+        if expected > max_atoms:
+            raise ContractError(
+                f"'{display}' lists {len(sites)} sites that space group {spacegroup.no} expands to "
+                f"{'at least ' if expected == len(sites) else ''}{expected:,} atoms; this deployment computes at most {max_atoms} for this "
+                "calculation. Nothing was computed.",
+                code="limit_exceeded", field="structure", status=422)
+    with pywarnings.catch_warnings(record=True) as caught:
+        pywarnings.simplefilter("always")
+        atoms = crystal(sites, spacegroup=spacegroup, setting=spacegroup.setting,
+                        onduplicates="warn")
+    symbols = tags["_atom_site_type_symbol"]
+    labels = tags.get("_atom_site_label") or symbols
+    labels = [labels] if isinstance(labels, str) else labels
+    for record in caught:
+        pair = re.match(r"scaled_positions (\d+) and (\d+) are equivalent", str(record.message))
+        if pair and symbols[int(pair.group(1))] != symbols[int(pair.group(2))]:
+            first, second = int(pair.group(1)), int(pair.group(2))
+            raise ContractError(
+                f"'{display}': sites {labels[first]} ({symbols[first]}) and {labels[second]} "
+                f"({symbols[second]}) occupy the same position after symmetry expansion. Two "
+                "elements on one site is disorder, which MACE cannot compute; build an "
+                "ordered structure. Nothing was computed.",
+                code="overlapping_atoms", field="structure", status=422)
+    return atoms
+
+
+def _expand_cif_origin(block, tags: dict, number: int, display: str, warnings: list[str],
+                       max_atoms: int | None = None):
+    """
+    A two-origin space group given by symbol alone, with no operators (D114).
+
+    ASE always expanded such a file in origin choice 1, so origin-2 diamond
+    came out as 16 atoms 1.92 Å apart at 237 GPa. Both readings are tried. Sites
+    a crystallographer writes down sit on special positions in the intended
+    setting, so the intended reading is the one that gives fewer atoms (diamond:
+    8, against 16 in the other); it is used, and the result says so. When both
+    readings give the same count (only general positions) the file cannot be
+    read without guessing, and is refused.
+    """
+    readings = {}
+    for setting in (1, 2):
+        try:
+            atoms = _expand_cif(block, tags, setting, display, max_atoms)
+        except ContractError:
+            continue
+        if closest_pair(atoms, cutoff=MIN_INTERATOMIC_DISTANCE_A) is None:
+            readings[setting] = atoms
+    if not readings:
+        return _expand_cif(block, tags, 1, display, max_atoms)  # names the clash or the cap
+    counts = {setting: len(atoms) for setting, atoms in readings.items()}
+    if len(readings) == 2 and counts[1] == counts[2]:
+        raise ContractError(
+            f"'{display}' gives space group {number} by its symbol only, and that group has two "
+            "origin choices in International Tables; these coordinates make a different "
+            f"{counts[1]}-atom crystal in each. Write the H-M symbol with ':1' or ':2' (e.g. "
+            "'F d -3 m :2'), or include the symmetry operations "
+            "(_space_group_symop_operation_xyz). Nothing was computed.",
+            code="ambiguous_origin_choice", field="structure", status=422)
+    chosen = min(readings, key=lambda s: counts[s])
+    other = 2 if chosen == 1 else 1
+    because = (f"{counts[chosen]} atoms, against {counts[other]} in origin choice {other}"
+               if other in counts else f"origin choice {other} puts atoms on top of each other")
+    warnings.append(
+        f"Space group {number} has two origin choices and '{display}' does not say which; its "
+        f"coordinates fit origin choice {chosen} ({because}), so that was used. Write "
+        f"':{chosen}' after the H-M symbol to make it explicit.")
+    return readings[chosen]
+
+
+def _read_cif(filepath: str, display: str, warnings: list[str], max_atoms: int | None = None):
+    """
+    Read the first structure block of a CIF, refusing what ASE would silently
+    change: element symbols (D113), the origin choice (D114), partial occupancy
+    (D115) and different elements that coincide after symmetry expansion.
+    """
+    from ase.io.cif import CIFBlock, parse_cif
+
+    with open(filepath, "rb") as fh:
+        blocks = list(parse_cif(fh))
+    structural = [b for b in blocks
+                  if ("_atom_site_fract_x" in b or "_atom_site_cartn_x" in b)
+                  and ("_atom_site_type_symbol" in b or "_atom_site_label" in b)]
+    if not structural:
+        raise ContractError(f"'{display}' has no atom sites.", code="unreadable_structure",
+                            field="structure", status=422)
+    block = structural[0]
+    if len(structural) > 1:
+        warnings.append(f"'{display}' has {len(structural)} structures (data blocks); only the "
+                        f"first, data_{block.name}, was computed.")
+
+    tags = {key: block[key] for key in block}
+    from_label = "_atom_site_type_symbol" not in tags
+    raw = tags["_atom_site_label" if from_label else "_atom_site_type_symbol"]
+    raw = [raw] if not isinstance(raw, list) else raw
+    tags["_atom_site_type_symbol"] = [normalise_element(s, from_label=from_label) for s in raw]
+
+    occupancy = tags.pop("_atom_site_occupancy", None)
+    if occupancy is not None:
+        occupancy = [occupancy] if not isinstance(occupancy, list) else occupancy
+        labels = tags.get("_atom_site_label") or raw
+        labels = [labels] if not isinstance(labels, list) else labels
+        partial = [(labels[i], value) for i, value in enumerate(occupancy)
+                   if isinstance(value, (int, float)) and abs(float(value) - 1.0) > 1e-3]
+        if partial:
+            listed = ", ".join(f"{label} {value:g}" for label, value in partial[:5])
+            raise ContractError(
+                f"'{display}' has partially occupied sites ({listed}"
+                f"{', …' if len(partial) > 5 else ''}). MACE computes one ordered "
+                "configuration, so a disordered or vacant site has no single energy. Build an "
+                "ordered supercell (for example a special quasirandom structure) and upload "
+                "that. Nothing was computed.",
+                code="partial_occupancy", field="structure", status=422)
+
+    block = CIFBlock(block.name, tags)
+    if block.get_cell().rank != 3:
+        atoms = block.get_unsymmetrized_structure()
+    else:
+        number, setting = _cif_spacegroup(block)
+        if not block._get_sitesym() and setting is None and number in _TWO_ORIGIN_GROUPS:
+            atoms = _expand_cif_origin(block, tags, number, display, warnings, max_atoms)
+        else:
+            atoms = _expand_cif(block, tags, None if block._get_sitesym() else setting, display,
+                                max_atoms)
+    return atoms
+
+
+def _read_structure(filepath: str, display: str, warnings: list[str], max_atoms: int | None = None):
     """
     Read the FIRST frame of a structure file.
 
@@ -723,7 +1182,12 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
 
     fmt = detect_format(filepath)
     try:
-        atoms = read(filepath, format=fmt, index=0)
+        if fmt == "cif":
+            atoms = _read_cif(filepath, display, warnings, max_atoms)
+        else:
+            atoms = read(filepath, format=fmt, index=0)
+    except ContractError:
+        raise
     except Exception as exc:
         # extxyz is stricter than the plain xyz reader: a malformed comment line
         # that simple_read_xyz would ignore can make it raise. Degrade to the
@@ -750,7 +1214,26 @@ def _read_structure(filepath: str, display: str, warnings: list[str]):
     if len(atoms) == 0:
         raise ContractError(f"'{display}' contains no atoms.",
                             code="unreadable_structure", field="structure")
+    if fmt == "proteindatabank" and _is_cryst1_placeholder(atoms):
+        # D89: the PDB format prescribes exactly this record for every entry
+        # not solved by diffraction (NMR, cryo-EM, models), and many tools
+        # write it. ASE took it literally: water in a periodic 1 Å cube came
+        # out at +3.9e15 eV with a pressure. It means "no cell".
+        atoms.set_pbc(False)
+        atoms.set_cell(None)
+        warnings.append(
+            f"'{display}' has the placeholder CRYST1 record (1 × 1 × 1 Å, 90°, P 1) that the PDB "
+            "format prescribes for structures without a crystal cell, so it was computed as an "
+            "isolated, non-periodic structure.")
     return atoms, fmt
+
+
+def _is_cryst1_placeholder(atoms) -> bool:
+    import numpy as np
+    if not atoms.pbc.any():
+        return False
+    lengths_angles = atoms.cell.cellpar()
+    return bool(np.allclose(lengths_angles, [1, 1, 1, 90, 90, 90], atol=1e-3))
 
 
 def validate_request(params: dict, has_model_path: bool, profile_name: str) -> dict:
@@ -761,13 +1244,18 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
     run_calculation() and by the job queue (jobs.py), which refuses a bad
     request with a 4xx before it ever waits in line.
     """
+    contract.check_known_keys(params)
     if has_model_path and not contract.custom_models_allowed(profile_name):
+        # Opt-in on every profile (ADR-0020, D40): a local server is reachable
+        # from the LAN and from any page the developer visits.
+        how = ("restart with ALLOW_CUSTOM_MODELS=1 to load your own checkpoint"
+               if profile_name == "local" else
+               "the public instance only runs pinned foundation models; run "
+               "SimpleAtom locally with ALLOW_CUSTOM_MODELS=1 to use your own")
         raise ContractError(
-            "Custom model checkpoints are disabled on this deployment. Loading a "
-            "MACE .model file executes code from the file, so the public "
-            "instance only runs pinned foundation models. Run SimpleAtom "
-            "locally (or self-host with ALLOW_CUSTOM_MODELS=1) to use your own "
-            "checkpoint. Nothing was computed.",
+            "Custom model checkpoints are disabled on this deployment: loading a "
+            f"MACE .model file executes code from the file, so {how}. "
+            "Nothing was computed.",
             code="custom_models_disabled", field="model", status=403,
         )
     calc_type = validate_calculation_type(params.get("calculationType"))
@@ -782,9 +1270,11 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
         "model_size": contract.resolve_model_size(model, params.get("modelSize")),
         "seed": resolve_seed(params.get("seed")),
         "run_params": _resolve_run_params(calc_type, params, profile_name),
-        "device": resolve_device(params.get("device")),
+        "device": None,
+        "device_warning": None,
         "dispersion_requested": contract.resolve_bool(params.get("dispersion"), "dispersion"),
     }
+    resolved["device"], resolved["device_warning"] = resolve_device(params.get("device"), profile_name)
     resolved["precision"], resolved["precision_requested"] = resolve_precision(
         params.get("precision"), model_type, calc_type
     )
@@ -794,6 +1284,29 @@ def validate_request(params: dict, has_model_path: bool, profile_name: str) -> d
 def run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
                     profile: str | None = None, display_name: str | None = None,
                     hooks: RunHooks | None = None) -> dict:
+    """
+    Run one calculation; see `_run_calculation` for the contract.
+
+    CUDA out-of-memory, wherever it happens (moving the model to the GPU or a
+    forward pass), is a refusal with a hint — never a silent retry on CPU and
+    never a 500 (ADR-0031). Nothing usable was computed when it fires.
+    """
+    try:
+        return _run_calculation(filepath, params, model_path, profile=profile,
+                                display_name=display_name, hooks=hooks)
+    except Exception as exc:
+        if _is_cuda_oom(exc):
+            raise ContractError(
+                "The GPU ran out of memory. Switch Device to CPU, or use a smaller structure "
+                "or model size. Nothing was computed.",
+                code="cuda_out_of_memory", field="device", status=507,
+            ) from exc
+        raise
+
+
+def _run_calculation(filepath: str, params: dict, model_path: str | None = None, *,
+                     profile: str | None = None, display_name: str | None = None,
+                     hooks: RunHooks | None = None) -> dict:
     """
     Run a MACE calculation on a structure file.
 
@@ -836,6 +1349,8 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
     # Declared before the structure is read: the extended-XYZ fallback below is
     # the first thing that can need to warn.
     warnings: list[str] = []
+    if req["device_warning"]:
+        warnings.append(req["device_warning"])
 
     if model_path and req["requested_model"] != "custom":
         warnings.append(
@@ -845,9 +1360,24 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
 
     hooks.phase("reading-structure")
     filename = _display_name(display_name, filepath)
-    atoms, fmt = _read_structure(filepath, filename, warnings)
+    # The cap goes in too: a CIF is counted before its symmetry is expanded (D133).
+    atoms, fmt = _read_structure(filepath, filename, warnings,
+                                 contract.profile(profile_name)["maxAtoms"][calc_type])
     steps = run_params.get("maxOptSteps", run_params.get("mdSteps"))
     contract.check_atom_caps(len(atoms), calc_type, steps, profile_name)
+    refuse_invalid_cell(atoms, filename)
+    refuse_overlaps(atoms, filename)
+    covered = model.get("elements") or []
+    outside = sorted(set(atoms.get_chemical_symbols()) - set(covered)) if covered else []
+    if outside:
+        # D47: refused before any model I/O, in words — upstream fails only
+        # after loading, with "np.int64(11) is not in list".
+        raise ContractError(
+            f"{model['label']} was trained only on {', '.join(covered)}; this structure "
+            f"also contains {', '.join(outside)}. Choose a MACE-MP-family model for it. "
+            "Nothing was computed.",
+            code="unsupported_element", field="modelType",
+        )
     if run_params.get("mdEnsemble") == "NPT" and not atoms.pbc.all():
         raise ContractError(
             "NPT needs a fully periodic cell (pbc on all three axes): pressure is "
@@ -855,6 +1385,18 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
             "upload a periodic structure. Nothing was computed.",
             code="npt_requires_periodic", field="mdEnsemble",
         )
+    npt_rotation = None
+    if run_params.get("mdEnsemble") == "NPT" and not _is_triangular(atoms.cell):
+        # D134: MelchionnaNPT runs only on a triangular cell matrix, and used
+        # to fail after the model loaded, as a 500 quoting ASE internals.
+        if atoms.constraints:
+            raise ContractError(
+                "NPT needs a triangular cell matrix, and this cell is not one. It cannot be "
+                "rotated into one here because the structure carries constraints, whose axes "
+                "would rotate with it. Supply the cell in lower-triangular form (a along x, b in "
+                "the xy plane), or remove the constraints. Nothing was computed.",
+                code="npt_requires_triangular_cell", field="structure", status=422)
+        npt_rotation = "pending"  # rotated after the manifest hashes the submitted structure
 
     ref_data = extract_reference_data(atoms)
 
@@ -894,6 +1436,19 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
                 require_dispersion_backend()
 
             recommended = upstream_default_precision(model_type, calc_type)
+            loader_default = model.get("upstreamDefaultDtype")
+            if not precision_requested and loader_default and precision != loader_default:
+                # D51 (owner decision, 2026-10-30): 'Auto' follows upstream's own
+                # advice (float64 for geometry optimisation), which here differs
+                # from the loader's default dtype. CLAUDE.md: never override an
+                # upstream dtype default without a warning on the result.
+                what = {"geometry-opt": "geometry optimization", "molecular-dynamics": "MD run",
+                        "single-point": "single point"}.get(calc_type, calc_type)
+                warnings.append(
+                    f"Precision 'Auto' ran this {what} in {precision}, not {model['loader']}()'s "
+                    f"default {loader_default}, because upstream MACE recommends float64 for geometry "
+                    f"optimization. Choose float32 explicitly if you want the faster default."
+                )
             if precision_requested and precision == "float32" and recommended == "float64":
                 # Honoured, not overridden — upstream honours whatever default_dtype
                 # it is handed — but never left unsaid.
@@ -946,6 +1501,10 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
         "device": device,
         "dispersion": dispersion_active,
     }
+    if req["device_warning"]:
+        # The CUDA->CPU fallback, recorded where the validator and the UI read
+        # the effective parameters (ADR-0031, D33).
+        effective_params["requestedDevice"] = "cuda"
     if model_type != "custom":
         effective_params["upstreamModel"] = contract.upstream_model_key(model, model_size)
         effective_params["license"] = model["license"]["id"]
@@ -986,6 +1545,29 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
     except Exception as exc:  # noqa: BLE001 — provenance must never break a run
         manifest = provenance.unavailable_manifest(f"{type(exc).__name__}: {exc}")
 
+    if npt_rotation is not None:
+        effective_params["cellRotation"] = rotate_to_standard_form(atoms)
+        warnings.append(
+            "NPT needs a triangular cell matrix, so the structure was rotated rigidly to ASE's "
+            "standard orientation (a along x, b in the xy plane) before the run. Energies, "
+            "temperatures and pressure are unchanged by a rotation; positions, forces and the "
+            "lattice are reported in the rotated frame.")
+
+    # Fixed atoms (POSCAR selective dynamics, D132): said once, per calculation.
+    constrained = constrained_indices(atoms)
+    if constrained:
+        held = (f"{len(constrained)} of {len(atoms)} atoms are fixed (wholly or along some axes) "
+                "by the file's constraints (selective dynamics)")
+        warnings.append({
+            "single-point": f"{held}. A single point reports the model's full forces on them; "
+                            "a constraint only matters when atoms move.",
+            "geometry-opt": f"{held}: they were held in place, and the forces reported for them "
+                            "are the constrained ones (fixed components zero).",
+            "molecular-dynamics": f"{held}: they were held in place, the temperature is over the "
+                                  "free degrees of freedom only, and the final forces reported for "
+                                  "them are the constrained ones.",
+        }[calc_type])
+
     hooks.phase("computing")
     calc_start = time.time()
     context = _RunContext(atoms=atoms, filename=filename, calc_start=calc_start,
@@ -1004,6 +1586,9 @@ def run_calculation(filepath: str, params: dict, model_path: str | None = None, 
         # guard so that adding a type to SUPPORTED_CALCULATION_TYPES without a
         # handler fails loudly instead of silently returning a single-point result.
         raise ValueError(f"No handler implemented for calculationType '{calc_type}'")
+
+    if constrained:
+        result["constrainedAtoms"] = constrained
 
     # A licence notice is not a warning about the result, so it travels in its
     # own field (shown with the result, in the PDF and on MACE Link) rather
@@ -1029,11 +1614,11 @@ class _RunContext:
     hooks: RunHooks
     profile_name: str
 
-    def build(self, energy, forces, msg, trajectory=None) -> dict:
+    def build(self, energy, forces, msg, trajectory=None, kinetic_stress=False) -> dict:
         return _build_result(self.atoms, energy, forces, msg, self.calc_start,
                              self.ref_data, self.effective_params,
                              trajectory=trajectory, warnings=self.warnings,
-                             manifest=self.manifest)
+                             manifest=self.manifest, kinetic_stress=kinetic_stress)
 
     def stopped_early(self, kind: str, at_step: int, total: int) -> None:
         budget = contract.profile(self.profile_name)["timeBudgetSeconds"]
@@ -1076,9 +1661,93 @@ class _FrameRecorder:
             self._append(step, positions, values)
 
 
+def closest_pair(atoms, cutoff: float = 3.0):
+    """
+    (i, j, distance in Å) of the closest pair of atoms, minimum image when the
+    cell is periodic, or None when no pair is within `cutoff` (or the positions
+    are not finite). A neighbour list, so it stays linear in the atom count.
+    For a periodic cell i may equal j: an atom and its own periodic image.
+    """
+    import numpy as np
+    from ase.neighborlist import neighbor_list
+
+    if len(atoms) < 1 or not np.isfinite(atoms.get_positions()).all():
+        return None
+    try:
+        i, j, d = neighbor_list("ijd", atoms, cutoff)
+    except Exception:  # noqa: BLE001 — a diagnosis must never mask the real error
+        return None
+    if len(d) == 0:
+        return None
+    k = int(np.argmin(d))
+    return int(i[k]), int(j[k]), float(d[k])
+
+
+def describe_pair(atoms, pair) -> str:
+    i, j, d = pair
+    symbols = atoms.get_chemical_symbols()
+    if i == j:
+        return f"atom {i} ({symbols[i]}) and its own periodic image, {d:.3f} Å apart"
+    return f"atoms {i} ({symbols[i]}) and {j} ({symbols[j]}), {d:.3f} Å apart"
+
+
+def require_finite(atoms, energy, forces, where: str) -> None:
+    """
+    Refuse a NaN or infinite energy or force (D129).
+
+    A non-finite number is not a result the model computed for this structure,
+    and it cannot even be carried: JSON has no NaN (Starlette refused it, so
+    every poll of the job was a 500) and the local CLI printed `NaN`, which
+    Node's JSON.parse rejects. It used to be returned as "status": "success".
+    The usual cause is two atoms on top of each other, so the message names the
+    closest pair.
+    """
+    import numpy as np
+
+    bad = []
+    try:
+        if energy is None or not math.isfinite(float(energy)):
+            bad.append("energy")
+    except (TypeError, ValueError):
+        bad.append("energy")
+    if forces is not None and not np.isfinite(np.asarray(forces, dtype=float)).all():
+        bad.append("forces")
+    if not bad:
+        return
+    pair = closest_pair(atoms)
+    cause = (f"The closest pair is {describe_pair(atoms, pair)}; atoms that close usually "
+             "mean a misplaced or duplicated atom."
+             if pair else "No two atoms are within 3 Å of each other.")
+    raise ContractError(
+        f"The model returned a non-finite (NaN or infinite) {' and '.join(bad)} {where}. "
+        f"{cause} Nothing is reported, because a NaN is not a number the model computed "
+        "for this structure. Check the geometry and run again.",
+        code="non_finite_result", field="structure", status=422,
+    )
+
+
+def constrained_indices(atoms) -> list[int]:
+    """
+    Indices of the atoms any constraint acts on: the rows an all-ones force
+    array does not survive unchanged through every constraint's adjust_forces.
+    Works for FixAtoms, FixScaled and FixCartesian alike, in any cell.
+    """
+    import numpy as np
+    if not atoms.constraints:
+        return []
+    probe = np.ones((len(atoms), 3))
+    for constraint in atoms.constraints:
+        constraint.adjust_forces(atoms, probe)
+    return [int(i) for i in np.flatnonzero(np.any(np.abs(probe - 1.0) > 1e-12, axis=1))]
+
+
 def _run_single_point(ctx: _RunContext):
     energy = ctx.atoms.get_potential_energy()
-    forces = ctx.atoms.get_forces()
+    # A single point asks for the model's forces. ASE's default applies the
+    # file's constraints and reports exactly zero on fixed atoms (D132): the
+    # real forces there (1.12 eV/Å on a Cu slab's frozen layer) were discarded.
+    forces = ctx.atoms.get_forces(apply_constraint=False)
+    require_finite(ctx.atoms, energy, forces, f"for {ctx.filename}")
     msg = f"Calculation completed for {ctx.filename} using MACE"
     return ctx.build(energy, forces, msg)
 
@@ -1108,9 +1777,13 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
         # duplicated frame and labels one higher than the step they showed (D5).
         step = int(opt.nsteps)
         energy = float(atoms.get_potential_energy())
+        forces = atoms.get_forces()
+        # Before BFGS sees them: a NaN force otherwise surfaces as numpy's
+        # "Eigenvalues did not converge" from inside the Hessian update (D129).
+        require_finite(atoms, energy, forces, f"at BFGS step {step} for {ctx.filename}")
         frames.offer(step, atoms.get_positions(), energies=energy)
         ctx.hooks.tick("geometry-opt", step, max_steps, energy=energy,
-                       fmax=_max_force(atoms.get_forces()))
+                       fmax=_max_force(forces))
 
     opt.attach(on_step)
 
@@ -1127,8 +1800,14 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    require_finite(atoms, energy, forces, f"at the end of the optimization of {ctx.filename}")
     final_fmax = _max_force(forces)
     frames.finish(int(opt.nsteps), atoms.get_positions(), energies=float(energy))
+    if stopped_at is not None and final_fmax < fmax:
+        # D46: the budget ran out on (or before) the step that reached fmax.
+        # Convergence is a property of the final forces — ASE's own strict
+        # test, max|F| < fmax — not of which limit ended the loop.
+        converged = True
 
     ctx.effective_params.update({
         "converged": converged,
@@ -1141,7 +1820,7 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     if converged:
         msg = (
             f"Geometry optimization CONVERGED for {ctx.filename}: max force "
-            f"{final_fmax:.4f} eV/Å is at or below the fmax target of {fmax} eV/Å, "
+            f"{final_fmax:.4f} eV/Å is below the fmax target of {fmax} eV/Å, "
             f"reached in {opt.nsteps} of at most {max_steps} BFGS steps."
         )
     else:
@@ -1170,7 +1849,7 @@ def _run_geometry_opt(ctx: _RunContext, run_params: dict):
     result = ctx.build(energy, forces, msg, trajectory=trajectory)
     # Top-level too: convergence is an outcome, not a parameter.
     result["converged"] = converged
-    if stopped_at is not None:
+    if "stoppedEarly" in ctx.effective_params:
         result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
     return result
 
@@ -1179,6 +1858,47 @@ def kinetic_temperature(kinetic_energy_ev: float, dof: int) -> float:
     """Instantaneous kinetic temperature, K: T = 2·KE / (dof · k_B)."""
     from ase import units
     return 2.0 * kinetic_energy_ev / (dof * units.kB) if dof > 0 else 0.0
+
+
+MD_WARMUP_FRACTION = 0.2
+def md_summary(steps, totals, temps, dt_fs: float, n_atoms: int, ensemble: str) -> dict:
+    """
+    The numbers an MD result states about itself (D53).
+
+    Mean temperature: the first MD_WARMUP_FRACTION of the recorded frames is
+    discarded as warm-up. No error bar is given (D174): one trajectory's frames
+    are correlated and often not yet equilibrated, and every estimate tried was
+    several times smaller than the spread between seeds of real SimpleAtom runs
+    (a five-block error 2-3x, an autocorrelation-time error 3-5x, whose sample
+    count also swung from 7 to 96 between seeds of one system). Repeating the
+    run with other seeds is the honest way to an uncertainty.
+
+    NVE drift: the least-squares slope of total energy per atom against time,
+    in meV/atom/ps. Last-minus-first, as before, is one noisy difference (it
+    had the opposite sign to the fit on the NVE golden), and no drift is given
+    for NVT/NPT, where a bath exchanges energy by design.
+    """
+    import numpy as np
+
+    out: dict = {"warmupFraction": MD_WARMUP_FRACTION}
+    if not totals:
+        out["_text"] = ""
+        return out
+    temps_a = np.asarray(temps, dtype=float)
+    warm = int(len(temps_a) * MD_WARMUP_FRACTION)
+    kept = temps_a[warm:]
+    out.update({"warmupFrames": warm, "meanTemperature": float(kept.mean())})
+    t_text = (f"mean temperature {out['meanTemperature']:.1f} K (first {warm} of {len(temps_a)} "
+              "frames discarded as warm-up; single trajectory, uncertainty not estimated)")
+    if ensemble == "NVE" and len(totals) >= 3:
+        t_ps = np.asarray(steps, dtype=float) * dt_fs / 1000.0
+        slope = float(np.polyfit(t_ps, np.asarray(totals, dtype=float) / n_atoms, 1)[0]) * 1000.0
+        out["nveDriftMeVPerAtomPerPs"] = slope
+        out["_text"] = (f"Total energy (potential + kinetic) {totals[0]:.4f} → {totals[-1]:.4f} eV, "
+                        f"fitted drift {slope:+.3f} meV/atom/ps; {t_text}")
+    else:
+        out["_text"] = t_text[0].upper() + t_text[1:]
+    return out
 
 
 def _run_md(ctx: _RunContext, run_params: dict, seed: int):
@@ -1203,18 +1923,32 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     # NVT: Langevin runs with fixcm=False (see below), so the thermostat
     # thermalises all 3N degrees of freedom, the centre-of-mass mode included,
     # and 3N is the right divisor. A single atom keeps 3 either way.
+    #
+    # Fixed atoms (POSCAR selective dynamics, D131): they carry no kinetic
+    # energy, so the divisor is ASE's constraint-aware count (3N minus every
+    # fixed component), and nothing is subtracted for the centre of mass: an
+    # atom held in place exerts forces, so total momentum is not conserved and
+    # Stationary() is skipped below. A slab with half its atoms fixed used to
+    # report ~150 K while the thermostat held the free atoms at 300 K.
     n_atoms = len(atoms)
-    dof = 3 * n_atoms if (ensemble == "NVT" or n_atoms == 1) else 3 * n_atoms - 3
+    constrained = bool(atoms.constraints)
+    if constrained:
+        dof = int(atoms.get_number_of_degrees_of_freedom())
+    else:
+        dof = 3 * n_atoms if (ensemble == "NVT" or n_atoms == 1) else 3 * n_atoms - 3
 
     ctx.effective_params.update({
         "temperature": temp_K,
         "timeStep": dt_fs,
-        "friction": friction,
         "mdSteps": md_steps,
         "mdEnsemble": ensemble,
         "seed": seed,
         "temperatureDegreesOfFreedom": dof,
     })
+    if ensemble == "NVT":
+        # Only the Langevin thermostat reads it (D55: it was echoed for NVE
+        # and NPT too, as if it had acted).
+        ctx.effective_params["friction"] = friction
     if ensemble == "NPT":
         ctx.effective_params.update({
             "pressure": run_params["pressure"],
@@ -1222,6 +1956,19 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
             "nptBarostatTimeFs": NPT_BAROSTAT_TIME_FS,
             "nptBulkModulusGPa": NPT_BULK_MODULUS_GPA,
         })
+
+    if dt_fs > 1.5 and "H" in atoms.get_chemical_symbols():
+        # D130 measurements (see MD_DIVERGENCE_*; reproduced by
+        # docs/v2/evidence/2026-11-01/md-divergence), MACE-OFF small, float64,
+        # seed 42, NVT 300 K, 1000 steps. Different inputs, stated apart: the
+        # strained golden ethanol (test/fixtures/ethanol-golden.xyz, the pre-D119 demo) at 2.0 fs went past 3000 K at step 218; relaxed
+        # ethanol diverges at step 587 and relaxed water at step 902. Both
+        # relaxed molecules stay bound at 1.5 fs, and nothing false-triggers at
+        # 1.0 fs NVT or NVE, at 0.5 fs, or on the strained golden ethanol at 1 fs.
+        ctx.warnings.append(
+            f"timeStep {dt_fs:g} fs with hydrogen present: in SimpleAtom's own tests, ethanol and "
+            "water stayed stable up to 1.5 fs and NVT runs at 2 fs came apart within 1000 steps. "
+            "0.5–1 fs is the usual choice for bonds to hydrogen.")
 
     # Dedicated RNG stream so the run does not depend on (or disturb) numpy's
     # global random state. Feeds both stochastic sources in an MD run: the
@@ -1245,9 +1992,37 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
             "temperatures": kinetic_temperature(kinetic, dof),
         }
 
+    t_limit = max(MD_DIVERGENCE_TEMPERATURE_FACTOR * temp_K, MD_DIVERGENCE_TEMPERATURE_FLOOR_K)
+    start_energy: list[float] = []
+
+    def diverged(step: int, reason: str) -> ContractError:
+        return ContractError(
+            f"MD diverged at step {step} of {md_steps} ({ensemble}, timeStep {dt_fs:g} fs, "
+            f"{ctx.filename}): {reason}. The trajectory is no longer physical, so nothing is "
+            "reported. The usual cause is a timestep too long for the fastest vibration (bonds "
+            "to hydrogen need about 0.5–1 fs) or a strained starting geometry: reduce timeStep "
+            "or relax the structure first.",
+            code="md_diverged", field="timeStep", status=422)
+
     def write_frame():
         step = int(dyn.get_number_of_steps())
         values = frame_values()
+        # Every step, so a blow-up stops the run where it happened (D129).
+        require_finite(atoms, values["totalEnergies"], atoms.get_forces(),
+                       f"at MD step {step} of {md_steps} for {ctx.filename}")
+        # D130: a run that has come apart is not a completed run.
+        if values["temperatures"] > t_limit:
+            raise diverged(step, f"the kinetic temperature reached {values['temperatures']:.0f} K, "
+                                 f"above the {t_limit:.0f} K limit ({MD_DIVERGENCE_TEMPERATURE_FACTOR:g} × "
+                                 f"the {temp_K:g} K target, and at least "
+                                 f"{MD_DIVERGENCE_TEMPERATURE_FLOOR_K:.0f} K)")
+        if not start_energy:
+            start_energy.append(values["totalEnergies"])
+        drift = abs(values["totalEnergies"] - start_energy[0]) / n_atoms
+        if ensemble == "NVE" and drift > MD_NVE_DRIFT_LIMIT_EV_PER_ATOM:
+            raise diverged(step, f"the total energy moved {drift:.3f} eV/atom from its starting "
+                                 f"value, more than the {MD_NVE_DRIFT_LIMIT_EV_PER_ATOM:g} eV/atom an "
+                                 "energy-conserving NVE run may drift")
         frames.offer(step, atoms.get_positions(), **values)
         ctx.hooks.tick("molecular-dynamics", step, md_steps,
                        temperature=values["temperatures"], energy=values["totalEnergies"])
@@ -1274,7 +2049,8 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     #
     # Applied for every ensemble. Zero total momentum is right for a periodic
     # cell too; ASE's NPT already does this for itself and logs it.
-    Stationary(atoms, preserve_temperature=False)
+    if not constrained:
+        Stationary(atoms, preserve_temperature=False)
     # NOT ZeroRotation(): net angular momentum is real physics for an isolated
     # molecule (a molecule at 300 K genuinely rotates), it does not translate
     # the system out of the viewing box, and it does not accumulate. Zeroing it
@@ -1283,7 +2059,7 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     # subtracting a rigid rotation from the contents is not a symmetry
     # operation — and this backend cannot tell the two cases apart from the
     # ensemble alone.
-    ctx.effective_params["comMomentumRemoved"] = True
+    ctx.effective_params["comMomentumRemoved"] = not constrained
 
     if ensemble == "NVT":
         from ase.md.langevin import Langevin
@@ -1329,6 +2105,7 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
+    require_finite(atoms, energy, forces, f"at the end of the MD run for {ctx.filename}")
     # The seed is stated in the message as well as in result["params"] because
     # the message survives everywhere a result travels (UI, PDF export, MACE
     # Link), so a shared trajectory always carries what is needed to re-run it.
@@ -1338,14 +2115,10 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
     msg = f"MD ({ensemble}) completed for {ctx.filename} ({ran}, seed={seed})"
     totals = frames.series["totalEnergies"]
     temps = frames.series["temperatures"]
-    if totals:
-        drift = totals[-1] - totals[0]
-        mean_temp = sum(temps) / len(temps)
-        msg += (
-            f". Total energy (potential + kinetic) {totals[0]:.4f} → "
-            f"{totals[-1]:.4f} eV, drift {drift:+.4f} eV; mean temperature "
-            f"{mean_temp:.1f} K ({dof} degrees of freedom)"
-        )
+    summary = md_summary(frames.step, totals, temps, dt_fs, n_atoms, ensemble)
+    text = summary.pop("_text")
+    if text:
+        msg += f". {text} ({dof} degrees of freedom)"
 
     trajectory = {
         # `energies` keeps its existing meaning — the POTENTIAL energy per
@@ -1360,7 +2133,8 @@ def _run_md(ctx: _RunContext, run_params: dict, seed: int):
         "positions": frames.positions,
         "step": frames.step,
     }
-    result = ctx.build(energy, forces, msg, trajectory=trajectory)
+    result = ctx.build(energy, forces, msg, trajectory=trajectory, kinetic_stress=True)
+    result["mdSummary"] = summary
     if stopped_at is not None:
         result["stoppedEarly"] = ctx.effective_params["stoppedEarly"]
     return result

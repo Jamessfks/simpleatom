@@ -1,0 +1,14 @@
+$ python -m unittest discover -s test_scripts -p test_backend_contract.py
+<scratchpad>/venv311/lib/python3.11/site-packages/e3nn/o3/_wigner.py:10: UserWarning: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+  _Jd, _W3j_flat, _W3j_indices = torch.load(os.path.join(os.path.dirname(__file__), 'constants.pt'))
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_script.py:1480: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+<scratchpad>/venv311/lib/python3.11/site-packages/torch/jit/_script.py:1480: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+....................
+----------------------------------------------------------------------
+Ran 20 tests in 7.520s
+
+OK
+cuequivariance or cuequivariance_torch is not available. Cuequivariance acceleration will be disabled.
+[exit 0]

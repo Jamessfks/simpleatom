@@ -14,7 +14,7 @@ Python 3.11.
 ```bash
 npm run check:contract      # generated contract types and docs are fresh
 npm run typecheck
-node scripts/lint-baseline.mjs   # never above test_scripts/daily_gate.py LINT_BASELINE
+node scripts/lint-baseline.mjs   # never above LINT_ERROR_BASELINE / LINT_WARNING_BASELINE in test_scripts/daily_gate.py
 npm test
 npm run build
 export KMP_DUPLICATE_LIB_OK=TRUE
@@ -24,7 +24,7 @@ python3 -m unittest discover -s test_scripts -p "test_provenance.py"
 python3 -m unittest discover -s test_scripts -p "test_science_regressions.py"
 ```
 
-CI runs all of these on every push and pull request.
+CI runs all of these on every pull request, and on pushes to `main`, `daily` and `v*`.
 
 ## Rules that are not negotiable
 

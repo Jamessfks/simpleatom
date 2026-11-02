@@ -5,7 +5,7 @@ Browser-based interface for MACE (Multi-Atomic Cluster Expansion) machine learni
 **Author:** Zicheng Zhao, Northeastern University
 **Live:** https://mace-lake.vercel.app
 **Version:** 2.2.0 (single source: `mace-api/contract.json` `appVersion` = `package.json`; CI checks they agree)
-**Decisions:** `docs/adr/` (MADR, 30 records) · **Latest audit:** `docs/audits/2026-10-20.md`
+**Decisions:** `docs/adr/` (MADR, 33 records) · **Latest audit:** `docs/audits/2026-10-20.md`
 
 ## Architecture
 
@@ -66,14 +66,14 @@ Backend (Python 3.11)
 # Frontend
 npm run dev          # Next.js dev server (localhost:3000)
 npm run build        # Production build (catches type errors)
-npm run lint         # ESLint (CI: node scripts/lint-baseline.mjs — never above LINT_BASELINE)
+npm run lint         # ESLint (CI: node scripts/lint-baseline.mjs — never above LINT_ERROR_BASELINE / LINT_WARNING_BASELINE)
 npm run typecheck    # tsc --noEmit
 npm test             # vitest (contract fixtures, parser, upload names, share)
 npm run gen:contract # after editing mace-api/contract.json (CI: npm run check:contract)
 
 # Backend
 cd mace-api && pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 7860
+uvicorn main:app --reload --host 127.0.0.1 --port 7860   # loopback; ALLOW_CUSTOM_MODELS must never run on a non-loopback bind
 
 # Validation (export KMP_DUPLICATE_LIB_OK=TRUE on macOS)
 python test_scripts/validate_calculation.py --test    # Full scientific validation suite
@@ -134,7 +134,9 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 
 ### Energy Reference Conventions
 - **MACE-MP family** (MPA-0, MP-0): typically -1 to -15 eV/atom; validator enforces -20 to +100
-- **MACE-OFF**: typically -100 to -600 eV/atom (more negative with Br/I); validator enforces -800 to +100
+- **MACE-OFF**: E/N depends on the elements present (water ≈ −694, CH2Br2 ≈ −28233 eV/atom), so no raw
+  band applies (D52). Results carry `properties.energyPerAtomVsIsolatedAtoms`, (E − Σ E0)/N against the
+  model's own isolated atoms: typically −6 to −0.5 eV/atom; validator enforces −10 to +1
 - Custom checkpoints: unknown convention — the range check is skipped
 - Bounds live in `contract.json` `energyConventions` (enforced vs typical)
 - Catalog reference energies are **EXPERIMENTAL**, not DFT — always note this in comparisons
@@ -177,7 +179,11 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 - Temperature is reported over the degrees of freedom that carry energy: 3N for NVT,
   3N−3 for NVE/NPT (COM momentum stays zero) — recorded as `temperatureDegreesOfFreedom`
 - Always initialize velocities with `MaxwellBoltzmannDistribution`
-- Typical timestep: 0.5–2.0 fs (smaller for light elements like H)
+- Timestep: 0.5–2.0 fs without hydrogen. With hydrogen, use 1.0 fs or less for production runs:
+  relaxed ethanol and water under MACE-OFF small, NVT 300 K, seed 42, diverge at 2.0 fs (steps
+  587 and 902), and every run at 1.5 fs or less stayed bound
+  (`docs/v2/evidence/2026-11-01/md-divergence`, D130). The engine warns above 1.5 fs when H is
+  present and stops a diverging run (`md_diverged`). The contract cap stays 4 fs
 - **Reproducibility**: every stochastic source must be seeded. MD has two —
   `MaxwellBoltzmannDistribution(rng=...)` and `Langevin(rng=...)` — and both are fed from
   one `np.random.default_rng(seed)` (`DEFAULT_MD_SEED = 42`, override via `params["seed"]`).
@@ -200,15 +206,20 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 2. PyTorch 2.6+ refuses to unpickle MACE checkpoints by default, and importing `mace` sets
    `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` process-wide. Load checkpoints only through
    `safe_load.trusted_checkpoints()`, which passes `weights_only` explicitly
-3. The MACE-MP family is PBE-level — ~0.1–0.5 eV/atom overbinding vs experiment
+3. The MACE-MP family is PBE-level: it inherits PBE's differences from experiment, which depend on the
+   material and the property (silicon: MPA-0 relaxes to a = 5.467 Å vs 5.4309 Å measured, COD 9011998).
+   Never quote a single eV/atom error band; none has a source (D85)
 4. Don't enable D3 dispersion with MACE-OFF (double-counting)
-5. GPU fallback: always handle CUDA unavailable → CPU gracefully
+5. Devices (ADR-0031): the hosted profile refuses `cuda` (`device_unavailable`); a local run
+   asking for CUDA that PyTorch cannot see falls back to CPU **with a warning and
+   `params.requestedDevice`** — never silently. CUDA out-of-memory is `cuda_out_of_memory`,
+   never a silent CPU retry. `/capabilities` lists only usable devices
 6. Extended XYZ metadata keys vary: check REF_energy, ref_energy, energy, dft_energy
 7. RMS force formula: `sqrt(Σ|F_i|² / N_atoms)` — not `sqrt(Σf² / 3N)`
 8. Results must be self-describing: `_build_result()` echoes the *effective* parameters
    (defaults resolved, CUDA→CPU fallback applied, MD seed recorded) into `result["params"]`.
    The validator picks its model-aware energy bounds from this — without it every result is
-   judged as `modelType: "unknown"` and MACE-OFF's −100 to −600 eV/atom convention never
+   judged as `modelType: "unknown"` and MACE-OFF's isolated-atom band never
    applies. Echo an explicit key allow-list, never the raw request dict
 
 ## Code Style
@@ -223,7 +234,7 @@ registry (`contract.find_model()` in Python, `findModel()` in `lib/contract.ts`)
 
 ## Testing & Validation
 
-CI (`.github/workflows/ci.yml`) runs everything below on every push and PR; the HF Space
+CI (`.github/workflows/ci.yml`) runs everything below on every PR and on pushes to `main`, `daily` and `v*`; the HF Space
 deploys only after it passes on `main`. Run it locally before pushing.
 
 ### Before Merging Any Scientific Code Change
@@ -234,15 +245,17 @@ deploys only after it passes on `main`. Run it locally before pushing.
 
 ### Before Merging Any Frontend Change
 1. `npm run check:contract && npm run typecheck && npm test && npm run build`
-2. `node scripts/lint-baseline.mjs` — never above `LINT_BASELINE` (lower it when you fix things)
+2. `node scripts/lint-baseline.mjs` — never above `LINT_ERROR_BASELINE` or `LINT_WARNING_BASELINE` (lower them when you fix things)
 3. Test the affected page in the browser — on the dev server of the branch under test
 
 ### Automated Validator Checks
 - Energy bounds (model-aware, from the registry: MACE-MP family vs MACE-OFF; skipped for custom)
 - Force magnitude and conservation (net force ≈ 0 for molecules)
-- Interatomic distances (overlapping atoms detection)
+- Interatomic distances over every pair, minimum image in a cell (overlap < 0.5 Å is an issue; `contract.json` structureChecks)
 - Lattice validity (positive volume, 3x3 matrix)
-- MD trajectory stability (NaN/Inf detection, energy fluctuation)
+- MD: NaN/Inf; NVE total-energy excursion per atom (> 0.05 eV/atom is an issue) and fitted drift;
+  NVT/NPT second-half mean temperature against the target (> 2× is an issue). Both thresholds are
+  heuristics with no published source, and a run that is too cold is not flagged
 - Parameter sanity (D3+MACE-OFF double-counting)
 
 ### Manual Verification Checklist

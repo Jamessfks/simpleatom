@@ -1,0 +1,7 @@
+$ npm run check:contract
+
+> simpleatom@2.2.0 check:contract
+> node scripts/gen-contract.mjs --check
+
+lib/generated/contract.ts and docs/reference/contract.md are up to date.
+[exit 0]

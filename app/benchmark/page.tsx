@@ -23,6 +23,7 @@ import { BenchmarkProgress } from "@/components/benchmark/benchmark-progress";
 import { BenchmarkDashboard } from "@/components/benchmark/benchmark-dashboard";
 import { MLPEG_CATALOG } from "@/lib/mlpeg-catalog";
 import { MP_REFERENCE_ENTRIES } from "@/lib/mp-reference";
+import { readError } from "@/lib/api-client";
 import type { BenchmarkResult } from "@/types/mace";
 
 type Phase = "config" | "running" | "results";
@@ -42,6 +43,8 @@ for (const e of MP_REFERENCE_ENTRIES) {
 export default function BenchmarkPage() {
   const [phase, setPhase] = useState<Phase>("config");
   const [result, setResult] = useState<BenchmarkResult | null>(null);
+  // Why the whole run was refused or failed, in the server's own words.
+  const [failure, setFailure] = useState<string | null>(null);
 
   const [models, setModels] = useState<SelectedModel[]>([]);
   const [structureIds, setStructureIds] = useState<string[]>([]);
@@ -62,6 +65,7 @@ export default function BenchmarkPage() {
       const structureCount =
         selectedIds.length + (userStructureFiles?.length ?? 0);
       setTotal(selectedModels.length * structureCount);
+      setFailure(null);
       setPhase("running");
       const runStart = Date.now();
       setStartTime(runStart);
@@ -101,16 +105,20 @@ export default function BenchmarkPage() {
           });
         }
 
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || "Benchmark request failed");
-        }
+        if (!response.ok) throw await readError(response, "Benchmark request failed");
 
         const data: BenchmarkResult = await response.json();
         setResult(data);
         setPhase("results");
       } catch (err) {
         console.error("Benchmark failed:", err);
+        setFailure(
+          err instanceof TypeError
+            ? "Could not reach the SimpleAtom server. Check your connection and try again."
+            : err instanceof Error
+              ? err.message
+              : "Benchmark request failed",
+        );
         setResult({
           status: "error",
           results: [],
@@ -132,6 +140,7 @@ export default function BenchmarkPage() {
   const handleReset = () => {
     setPhase("config");
     setResult(null);
+    setFailure(null);
   };
 
   return (
@@ -187,8 +196,7 @@ export default function BenchmarkPage() {
                   Benchmark failed
                 </p>
                 <p className="mt-2 text-sm text-text-secondary">
-                  All calculations returned errors. Check that the Python
-                  backend is running.
+                  {failure ?? "Every calculation in the batch returned an error."}
                 </p>
                 <Button className="mt-4" onClick={handleReset}>
                   Try again

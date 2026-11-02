@@ -57,7 +57,7 @@ def main():
     # Test 2: Run real MACE-OFF calculation and verify
     print("\n=== Test 2: MACE-OFF single-point (water) ===")
     xyz_content = """3
-Lattice="10 0 0 0 10 0 0 0 10"
+Lattice="10 0 0 0 10 0 0 0 10" pbc="F F F"
 H 0.757 0.586 0.0
 O 0.0 0.0 0.0
 H -0.757 0.586 0.0
@@ -105,7 +105,7 @@ H -0.757 0.586 0.0
         # Reference: MACE training reports RMSE_F in eV/Å (per-atom magnitude)
         # Our "correct" formula matches that convention.
         print("\n  ✓ Use sqrt(Σ|F_i|² / N_atoms) — matches MACE-OFF / ASE convention")
-        print("  ✗ Current frontend uses sqrt(Σf² / 3N) — underestimates by ~1.73x")
+        print("  ✓ The frontend (lib/utils.ts computeRmsForce) uses the same formula")
     finally:
         os.unlink(xyz_path)
 

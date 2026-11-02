@@ -61,9 +61,14 @@ def _as_path(candidate) -> str | None:
 def _looks_like_checkpoint(path: str, cache_root: str | None) -> bool:
     if path.endswith(".model"):
         return True
-    if cache_root:
-        return os.path.realpath(path).startswith(cache_root + os.sep)
-    return False
+    if not cache_root:
+        return False
+    # Where the file is found counts as much as what it resolves to (D141): a
+    # link in the model cache that points outside it used to go to the
+    # weights_only path and fail as a 500 with PyTorch's message. Resolve the
+    # directory (macOS /var is a link) but not the final component.
+    here = os.path.join(os.path.realpath(os.path.dirname(os.path.abspath(path))), os.path.basename(path))
+    return any(p.startswith(cache_root + os.sep) for p in (here, os.path.realpath(path)))
 
 
 @contextmanager

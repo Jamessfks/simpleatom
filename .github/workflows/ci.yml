@@ -1,7 +1,8 @@
 name: CI
 
-# Every push and pull request runs every gate (docs/adr/0026). Deploys to the
-# Hugging Face Space happen only from main and only after all of them pass;
+# Every pull request, and every push to main, daily and v*, runs every gate
+# (docs/adr/0026). Deploys to the Hugging Face Space happen only from main and
+# only after all of them pass, docs included;
 # Vercel deploys main on its own, so protect main with these checks.
 #
 # Actions are pinned by commit SHA (tag in the comment) so a moved tag cannot
@@ -80,15 +81,29 @@ jobs:
       - name: Install the exact locked backend
         run: pip install --require-hashes --no-deps -r mace-api/requirements.lock.txt
       - name: Contract, checkpoint trust, CLI refusal guards, shared fixtures
-        run: python -m unittest discover -s test_scripts -p "test_backend_contract.py" -v
+        run: python test_scripts/run_suite.py test_backend_contract.py --min 60
       - name: Optimizer and SMILES unit tests
-        working-directory: mace-api
-        run: python -m unittest test_geometry_opt test_smiles_to_xyz
+        run: |
+          python test_scripts/run_suite.py "test_*.py" --start-dir mace-api --min 31
+          python test_scripts/run_suite.py test_geometry_opt.py --min 10
+      - name: Validator verdicts (D81) and the parser reference ASE produces (D93)
+        run: |
+          python test_scripts/run_suite.py test_validator.py --min 12
+          python test_scripts/run_suite.py test_parser_reference.py --min 3
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.11.6"
+          enable-cache: false
+      - name: The lock reproduces from requirements.in (D31 cannot return by hand)
+        run: |
+          uv pip compile mace-api/requirements.in --python-version 3.11 --python-platform x86_64-manylinux_2_28 --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match --generate-hashes --emit-index-url -o mace-api/requirements.lock.txt
+          uv pip compile mace-api/build-requirements.in --python-version 3.11 --python-platform x86_64-manylinux_2_28 --generate-hashes -o mace-api/build-requirements.lock.txt
+          git diff --exit-code mace-api/requirements.lock.txt mace-api/build-requirements.lock.txt
       - name: Deploy staging ships every tracked backend file
         run: |
           scripts/stage-hf-space.sh "$RUNNER_TEMP/stage"
           for f in calculate.py contract.json contract.py jobs.py main.py provenance.py safe_load.py \
-                   smiles_to_xyz.py validate_calculation.py requirements.lock.txt Dockerfile GIT_COMMIT; do
+                   smiles_to_xyz.py validate_calculation.py requirements.lock.txt build-requirements.lock.txt Dockerfile GIT_COMMIT; do
             test -f "$RUNNER_TEMP/stage/$f" || { echo "::error::$f missing from the staged Space"; exit 1; }
           done
 
@@ -102,20 +117,32 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: mace-api/requirements.lock.txt
+      - name: Checkpoint pins (the cache key; other contract.json edits keep the cache)
+        id: pins
+        run: |
+          python -c "import hashlib, json; c = json.load(open('mace-api/contract.json')); pins = sorted(s['sha256'] for m in c['models'] for s in m['sizes'].values()); print('sha256=' + hashlib.sha256(' '.join(pins).encode()).hexdigest())" >> "$GITHUB_OUTPUT"
       - name: Cache MACE checkpoints (keyed on their pinned hashes)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/mace
-          key: mace-checkpoints-${{ hashFiles('mace-api/contract.json') }}
+          key: mace-checkpoints-${{ steps.pins.outputs.sha256 }}
       - run: pip install --require-hashes --no-deps -r mace-api/requirements.lock.txt
       - name: Scientific validator self-test
         run: |
           python test_scripts/validate_calculation.py --test | tee validator.json
           python -c "import json,sys; t=open('validator.json').read(); d=json.loads(t[t.index('{'):]); sys.exit(0 if d['all_passed'] else 1)"
       - name: Provenance (golden energies, manifest, 40 tests)
-        run: python -m unittest discover -s test_scripts -p "test_provenance.py" -v
+        run: python test_scripts/run_suite.py test_provenance.py --min 41
       - name: Science regressions (D5, D6, D16, D18, MPA-0 pin, translation invariance)
-        run: python -m unittest discover -s test_scripts -p "test_science_regressions.py" -v
+        run: python test_scripts/run_suite.py test_science_regressions.py --min 12
+      - name: The default model and D3 to golden energies (D82)
+        run: python test_scripts/run_suite.py test_model_coverage.py --min 5
+      - name: Input handling (CIF, PDB, constraints, refusals) and MD stability
+        run: |
+          python test_scripts/run_suite.py test_input_handling.py --min 32
+          python test_scripts/run_suite.py test_md_stability.py --min 7
+      - name: Physical invariants (translation, rotation, permutation, finite differences, units; D78, D80)
+        run: python test_scripts/run_suite.py test_invariants.py --min 11
 
   docker-smoke:
     runs-on: ubuntu-latest
@@ -131,26 +158,43 @@ jobs:
         run: |
           docker run -d --name api -p 7860:7860 simpleatom-api
           for i in $(seq 1 60); do curl -fsS localhost:7860/health && break; sleep 5; done
-          curl -fsS localhost:7860/health | python -c "import json,sys; d=json.load(sys.stdin); assert d['gitCommit']=='${{ github.sha }}', d"
-          curl -fsS -F files=@public/demo/ethanol.xyz -F 'params={"modelType":"MACE-OFF","modelSize":"small"}' \
+          curl -fsS localhost:7860/health | python -c "import json,os,sys; d=json.load(sys.stdin); assert d['gitCommit']==os.environ['GITHUB_SHA'], d"
+          curl -fsS -F files=@test/fixtures/ethanol-golden.xyz -F 'params={"modelType":"MACE-OFF","modelSize":"small"}' \
             localhost:7860/calculate > result.json
           python - <<'PY'
-          import json
+          import json, os
           r = json.load(open("result.json"))
           assert r["validation"]["status"] == "ran", r["validation"]
-          assert r["provenance"]["code"]["gitCommit"], "gitCommit missing from the manifest"
+          assert r["provenance"]["code"]["gitCommit"] == os.environ["GITHUB_SHA"], r["provenance"]["code"]
           print("ethanol E =", r["energy"])
           PY
           code() { curl -s -o /dev/null -w '%{http_code}' -F files=@public/demo/ethanol.xyz -F "params=$1" localhost:7860/calculate; }
           test "$(code '{"calculationType":"phonon"}')" = 400
           test "$(code '{"modelType":"MACE-MP-0","modelSize":"https://x.invalid/a.model"}')" = 400
           test "$(curl -s -o /dev/null -w '%{http_code}' -F files=@public/demo/ethanol.xyz -F 'params={}' -F model=@public/demo/ethanol.xyz localhost:7860/calculate)" = 403
+      - name: The default model runs from the baked checkpoint with no network (D82)
+        run: |
+          params="$(python -c "import json; print(json.dumps(json.load(open('test_scripts/golden_energies.json'))['cases']['silicon-mpa0']['params']))")"
+          docker run --rm --network none -e HF_HUB_OFFLINE=1 \
+            -v "$PWD/public/demo/silicon.cif:/tmp/silicon.cif:ro" simpleatom-api \
+            python calculate_local.py /tmp/silicon.cif "$params" > mpa0.json
+          python - <<'PY'
+          import json, os
+          golden = json.load(open("test_scripts/golden_energies.json"))
+          case = golden["cases"]["silicon-mpa0"]
+          r = json.loads(open("mpa0.json").read().strip().splitlines()[-1])
+          assert r["status"] == "success", r
+          assert r["params"]["modelType"] == "MACE-MPA-0", r["params"]
+          assert abs(r["energy"] - case["energy"]) <= golden["energyAtol"], (r["energy"], case["energy"])
+          assert r["provenance"]["code"]["gitCommit"] == os.environ["GITHUB_SHA"], r["provenance"]["code"]
+          print("MPA-0 silicon E =", r["energy"], "offline, from the baked checkpoint")
+          PY
       - if: failure()
         run: docker logs api | tail -100
 
   deploy-hf:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [frontend, python-unit, python-models, docker-smoke]
+    needs: [frontend, docs, python-unit, python-models, docker-smoke]
     uses: ./.github/workflows/deploy-hf-space.yml
     secrets:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}

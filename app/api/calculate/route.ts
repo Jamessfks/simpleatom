@@ -9,10 +9,14 @@ import {
 import {
   ApiError,
   MACE_API_URL,
+  assertLoopbackHost,
+  assertSameOrigin,
   calculate,
+  deploymentDevices,
   errorResponse,
   parseParams,
 } from "@/lib/server/backend";
+import { clientIp } from "@/lib/server/jobs";
 
 export const runtime = "nodejs";
 // Vercel's ceiling for this function. The backend's own time budget (240 s on
@@ -38,6 +42,7 @@ export const maxDuration = 300;
  */
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const profileName = serverProfileName();
     const form = await request.formData();
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
@@ -52,6 +57,7 @@ export async function POST(request: NextRequest) {
     if (violation) {
       throw new ApiError(violation.message, violation.status, violation.code, violation.field);
     }
+    if (model && profileName === "local") assertLoopbackHost(request);
 
     const result = await calculate(
       { data: files[0], name: files[0].name },
@@ -63,6 +69,7 @@ export async function POST(request: NextRequest) {
         // backend, or kills the local Python child.
         signal: request.signal,
         timeoutMs: (maxDuration - 10) * 1000,
+        ip: clientIp(request),
       },
     );
     return NextResponse.json(result);
@@ -85,6 +92,7 @@ export async function GET() {
     mode: MACE_API_URL ? "remote" : "local",
     profile: profileName,
     customModels: customModelsAllowed(profileName),
+    devices: await deploymentDevices(profileName),
     limits,
   });
 }

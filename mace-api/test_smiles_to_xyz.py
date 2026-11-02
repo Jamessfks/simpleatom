@@ -148,9 +148,58 @@ class TestEdgeCases(unittest.TestCase):
         result = smiles_to_xyz("C/C=C/C")
         self.assertGreater(result["num_atoms"], 0)
 
-    def test_charged_species(self):
-        result = smiles_to_xyz("[NH4+]")
-        self.assertEqual(result["num_atoms"], 5)  # N + 4H
+    def test_charged_species_are_refused(self):
+        # D116: MACE has no total-charge input and MACE-OFF23 is trained on
+        # neutral closed-shell molecules; NH4+ used to come back as a neutral
+        # 11-electron NH4 and was computed without a word.
+        with self.assertRaises(ValueError) as ctx:
+            smiles_to_xyz("[NH4+]")
+        self.assertIn("charge", str(ctx.exception).lower())
+
+    def test_radicals_are_refused(self):
+        for radical in ("[CH3]", "[O][O]"):
+            with self.subTest(radical=radical):
+                with self.assertRaises(ValueError) as ctx:
+                    smiles_to_xyz(radical)
+                self.assertIn("radical", str(ctx.exception).lower())
+
+    def test_a_net_neutral_zwitterion_is_accepted(self):
+        result = smiles_to_xyz("[NH3+]CC(=O)[O-]")  # glycine zwitterion
+        self.assertEqual(result["num_atoms"], 10)
+
+    def test_a_lone_atom_is_accepted(self):
+        # An isolated atom is the model's own reference state; RDKit's radical
+        # count for bare metal atoms is arbitrary ([Cu] 1, [Fe] 0).
+        self.assertEqual(smiles_to_xyz("[Cu]")["num_atoms"], 1)
+
+
+class TestForceFieldAndComment(unittest.TestCase):
+    """
+    D118: MMFFOptimizeMolecule returns -1 (it does not raise) when MMFF94 has
+    no parameters, so the UFF fallback never ran and boron compounds kept raw
+    ETKDG coordinates labelled "MMFF94". D122: the SMILES on the comment line
+    was unquoted, so extended-XYZ readers stripped its brackets.
+    """
+
+    def test_boron_falls_back_to_uff_and_says_so(self):
+        result = smiles_to_xyz("OB(O)O")
+        self.assertEqual(result["force_field"], "UFF")
+        self.assertIn("UFF", result["xyz"].splitlines()[1])
+        self.assertNotIn("MMFF94", result["xyz"].splitlines()[1])
+
+    def test_ordinary_organics_use_mmff94(self):
+        result = smiles_to_xyz("CCO")
+        self.assertEqual(result["force_field"], "MMFF94")
+        self.assertIn("MMFF94", result["xyz"].splitlines()[1])
+
+    def test_the_smiles_survives_an_extended_xyz_reader(self):
+        import io
+        from ase.io import read
+        for smiles in ("C[C@@H](C(=O)O)N", "C/C=C\\C", "[NH3+]CC(=O)[O-]"):
+            with self.subTest(smiles=smiles):
+                result = smiles_to_xyz(smiles)
+                atoms = read(io.StringIO(result["xyz"]), format="extxyz")
+                self.assertEqual(atoms.info["SMILES"], result["smiles_canonical"])
 
     def test_atom_limit_exceeded(self):
         with self.assertRaises(ValueError) as ctx:
@@ -160,6 +209,105 @@ class TestEdgeCases(unittest.TestCase):
     def test_aromatic_nitrogen(self):
         result = smiles_to_xyz("c1ccncc1")  # pyridine
         self.assertEqual(result["num_atoms"], 11)  # C5H5N
+
+
+# Buckminsterfullerene: ETKDG fails every attempt (600 of them, 10 per atom),
+# 13 s on an M-series Mac before the random-coordinates retry gives up too.
+C60 = ("C12=C3C4=C5C6=C1C7=C8C9=C1C%10=C%11C(=C29)C3=C2C3=C4C4=C5C5=C9C6=C7C6=C7C8=C1C1=C8C%10"
+       "=C%10C%11=C2C2=C3C3=C4C4=C5C5=C%11C%12=C(C6=C95)C7=C1C1=C%12C5=C%11C4=C3C3=C5C(=C81)C%10=C23")
+
+
+class TestEmbeddingTimeLimit(unittest.TestCase):
+    """
+    D151: the RDKit embedding had no time limit, so a SMILES that embeds
+    slowly held the hosted Space's single worker past the 60 s job budget.
+    Every attempt now runs under RDKit's own timeout (EmbedParameters.timeout,
+    RDKit 2026.03), inside one budget, and running out is a coded refusal.
+    """
+
+    def test_a_slow_embedding_is_stopped_with_a_coded_refusal(self):
+        import time
+        from unittest import mock
+        from rdkit.Chem import AllChem
+        import smiles_to_xyz as module
+        from contract import ContractError
+        real = AllChem.EmbedMolecule
+        timeouts = []
+
+        def spy(mol, params):
+            timeouts.append(params.timeout)
+            return real(mol, params)
+
+        started = time.monotonic()
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True), \
+                mock.patch.object(AllChem, "EmbedMolecule", spy):
+            with self.assertRaises(ContractError) as ctx:
+                smiles_to_xyz(C60)
+        self.assertLess(time.monotonic() - started, 6.0)
+        # RDKit ran the ETKDG attempt under the limit and stopped it; no retry followed.
+        self.assertEqual(timeouts, [1])
+        err = ctx.exception
+        self.assertEqual((err.code, err.status, err.field), ("smiles_embedding_timeout", 422, "smiles"))
+        self.assertIn("1 s", str(err))
+
+    def test_the_message_states_the_limit_that_stopped_it_not_the_whole_budget(self):
+        # D167: with two fragments RDKit's per-fragment limit is half the budget, so the
+        # stop came early while the message claimed the full budget had run out.
+        from unittest import mock
+        from rdkit.Chem import AllChem
+        import smiles_to_xyz as module
+        from contract import ContractError
+        real = AllChem.EmbedMolecule
+        timeouts = []
+
+        def spy(mol, params):
+            timeouts.append(params.timeout)
+            return real(mol, params)
+
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 2, create=True), \
+                mock.patch.object(AllChem, "EmbedMolecule", spy):
+            with self.assertRaises(ContractError) as ctx:
+                smiles_to_xyz(C60 + "." + C60)
+        self.assertEqual(timeouts[0], 1)
+        message = str(ctx.exception)
+        self.assertNotIn("did not finish within 2 s", message)
+        self.assertIn("1 s per fragment", message)
+
+    def test_every_embedding_attempt_carries_a_time_limit(self):
+        from unittest import mock
+        from rdkit.Chem import AllChem
+        import smiles_to_xyz as module
+        real = AllChem.EmbedMolecule
+        seen = []
+
+        def first_attempt_fails(mol, params):
+            seen.append((params.timeout, params.useRandomCoords, params.randomSeed))
+            return -1 if len(seen) == 1 else real(mol, params)
+
+        with mock.patch.object(AllChem, "EmbedMolecule", first_attempt_fails):
+            result = smiles_to_xyz("CCO")
+        self.assertEqual(result["num_atoms"], 9)
+        self.assertEqual([(random, seed) for _, random, seed in seen], [(False, 42), (True, 42)])
+        for timeout, _, _ in seen:
+            self.assertGreaterEqual(timeout, 1)
+            self.assertLessEqual(timeout, module.EMBED_BUDGET_SECONDS)
+
+    def test_the_command_line_reports_the_code_and_status(self):
+        import contextlib
+        import io
+        import json
+        from unittest import mock
+        import smiles_to_xyz as module
+        out = io.StringIO()
+        with mock.patch.object(module, "EMBED_BUDGET_SECONDS", 1, create=True), \
+                contextlib.redirect_stdout(out):
+            status = module.main([C60])
+        self.assertEqual(status, 1)
+        body = json.loads(out.getvalue())
+        self.assertEqual(body["status"], "error")
+        self.assertEqual((body["error"]["code"], body["error"]["status"], body["error"]["field"]),
+                         ("smiles_embedding_timeout", 422, "smiles"))
+        self.assertEqual(body["message"], body["error"]["message"])
 
 
 if __name__ == "__main__":

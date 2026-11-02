@@ -4,8 +4,10 @@
  */
 
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
+import { pdfText } from "@/components/pdf-text";
 import { getSiteUrl } from "@/lib/site";
 import type { BenchmarkResult } from "@/types/mace";
+import { energySpread } from "./benchmark-spread";
 
 const pdfStyles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
@@ -51,19 +53,14 @@ const pdfStyles = StyleSheet.create({
 function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
   const modelLabels =
     result.results.length > 0
-      ? result.results[0].models.map((m) => m.modelLabel)
+      ? result.results[0].models.map((m) => pdfText(m.modelLabel))
       : [];
 
   let maxDisagreement = { structure: "", delta: 0 };
   for (const r of result.results) {
-    const energies = r.models
-      .filter((m) => m.status === "success" && m.energyPerAtom != null)
-      .map((m) => m.energyPerAtom!);
-    if (energies.length >= 2) {
-      const d = (Math.max(...energies) - Math.min(...energies)) * 1000;
-      if (d > maxDisagreement.delta) {
-        maxDisagreement = { structure: r.structureName, delta: d };
-      }
+    const d = energySpread(r);
+    if (d !== null && d > maxDisagreement.delta) {
+      maxDisagreement = { structure: pdfText(r.structureName), delta: d };
     }
   }
 
@@ -98,7 +95,7 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
         </View>
 
         <View style={pdfStyles.section}>
-          <Text style={pdfStyles.sectionTitle}>Energy per Atom Leaderboard (eV)</Text>
+          <Text style={pdfStyles.sectionTitle}>Energy per Atom Leaderboard (eV/atom)</Text>
           <View style={pdfStyles.tableHeader}>
             <Text style={pdfStyles.colLeft}>Structure</Text>
             {/* Labelled "Exp." to match the Leaderboard: this is an experimental
@@ -110,19 +107,14 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
                 {l.replace("MACE-", "")}
               </Text>
             ))}
-            <Text style={pdfStyles.col}>dE (meV)</Text>
+            <Text style={pdfStyles.col}>dE (meV/atom)</Text>
           </View>
           {result.results.map((r) => {
-            const energies = r.models
-              .filter((m) => m.status === "success" && m.energyPerAtom != null)
-              .map((m) => m.energyPerAtom!);
-            const de =
-              energies.length >= 2
-                ? ((Math.max(...energies) - Math.min(...energies)) * 1000).toFixed(1)
-                : "N/A";
+            const spread = energySpread(r);
+            const de = spread === null ? "N/A" : spread.toFixed(1);
             return (
               <View key={r.structureId} style={pdfStyles.tableRow}>
-                <Text style={pdfStyles.colLeft}>{r.structureName}</Text>
+                <Text style={pdfStyles.colLeft}>{pdfText(r.structureName)}</Text>
                 <Text style={pdfStyles.col}>
                   {r.reference?.cohesiveEnergy
                     ? r.reference.cohesiveEnergy.value.toFixed(2)
@@ -169,8 +161,8 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
 
         <View style={pdfStyles.section}>
           <Text style={{ fontSize: 7, color: "#999", lineHeight: 1.4 }}>
-            Reference values are experimental cohesive energies (Kittel 8th ed., CRC Handbook).
-            MACE is trained on PBE DFT, which differs from experiment by 0.1–0.5 eV/atom.
+            Reference values are experimental cohesive energies (Kittel 8th ed. as tabulated by KnowledgeDoor; NIST-JANAF for NaCl); each row&rsquo;s source is in the CSV export.
+            MACE is trained on PBE DFT and inherits PBE&rsquo;s differences from experiment, which depend on the material and the property.
             Direct comparison of model total energy to experimental cohesive energy is not valid
             without accounting for isolated atom references and DFT functional biases.
             See Miret et al. (arXiv:2502.03660) for discussion of MLIP evaluation beyond
@@ -179,7 +171,7 @@ function BenchmarkPDF({ result }: { result: BenchmarkResult }) {
         </View>
 
         <Text style={pdfStyles.footer}>
-          MACE Benchmark Suite — Generated from {getSiteUrl()}
+          MACE Benchmark Suite — Generated from {pdfText(getSiteUrl())}
         </Text>
       </Page>
     </Document>

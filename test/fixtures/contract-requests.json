@@ -66,11 +66,11 @@
       "expect": "custom_models_disabled"
     },
     {
-      "name": "custom checkpoint locally",
+      "name": "custom checkpoint locally without ALLOW_CUSTOM_MODELS (D40: opt-in)",
       "profile": "local",
       "params": {},
       "hasModelFile": true,
-      "expect": "ok"
+      "expect": "custom_models_disabled"
     },
     {
       "name": "URL as a model size",
@@ -208,6 +208,199 @@
         "forceThreshold": 5
       },
       "expect": "out_of_range"
+    },
+    {
+      "name": "CUDA on the hosted profile (ADR-0031: the public server is CPU-only)",
+      "profile": "hosted",
+      "params": {
+        "device": "cuda"
+      },
+      "expect": "device_unavailable"
+    },
+    {
+      "name": "CUDA locally (falls back to CPU with a warning at run time)",
+      "profile": "local",
+      "params": {
+        "device": "cuda"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "CPU on the hosted profile",
+      "profile": "hosted",
+      "params": {
+        "device": "cpu"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D48: a fractional seed is refused, not truncated",
+      "profile": "local",
+      "params": {
+        "seed": 3.7
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D48: an infinite seed string is refused",
+      "profile": "local",
+      "params": {
+        "seed": "1e999"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D48: a seed above 2^32-1 is out of range",
+      "profile": "local",
+      "params": {
+        "seed": 4294967296
+      },
+      "expect": "out_of_range"
+    },
+    {
+      "name": "parity: a hexadecimal number string is refused on both sides",
+      "profile": "local",
+      "params": {
+        "seed": "0x10"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "parity: an underscored number string is refused on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": "1_0"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "parity: a decimal number string is accepted on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": " 0.5 "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "parity: enumerated choices are trimmed on both sides",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "device": " cpu ",
+        "precision": " float64",
+        "mdEnsemble": "NVT "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "parity: the step cap applies to a padded calculationType",
+      "profile": "hosted",
+      "params": {
+        "calculationType": " molecular-dynamics ",
+        "mdSteps": 20000
+      },
+      "expect": "limit_exceeded"
+    },
+    {
+      "name": "parity: a padded modelSize is trimmed on both sides",
+      "profile": "local",
+      "params": {
+        "modelType": "MACE-OFF",
+        "modelSize": " small "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D123: a whitespace-only calculationType is treated as absent",
+      "profile": "local",
+      "params": {
+        "calculationType": "   "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D123: a whitespace-only number is treated as absent",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "timeStep": "  "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D123: whitespace-only modelType and modelSize are treated as absent",
+      "profile": "local",
+      "params": {
+        "modelType": "  ",
+        "modelSize": " "
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "D124: a choice padded with U+0085 is refused on both sides",
+      "profile": "local",
+      "params": {
+        "device": "cpu"
+      },
+      "expect": "unsupported_device"
+    },
+    {
+      "name": "D124: a choice padded with a byte-order mark is refused on both sides",
+      "profile": "local",
+      "params": {
+        "precision": "﻿float64"
+      },
+      "expect": "unsupported_precision"
+    },
+    {
+      "name": "D125: an Arabic-Indic digit is not a number",
+      "profile": "local",
+      "params": {
+        "seed": "٣"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D125: a full-width digit is not a number",
+      "profile": "local",
+      "params": {
+        "seed": "３"
+      },
+      "expect": "invalid_number"
+    },
+    {
+      "name": "D139: a misspelled parameter is refused, not ignored",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "temprature": 300
+      },
+      "expect": "unknown_parameter"
+    },
+    {
+      "name": "D139: every parameter the calculator sends is known",
+      "profile": "local",
+      "params": {
+        "calculationType": "molecular-dynamics",
+        "modelType": "MACE-OFF",
+        "modelSize": "small",
+        "precision": "float32",
+        "device": "cpu",
+        "dispersion": false,
+        "temperature": 300,
+        "pressure": 0,
+        "timeStep": 0.5,
+        "friction": 0.01,
+        "mdSteps": 10,
+        "mdEnsemble": "NVT",
+        "forceThreshold": 0.05,
+        "maxOptSteps": 10,
+        "seed": 1,
+        "customModelName": "m.model"
+      },
+      "expect": "ok"
     }
   ]
 }

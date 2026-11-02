@@ -40,9 +40,11 @@ export default function CalculationsPage() {
 
         <h2 id="optimization">Geometry optimization</h2>
         <p>
-          Relaxes atomic positions to a nearby local minimum by iteratively
-          moving atoms in the direction of the forces until the maximum
-          force component drops below a threshold, <code>fmax</code>.
+          Relaxes atomic positions to a nearby local minimum with the BFGS
+          quasi-Newton algorithm, which steps along a direction built from
+          the forces and a running estimate of the curvature, until the
+          largest force on any atom is at or below a threshold,{" "}
+          <code>fmax</code>.
         </p>
         <table>
           <thead>
@@ -88,7 +90,8 @@ export default function CalculationsPage() {
         <p>
           Only atomic positions are optimized — cell optimization is not yet
           supported. Watch the RMS force during optimization: it should
-          decrease monotonically as the structure approaches a minimum.
+          trend downward as the structure approaches a minimum, though BFGS
+          does not guarantee a decrease at every step.
         </p>
 
         <h2 id="md">Molecular dynamics</h2>
@@ -172,8 +175,10 @@ export default function CalculationsPage() {
             forces. Both are driven by a single seed, which defaults to{" "}
             <code>42</code>, so a run is reproducible bit-for-bit. The seed
             used is recorded in the result message and parameters, so a shared
-            trajectory can always be re-run exactly. Change it to generate
-            independent replicas of the same system.
+            trajectory can always be re-run exactly. Enter a different whole
+            number in the <em>Random seed</em> box (molecular dynamics
+            section) to generate an independent replica of the same system;
+            leave it blank for the default.
           </li>
           <li>
             <strong>What a trajectory records:</strong> potential energy,
@@ -274,10 +279,17 @@ export default function CalculationsPage() {
 
         <h2 id="device">Device</h2>
         <p>
-          Calculations run on <code>cpu</code> by default. If a CUDA GPU is
-          available it can significantly speed up larger systems or longer
-          MD trajectories; SimpleAtom falls back to CPU automatically if
-          CUDA is unavailable or runs out of memory.
+          Calculations run on <code>cpu</code> by default, and the Device
+          selector offers only what the deployment reports it can run on. The
+          public server is CPU-only, so it shows CUDA as unavailable, and a
+          request for <code>cuda</code> sent to it directly is refused with{" "}
+          <code>device_unavailable</code>. Locally, CUDA is offered when PyTorch
+          can see a GPU. If you ask for CUDA and PyTorch cannot see one, the run
+          falls back to CPU and the result says so: a warning, plus{" "}
+          <code>requestedDevice</code> next to the <code>device</code> that ran.
+          If the GPU runs out of memory, the run stops with{" "}
+          <code>cuda_out_of_memory</code>. It is not retried on CPU.
+          SimpleAtom has measured no GPU speed-up, so it claims none.
         </p>
 
         <h2 id="mapping">Web UI &rarr; MACE parameter mapping</h2>
@@ -302,7 +314,10 @@ export default function CalculationsPage() {
                 <code>mace_mp()</code> / <code>mace_off()</code> / custom
                 upload
               </td>
-              <td>Selects the foundation model or a user checkpoint.</td>
+              <td>
+                Selects the foundation model; on a local install with{" "}
+                <code>ALLOW_CUSTOM_MODELS=1</code>, a custom checkpoint.
+              </td>
             </tr>
             <tr>
               <td>Model Size</td>
@@ -347,7 +362,12 @@ export default function CalculationsPage() {
               <td>
                 <code>model_paths</code>
               </td>
-              <td>User-supplied <code>.model</code> checkpoint file.</td>
+              <td>
+                Local install only, and only with{" "}
+                <code>ALLOW_CUSTOM_MODELS=1</code>: a user-supplied{" "}
+                <code>.model</code> checkpoint file. Loading it runs code from
+                the file, so the public site never loads one.
+              </td>
             </tr>
           </tbody>
         </table>

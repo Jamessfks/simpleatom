@@ -32,7 +32,7 @@
       "name": "Matbench Discovery",
       "url": "https://matbench-discovery.materialsproject.org/",
       "role": "The numeric half — what MACE-MP-0 actually scores, and the honesty bar for accuracy claims",
-      "fetchable": "Fully public leaderboard. MACE-MP-0 ranks 34: F1 0.669, MAE 0.057 eV, RMSD 0.091 A, kappa-SRME 0.682, CPS 0.637. MACE-MPA-0 ranks 21 and beats it on every published metric; SimpleAtom offers it nowhere."
+      "fetchable": "Fully public leaderboard. On 2026-10-28 MACE-MPA-0 (SimpleAtom's default) ranked 22 of 43 and MACE-MP-0 36 of 43; MPA-0 beats MP-0 on every published metric. The app renders these from app/v2/bars.ts."
     },
     {
       "name": "NOMAD",

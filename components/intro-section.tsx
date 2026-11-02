@@ -59,7 +59,8 @@ import {
 
 /* ── Hero molecule: a real structure, not a mock ──────────────────────────
  * Coordinates copied verbatim from public/demo/ethanol.xyz (the same demo
- * structure used on the calculate page). No calculation is run for the
+ * structure used on the calculate page): trans ethanol relaxed with MACE-OFF23
+ * medium in float64 (docs/v2/evidence/2026-11-01/demo-ethanol, D119). No calculation is run for the
  * hero — there is no energy/forces yet — but the geometry is genuine, and
  * the viewer below is the actual production 3Dmol.js/WEAS component, fully
  * interactive (drag to rotate, scroll to zoom).
@@ -68,15 +69,15 @@ const HERO_STRUCTURE: CalculationResult = {
   status: "success",
   symbols: ["C", "C", "O", "H", "H", "H", "H", "H", "H"],
   positions: [
-    [-0.748466, -0.015294, 0.024493],
-    [0.726935, 0.055088, -0.032919],
-    [1.267942, -0.536699, 1.135318],
-    [-1.145635, 0.990252, -0.108102],
-    [-1.109182, -0.586387, -0.836565],
-    [-1.142804, -0.473195, 0.93518],
-    [1.084173, 1.094437, -0.067561],
-    [1.078203, -0.428093, -0.951279],
-    [0.944338, -1.450389, 1.119877],
+    [-0.761613, -0.002367, 0.001399],
+    [0.741463, 0.157766, 0.008237],
+    [1.285569, -0.833332, 0.875511],
+    [-1.219821, 0.738934, -0.651825],
+    [-1.034923, -0.994434, -0.353047],
+    [-1.160429, 0.125710, 1.005921],
+    [1.012158, 1.158387, 0.356922],
+    [1.137961, 0.036810, -1.003844],
+    [2.238926, -0.742676, 0.888721],
   ],
 };
 
@@ -127,7 +128,7 @@ const WORKFLOW = [
     icon: SlidersHorizontal,
     title: "Choose a model & calculation",
     description:
-      "Select a MACE foundation model (or your own fine-tuned checkpoint), then a single-point energy, geometry optimization, or molecular-dynamics run.",
+      "Select a MACE foundation model (MACE-MPA-0, MACE-MP-0 or MACE-OFF), then a single-point energy, geometry optimization, or molecular-dynamics run.",
   },
   {
     icon: Cpu,
@@ -149,7 +150,7 @@ const CAPABILITIES = [
     icon: Layers,
     title: "Foundation models",
     description:
-      "Run MACE-MP-0 and MACE-OFF out of the box, or upload a fine-tuned .model checkpoint for a custom potential.",
+      "Run MACE-MPA-0, MACE-MP-0 and MACE-OFF out of the box. On a local install you can opt in to your own .model checkpoint (ALLOW_CUSTOM_MODELS=1); the public site never loads one.",
   },
   {
     icon: Orbit,
@@ -173,7 +174,7 @@ const CAPABILITIES = [
     icon: GitCompareArrows,
     title: "Model benchmarking",
     description:
-      "Compare foundation models and your own checkpoints across reference structures on energy and force error metrics.",
+      "Compare the foundation models across reference structures on energy per atom, forces and run time; the Materials Project set also checks formation energies against MP.",
   },
   {
     icon: Share2,
@@ -415,7 +416,7 @@ export function IntroSection() {
         <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
           <div className="max-w-2xl">
             <h2 className="font-serif text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              Two foundation models, one interface
+              Three foundation models, one interface
             </h2>
             <p className="mt-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
               MACE ships pre-trained potentials for distinct chemical domains.

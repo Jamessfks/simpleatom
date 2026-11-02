@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
+import { offTypicalBandText } from "@/components/docs/energy-bands";
 
 export const metadata: Metadata = {
   title: "Foundation models",
@@ -62,8 +63,10 @@ export default function ModelsPage() {
             (PBE+U functional).
           </li>
           <li>
-            <strong>Accuracy:</strong> PBE-level, like MPA-0. Expect roughly
-            0.1–0.5 eV/atom overbinding relative to experiment.
+            <strong>Accuracy:</strong> PBE-level, like MPA-0, so it inherits
+            PBE&rsquo;s differences from experiment, which depend on the
+            material and the property. For silicon, MACE-MPA-0 relaxes to
+            a = 5.467 Å vs 5.4309 Å measured (COD 9011998, 298 K).
           </li>
           <li>
             <strong>D3 dispersion:</strong> supported for both MPA-0 and MP-0,
@@ -91,9 +94,12 @@ export default function ModelsPage() {
           </li>
           <li>
             <strong>Energy reference:</strong> total energies including core
-            electrons — a different convention from the MACE-MP family. Typical
-            range <code>−100 to −600 eV/atom</code>, and much more negative for
-            molecules containing Br or I.
+            electrons — a different convention from the MACE-MP family. The
+            raw energy per atom depends on the elements present (water is
+            about <code>−694 eV/atom</code>, CH<sub>2</sub>Br<sub>2</sub>{" "}
+            about <code>−28233 eV/atom</code>), so it has no range of its own.
+            SimpleAtom judges a result relative to the model&apos;s own
+            isolated atoms, typically <code>{offTypicalBandText()} eV/atom</code>.
           </li>
           <li>
             <strong>Licence:</strong> the{" "}
@@ -154,19 +160,24 @@ export default function ModelsPage() {
 
         <h2 id="custom">Custom models</h2>
         <p>
-          When you run SimpleAtom locally you can upload your own{" "}
+          When you run SimpleAtom locally with{" "}
+          <code>ALLOW_CUSTOM_MODELS=1</code> you can upload your own{" "}
           <code>.model</code> checkpoint trained with <code>mace-torch</code>{" "}
           (for example, fine-tuned with <code>mace_run_train</code>).
           SimpleAtom loads it with <code>MACECalculator</code>, runs the
           calculation identically to the foundation models, and can compare
-          your model against a foundation model with agreement metrics (MAE,
-          RMSE, R²).
+          your model against a foundation model on the same structure: RMS
+          force for each, and the RMS difference between their forces. An
+          energy difference is shown only when both models use the same energy
+          reference, which a custom checkpoint does not declare, so it is not
+          shown for custom models.
         </p>
         <Callout type="note" title="Not on the public site">
           A <code>.model</code> file is a pickled PyTorch module: loading it
           runs code from the file. The public instance therefore only loads the
           foundation checkpoints whose SHA-256 it has pinned, and refuses
-          uploaded ones. Run locally to use your own model.
+          uploaded ones. Locally, uploads are off until you opt in, and are
+          then accepted only from <code>localhost</code>.
         </Callout>
 
         <h2 id="choosing">Choosing a model</h2>

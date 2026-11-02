@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-28",
+  "ranAt": "2026-10-28T18:37:36+00:00",
+  "repo": {
+    "branch": "audit-next-feature",
+    "head": "daed8bc",
+    "dirty": false
+  },
+  "score": {
+    "won": 4,
+    "total": 13
+  },
+  "gates": [
+    {
+      "name": "build",
+      "ok": true,
+      "detail": "next build compiled",
+      "fix": ""
+    },
+    {
+      "name": "lint",
+      "ok": true,
+      "detail": "15 problems (baseline 15)",
+      "fix": ""
+    },
+    {
+      "name": "validator",
+      "ok": true,
+      "detail": "all_passed: true",
+      "fix": ""
+    },
+    {
+      "name": "provenance-tests",
+      "ok": true,
+      "detail": "40 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "contract-tests",
+      "ok": true,
+      "detail": "20 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "science-regressions",
+      "ok": true,
+      "detail": "9 tests OK",
+      "fix": ""
+    },
+    {
+      "name": "guard:phonon",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:custom-no-ckpt",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "guard:bad-model",
+      "ok": true,
+      "detail": "refused loudly",
+      "fix": ""
+    },
+    {
+      "name": "fixture:silicon",
+      "ok": true,
+      "detail": "nearest neighbour 2.3516 A",
+      "fix": ""
+    }
+  ],
+  "bars": [],
+  "queue": [
+    {
+      "kind": "DEFECT",
+      "item": "D23 HIGH  MACE Link appears down in production: the README's showcase link renders 'Result not found' and the Supabase host in .env.local no longer resolves. Code now distinguishes an outage from a missing row, but the project itself must be restored or recreated.  [Supabase project (outside the repo)]"
+    },
+    {
+      "kind": "DEFECT",
+      "item": "D15 LOW  Audit findings 6, 9 and 12 from docs/v2/audit-vs-acesuit.md were never closed out. Findings 7, 10 and 11 are recorded as done.  [docs/v2/audit-vs-acesuit.md]"
+    },
+    {
+      "kind": "LOSING",
+      "item": "viewer-chrome r3 vs Rowan viewer embed  gap: Hide C-H regression fixed in 5985bee: the fit, spin sweep and arrow ceiling now include hidden atoms, so Hide C-H changes px/A by 0.0% (was "
+    },
+    {
+      "kind": "LOSING",
+      "item": "landing r5 vs rowansci.com homepage  gap: Layout numbers confirmed exact. Loses on content: the hero ends in a 4-line 12px monospace gesture manual (y702-766), the lowest element abo"
+    },
+    {
+      "kind": "LOSING",
+      "item": "provenance r2 vs Materials Project 'Property Origins' section  gap: Content verified real \u2014 the critic ran shasum independently and it matched the displayed hash, the JSON, and the copy button. Lost on STRUCT"
+    },
+    {
+      "kind": "OPEN",
+      "item": "config r1 vs Rowan feature pages + docs  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "honesty r1 vs The code itself \u2014 every claim must survive inspection  \u2014 never judged"
+    },
+    {
+      "kind": "OPEN",
+      "item": "reference-conformance r1 vs ACEsuit/mace v0.3.16  \u2014 never judged"
+    },
+    {
+      "kind": "NEVER",
+      "item": "share r0 vs Rowan iframe2 embed  \u2014 Load both embeds side by side. Which is the better shareable artifact?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "benchmark r0 vs Materials Project published formation energies  \u2014 Numeric. Do SimpleAtom's MACE-MP-0 formation energies agree with MP within a stated tolerance?"
+    },
+    {
+      "kind": "NEVER",
+      "item": "mobile r0 vs rowansci.com at 375px  \u2014 Blind screenshot at 375px. Which survives the phone better?"
+    }
+  ],
+  "allGatesGreen": true
+}

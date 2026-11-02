@@ -1,4 +1,7 @@
 # Silicon, diamond cubic (Fd-3m), conventional 8-atom cell.
+# The Fd-3m structure is written here in space group P1: every atom of the
+# cell is listed, so no symmetry expansion or origin choice is involved
+# (a bare space-group symbol with no operations would leave the origin open).
 # Lattice constant 5.4309 A is the experimental value, NOT a DFT-relaxed one --
 # Materials Project's PBE cell for mp-149 is slightly larger. Do not treat
 # agreement with this cell as agreement with MP's reference data.
@@ -6,9 +9,9 @@
 # Also serves as the fractional-coordinate test fixture: every position below
 # is fractional, so a parser that fails to multiply through the cell will place
 # all 8 atoms inside a 1 A box. Correct nearest-neighbour distance is
-# a*sqrt(3)/4 = 2.3517 A.
+# a*sqrt(3)/4 = 2.3516 A.
 data_Si
-_symmetry_space_group_name_H-M   'F d -3 m'
+_symmetry_space_group_name_H-M   'P 1'
 _cell_length_a                   5.4309
 _cell_length_b                   5.4309
 _cell_length_c                   5.4309

@@ -44,6 +44,7 @@ Three rules this module holds to:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import platform
 import subprocess
@@ -63,13 +64,17 @@ TRACKED_DISTRIBUTIONS = ("mace-torch", "torch", "ase", "numpy")
 # Canonical-form tag for the structure fingerprint. Changing how the structure
 # is serialised changes every hash, so the spec is versioned and echoed into
 # the manifest — a reader can tell which recipe produced the digest.
-STRUCTURE_HASH_SPEC = "simpleatom-structure-v1"
+# v2 (D132): constraints (POSCAR selective dynamics) are part of the input —
+# they change the reported forces and the MD temperature — so they are hashed.
+# v3 (D76): coordinates and cell count to 8 decimals, the precision ASE's extended
+# XYZ writer keeps, so the same structure hashes alike as extxyz, CIF and POSCAR.
+STRUCTURE_HASH_SPEC = "simpleatom-structure-v3"
 
 # Coordinates are rounded before hashing so that a round-trip through a text
 # format (which is how structures reach this backend) does not change the
-# digest. 1e-10 A is far below any physically meaningful displacement and far
-# above float64's representation noise.
-_STRUCTURE_COORD_DECIMALS = 10
+# digest. 8 decimals is what ASE writes to extended XYZ, the most common upload
+# (D76); 1e-8 A is still far below any physically meaningful displacement.
+_STRUCTURE_COORD_DECIMALS = 8
 
 _HASH_CHUNK_BYTES = 1 << 20  # 1 MiB
 
@@ -277,9 +282,17 @@ def structure_canonical_bytes(atoms) -> bytes:
     """
     Format-independent canonical serialisation of a structure.
 
-    The same molecule written as XYZ, CIF or PDB — and uploaded through a
-    randomly-named temp file — produces the same bytes here, so the digest
-    identifies the *structure*, not the file that carried it.
+    The same atoms, cell (in the same orientation), pbc and constraints produce the
+    same bytes whatever file carried them (extended XYZ, CIF and POSCAR, Cartesian or
+    direct) and
+    whatever the temp file was called, so the digest identifies the structure,
+    not the file. It is not more forgiving than that (D76): positions count to
+    8 decimals, so a PDB (3 decimals) matches only coordinates that agree at
+    that precision; a molecule written as CIF gains a cell and periodicity, which
+    makes it a different input; and CIF stores cell lengths and angles, not an
+    orientation, so ASE re-orients a cell it reads back (primitive fcc, bcc and
+    diamond cells come back rotated). Same structure, same cell orientation, same
+    hash (D183). test_provenance.TestStructureHashAcrossFormats.
 
     Atom order is deliberately significant: forces are returned per atom in
     input order, so two orderings are genuinely different inputs.
@@ -289,10 +302,12 @@ def structure_canonical_bytes(atoms) -> bytes:
     fmt = f"%.{_STRUCTURE_COORD_DECIMALS}f"
 
     def num(value: float) -> str:
-        # `+ 0.0` normalises -0.0 to 0.0; IEEE-754 gives -0.0 + 0.0 == +0.0.
-        # Without it, two identical structures could hash differently purely
-        # from the sign of a zero coordinate.
-        return fmt % (float(value) + 0.0)
+        # Round to the printed precision first, then `+ 0.0`: a coordinate of
+        # -1e-12 rounds to -0.0, and IEEE-754 gives -0.0 + 0.0 == +0.0. Without
+        # the rounding it printed as "-0.0000000000" from one format and
+        # "0.0000000000" from another, so hcp and wurtzite cells hashed
+        # differently as POSCAR and as CIF (D76).
+        return fmt % (round(float(value), _STRUCTURE_COORD_DECIMALS) + 0.0)
 
     lines = [STRUCTURE_HASH_SPEC, str(len(atoms))]
     lines.append(" ".join("1" if flag else "0" for flag in atoms.pbc))
@@ -300,7 +315,27 @@ def structure_canonical_bytes(atoms) -> bytes:
         lines.append(" ".join(num(v) for v in row))
     for symbol, position in zip(atoms.get_chemical_symbols(), atoms.get_positions()):
         lines.append(f"{symbol} " + " ".join(num(v) for v in position))
+    # One line per constraint, from ASE's own serialisation, sorted so the
+    # order they were attached in does not matter. None: no extra lines.
+    lines.extend(sorted("constraint " + json.dumps(_plain(c.todict()), sort_keys=True)
+                        for c in atoms.constraints))
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _plain(value):
+    """numpy arrays and scalars inside a constraint's todict(), as JSON-able Python."""
+    import numpy as np
+    if isinstance(value, dict):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return _plain(value.tolist())
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, float):
+        return float(f"{value + 0.0:.10f}")
+    return value
 
 
 def structure_sha256(atoms) -> tuple[str | None, str | None]:
@@ -381,7 +416,10 @@ def git_info() -> dict:
     if info["commit"] is None:
         pinned = _pinned_commit()
         if pinned is not None:
-            info = {"commit": pinned, "dirty": None, "unavailableReason": None}
+            info = {"commit": pinned, "dirty": None, "unavailableReason": None,
+                    "dirtyUnknownReason": (
+                        "the commit was read from the GIT_COMMIT file written at deploy "
+                        "time, and the deployed container has no git working tree to check")}
 
     _GIT_INFO = info
     return dict(info)
@@ -483,6 +521,14 @@ def build_manifest(
             "code.gitDirty is true: the checkout had uncommitted changes to "
             "tracked files, so the commit alone does not describe the code "
             "that ran."
+        )
+    elif git["dirty"] is None:
+        # D49: every other null in the manifest says why; this one did not.
+        notes.append(
+            "code.gitDirty is null: "
+            + (git.get("dirtyUnknownReason") or git.get("unavailableReason")
+               or "the dirty state could not be determined")
+            + "."
         )
 
     manifest = {

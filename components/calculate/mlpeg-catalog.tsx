@@ -159,17 +159,18 @@ export function MlPegCatalog({ onSelect }: MlPegCatalogProps) {
           {/* Footer */}
           <div className="mt-4 flex items-center justify-between">
             <p className="font-mono text-xs text-text-muted">
-              Structures from{" "}
+              Modelled on the{" "}
               <a
                 href="https://github.com/ddmms/ml-peg"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
               >
-                ml-peg v0.2.2
-              </a>
+                ml-peg
+              </a>{" "}
+              benchmark set (v0.2.2); not copies of its files
               {" · "}
-              {totalStructures} structures · GPL-3.0 license
+              {totalStructures} structures
             </p>
             <Link
               href="/benchmark"

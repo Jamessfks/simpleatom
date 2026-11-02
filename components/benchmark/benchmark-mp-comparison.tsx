@@ -41,6 +41,7 @@ import {
   MP_TOLERANCE_EV_PER_ATOM,
   MP_TOLERANCE_RATIONALE,
   MP_COMPOUNDS,
+  mpEntryNote,
   type MpCompoundRow,
   type MpModelComparison,
 } from "@/lib/mp-reference";
@@ -210,7 +211,8 @@ export function BenchmarkMpComparison({ result }: Props) {
         <p className="mt-3 text-xs leading-relaxed text-text-muted">
           Values are a fixture captured at the timestamp above, not a live fetch — a page that
           silently rendered a stale number would be worse than one that dates it. Geometries are
-          MP&rsquo;s PBE-relaxed cells from the same records. Re-fetch with{" "}
+          the cells MP serves from the same records: r2SCAN-relaxed for 12 of the 13 ids (NiTi,
+          mp-1048, is GGA/GGA+U), while the formation energies are PBE/PBE+U. Re-fetch with{" "}
           <span className="font-mono">
             python {MP_REFERENCE_PROVENANCE.generator} --fetch
           </span>
@@ -337,6 +339,11 @@ function ModelBlock({ model }: { model: MpModelComparison }) {
                 >
                   <TableCell className="px-4 font-semibold text-text-primary">
                     {row.entry.formula}
+                    {mpEntryNote(row.entry) && (
+                      <span className="mt-0.5 block max-w-[28ch] text-xs font-normal leading-snug text-text-muted">
+                        {mpEntryNote(row.entry)}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="px-3">
                     <a

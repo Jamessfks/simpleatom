@@ -10,6 +10,7 @@ Deploy: uvicorn main:app --host 0.0.0.0 --port 7860 --workers 1
 """
 
 import asyncio
+import time
 import hmac
 import json
 import logging
@@ -32,12 +33,15 @@ _logger = logging.getLogger("mace-api")
 import torch
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import contract
+from contract import ContractError
 import provenance
-from calculate import RunHooks, run_calculation, validate_request
+from calculate import RunHooks, device_report, run_calculation, validate_request
 from jobs import Job, JobStore
 
 try:
@@ -49,6 +53,11 @@ except Exception as _import_err:  # noqa: BLE001
 PROFILE = contract.profile_name("hosted")
 LIMITS = contract.profile(PROFILE)
 APP_VERSION = contract.load_contract()["appVersion"]
+if PROFILE == "hosted" and not os.environ.get("MACE_API_TOKEN"):
+    _logger.warning(
+        "MACE_API_TOKEN is not set: the hosted API accepts direct callers, and every "
+        "request the Vercel proxy relays shares one per-visitor limit (D43)."
+    )
 
 app = FastAPI(
     title="SimpleAtom MACE API",
@@ -67,7 +76,9 @@ app = FastAPI(
 # torch already uses both cores for one MACE forward pass, so a second
 # concurrent job halves both instead of doubling throughput, and torch's
 # default dtype and the scoped torch.load guard are process-global.
-JOBS = JobStore()
+# Per-visitor hourly admissions from the contract (D42): a benchmark spends one
+# per (model, structure) pair, and the old fixed 30 was smaller than one benchmark.
+JOBS = JobStore(per_client_hourly=LIMITS["maxCalculationsPerHour"])
 
 try:
     torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "2")))
@@ -81,13 +92,122 @@ def _error(status: int, code: str, message: str, field=None, headers=None) -> HT
                          headers=headers)
 
 
+_BODY_ROUTES = ("/v1/jobs", "/calculate")
+
+
+class _CheckBeforeTheBodyIsRead:
+    """
+    The proxy key and the declared size are checked before the multipart body
+    is parsed (D44): Starlette reads and spools the whole form before a route
+    runs, so a 30 MB upload used to be received in full before its 413 — or,
+    from an unauthenticated caller, its 401. A body sent without a declared
+    length (chunked) is counted as it arrives and refused the moment it passes
+    the same cap (D142); before, all of it was spooled first.
+
+    Plain ASGI rather than @app.middleware("http"): BaseHTTPMiddleware wraps
+    `receive` and hides http.disconnect from the routes, which the synchronous
+    /calculate needs to see to cancel an abandoned job (D45).
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["method"] == "POST" and scope["path"] in _BODY_ROUTES:
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+            try:
+                _require_proxy_key(headers.get("x-simpleatom-proxy-key"))
+                declared = headers.get("content-length", "")
+                cap = LIMITS["maxUploadBytes"] + LIMITS["maxModelUploadBytes"] + (1 << 20)
+                if declared.isdigit() and int(declared) > cap:
+                    raise _error(413, "upload_too_large",
+                                 f"This request declares {int(declared) / 1e6:.1f} MB; this deployment "
+                                 f"accepts at most {cap / 1e6:.1f} MB per calculation.", field="files")
+            except HTTPException as exc:
+                response = await _http_error(None, exc)
+                await response(scope, receive, send)
+                return
+            if not declared.isdigit():
+                await self._counted(scope, receive, send, cap)
+                return
+        await self.app(scope, receive, send)
+
+    async def _counted(self, scope, receive, send, cap: int):
+        """
+        Run the app on a body of unknown length, stopping at `cap` bytes. Past
+        the cap the app is told the client went away, so nothing more is read,
+        its answer to the cut-off body is dropped, and the 413 is sent here.
+        """
+        received, over = 0, False
+
+        async def counted_receive():
+            nonlocal received, over
+            if over:
+                return {"type": "http.disconnect"}
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > cap:
+                    over = True
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def guarded_send(message):
+            if not over:
+                await send(message)
+
+        try:
+            await self.app(scope, counted_receive, guarded_send)
+        except Exception:
+            if not over:
+                raise
+        if over:
+            response = await _http_error(None, _error(
+                413, "upload_too_large",
+                f"This upload passed {cap / 1e6:.1f} MB, the most this deployment accepts per "
+                "calculation, and was not read further.", field="files"))
+            await response(scope, receive, send)
+
+
+app.add_middleware(_CheckBeforeTheBodyIsRead)
+
+
+_STATUS_CODES = {404: "not_found", 405: "method_not_allowed"}
+
+
+def _encodable(value):
+    """A refusal can echo the caller's input; a lone surrogate would make the reply unencodable (D149)."""
+    return value.encode("utf-8", "backslashreplace").decode("utf-8") if isinstance(value, str) else value
+
+
+@app.exception_handler(StarletteHTTPException)
 @app.exception_handler(HTTPException)
-async def _http_error(_request: Request, exc: HTTPException):
-    """One error shape everywhere: {"error": {code, message, field}}."""
+async def _http_error(_request: Request, exc: StarletteHTTPException):
+    """
+    One error shape everywhere: {"error": {code, message, field}}. Registered for
+    Starlette's HTTPException too, so its own 404 and 405 answer in it (D148).
+    """
     detail = exc.detail if isinstance(exc.detail, dict) else {
-        "code": "http_error", "message": str(exc.detail), "field": None}
+        "code": _STATUS_CODES.get(exc.status_code, "http_error"), "message": str(exc.detail), "field": None}
+    detail = {k: _encodable(v) for k, v in detail.items()}
     return JSONResponse({"status": "error", "message": detail["message"], "error": detail},
-                        status_code=exc.status_code, headers=exc.headers)
+                        status_code=exc.status_code, headers=getattr(exc, "headers", None))
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request: Request, exc: RequestValidationError):
+    """
+    A body FastAPI rejects before a route runs (a missing form field, a SMILES
+    that is not a string) gets the same shape as every other refusal (D140),
+    not FastAPI's {"detail": [...]}, which the front end does not read.
+    """
+    first = (exc.errors() or [{}])[0]
+    loc = [str(part) for part in first.get("loc", ()) if part not in ("body", "query", "header")]
+    field = loc[-1] if loc else None
+    message = f"{field or 'request'}: {first.get('msg', 'invalid request')}"
+    message, field = _encodable(message), _encodable(field)
+    error = {"code": "invalid_request", "message": message, "field": field}
+    return JSONResponse({"status": "error", "message": message, "error": error}, status_code=422)
 
 
 def _require_proxy_key(provided: str | None) -> None:
@@ -136,19 +256,56 @@ async def _save_capped(upload: UploadFile, directory: str, stored_name: str, lim
 
 def _client_key(request: Request, forwarded_ip: str | None) -> str:
     """
-    Who a request is from, for per-visitor limits. Requests normally come from
-    the Vercel proxy, which forwards the visitor's IP in X-SimpleAtom-Client-IP;
-    with MACE_API_TOKEN set, only proxy-authenticated requests get this far.
+    Who a request is from, for per-visitor limits.
+
+    The Vercel proxy forwards the visitor's IP in X-SimpleAtom-Client-IP. That
+    header is trusted only when MACE_API_TOKEN is set, because then
+    `_require_proxy_key` has already authenticated the caller as the proxy.
+    Without the token anyone can send it, so a direct caller could name a new
+    "visitor" per request and walk past every limit (D43). In that case the
+    key is the right-most X-Forwarded-For entry, the hop the platform's own
+    ingress appended, and never a left-hand entry the client wrote.
+
+    The consequence of running hosted without the token is that every request
+    the Vercel proxy relays shares that proxy's key. Set MACE_API_TOKEN on both
+    sides before deploying.
     """
-    if forwarded_ip:
+    if forwarded_ip and os.environ.get("MACE_API_TOKEN"):
         return forwarded_ip.split(",")[0].strip()[:64]
     xff = request.headers.get("x-forwarded-for")
     if xff:
-        return xff.split(",")[0].strip()[:64]
+        return xff.split(",")[-1].strip()[:64]
     return request.client.host if request.client else "unknown"
 
 
-async def _intake(files: list[UploadFile], params: str, model: UploadFile | None):
+def _is_loopback(host: str | None) -> bool:
+    """127.0.0.0/8, ::1 or an IPv4-mapped loopback; a name or a missing peer is not."""
+    import ipaddress
+    try:
+        address = ipaddress.ip_address(host or "")
+    except ValueError:
+        return False
+    mapped = getattr(address, "ipv4_mapped", None)
+    return address.is_loopback or bool(mapped and mapped.is_loopback)
+
+
+def _direct_peer(request: Request) -> str | None:
+    """
+    The socket peer, or None when the request carries forwarding headers (D178):
+    uvicorn with --forwarded-allow-ips rewrites the peer from X-Forwarded-For, so a
+    LAN client claiming 127.0.0.1 would look like loopback. A direct loopback client
+    never sends these headers.
+    """
+    # Presence, in the raw list: an empty first value or a repeated header still
+    # counts, because uvicorn rewrites the peer from the last X-Forwarded-For (D178).
+    forwarding = {b"x-forwarded-for", b"forwarded", b"x-real-ip"}
+    if any(name.lower() in forwarding for name, _value in request.scope.get("headers", [])):
+        return None
+    return request.client.host if request.client else None
+
+
+async def _intake(files: list[UploadFile], params: str, model: UploadFile | None,
+                  peer: str | None = None):
     """
     Validate a calculation request and stage its files, or refuse it.
 
@@ -157,8 +314,11 @@ async def _intake(files: list[UploadFile], params: str, model: UploadFile | None
     """
     try:
         params_obj = json.loads(params)
-    except json.JSONDecodeError as e:
-        raise _error(400, "invalid_params", f"Invalid params JSON: {e}", field="params")
+    except (ValueError, RecursionError) as e:
+        # ValueError covers JSONDecodeError and Python's 4300-digit integer
+        # limit; RecursionError, nesting deeper than the decoder allows (D138).
+        reason = str(e) if isinstance(e, json.JSONDecodeError) else type(e).__name__
+        raise _error(400, "invalid_params", f"Invalid params JSON: {reason}", field="params")
     if not isinstance(params_obj, dict):
         raise _error(400, "invalid_params", "params must be a JSON object.", field="params")
     if not files:
@@ -168,6 +328,14 @@ async def _intake(files: list[UploadFile], params: str, model: UploadFile | None
     except ValueError as e:
         raise _error(getattr(e, "status", 400), getattr(e, "code", "invalid_request"),
                      str(e), field=getattr(e, "field", None))
+    # A checkpoint runs code when it is loaded. Where custom models are allowed at all
+    # (local, ALLOW_CUSTOM_MODELS=1), accept one only from this machine: the socket's
+    # peer address, never a forwarded header (D173), and never a request that carries
+    # one (D178). The Next.js proxy on the same host connects from loopback.
+    if model is not None and not _is_loopback(peer):
+        raise _error(403, "custom_models_local_only",
+                     "Custom checkpoints are accepted only from this machine (a loopback "
+                     "connection); loading one runs code from the file.", field="model")
 
     workdir = tempfile.mkdtemp(prefix="mace-")
     try:
@@ -201,7 +369,8 @@ def _submit(request: Request, forwarded_ip: str | None, run, workdir) -> Job:
     try:
         return JOBS.submit(_client_key(request, forwarded_ip), run, workdir=workdir)
     except ValueError as e:
-        shutil.rmtree(workdir, ignore_errors=True)
+        if workdir:
+            shutil.rmtree(workdir, ignore_errors=True)
         headers = {"Retry-After": "30"} if getattr(e, "status", 400) == 429 else None
         raise _error(getattr(e, "status", 429), getattr(e, "code", "busy"), str(e), headers=headers)
 
@@ -217,7 +386,7 @@ async def submit_job(
 ):
     """Queue a calculation. Returns 202 with a job id to poll."""
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model)
+    run, workdir = await _intake(files, params, model, _direct_peer(request))
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
     return JOBS.describe(job)
 
@@ -260,11 +429,23 @@ async def calculate(
     for existing callers. It goes through the same single worker as /v1/jobs.
     """
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model)
+    run, workdir = await _intake(files, params, model, _direct_peer(request))
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
-    wait = LIMITS["timeBudgetSeconds"] + 120
-    finished = await asyncio.to_thread(job.done.wait, wait)
-    if not finished:
+    budget = LIMITS["timeBudgetSeconds"]
+    while True:
+        outcome = await asyncio.to_thread(_await_job, job, run_budget=budget + 120,
+                                          queue_budget=budget, poll=1.0, max_wait=1.0)
+        if outcome != "pending":
+            break
+        if await request.is_disconnected():
+            # D45: the caller is gone; free the single worker for the next visitor.
+            JOBS.cancel(job.id)
+            raise _error(499, "cancelled", "The caller disconnected, so the calculation was cancelled.")
+    if outcome == "queue_timeout":
+        JOBS.cancel(job.id)
+        raise _error(503, "busy", "The calculation waited too long in the queue and never started. "
+                                  "Nothing was computed; try again shortly.")
+    if outcome == "run_timeout":
         JOBS.cancel(job.id)
         raise _error(504, "timeout", "The calculation did not finish in time and was cancelled.")
     if job.status == "succeeded":
@@ -274,14 +455,43 @@ async def calculate(
                  err.get("message", "Calculation failed"), field=err.get("field"))
 
 
+def _await_job(job, *, run_budget: float, queue_budget: float, poll: float = 1.0,
+               max_wait: float | None = None) -> str:
+    """
+    Wait for a job: "done", "queue_timeout" (it never started within
+    queue_budget), "run_timeout" (it ran longer than run_budget, counted from
+    its start — D45: queue time used to count against the run), or "pending"
+    when max_wait elapsed first, so the caller can check for a disconnect.
+    """
+    # From the job's creation, not this call: the route polls in short calls.
+    queued_since = getattr(job, "created", None) or time.time()
+    waited = 0.0
+    while not job.done.wait(poll):
+        waited += poll
+        now = time.time()
+        if job.started is None and now - queued_since > queue_budget:
+            return "queue_timeout"
+        if job.started is not None and now - job.started > run_budget:
+            return "run_timeout"
+        if max_wait is not None and waited >= max_wait:
+            return "pending"
+    return "done"
+
+
 class SmilesRequest(BaseModel):
     smiles: str
 
 
 @app.post("/smiles-to-xyz")
-async def convert_smiles(req: SmilesRequest,
-                         x_simpleatom_proxy_key: str | None = Header(default=None)):
-    """Convert a SMILES string to a 3D XYZ structure using RDKit."""
+async def convert_smiles(request: Request, req: SmilesRequest,
+                         x_simpleatom_proxy_key: str | None = Header(default=None),
+                         x_simpleatom_client_ip: str | None = Header(default=None)):
+    """
+    Convert a SMILES string to a 3D XYZ structure using RDKit.
+
+    It runs as a job (D136): an embedding plus force-field relaxation costs
+    seconds of CPU, and it used to bypass every per-visitor and queue limit.
+    """
     _require_proxy_key(x_simpleatom_proxy_key)
     if _smiles_to_xyz is None:
         raise _error(503, "smiles_unavailable",
@@ -293,12 +503,32 @@ async def convert_smiles(req: SmilesRequest,
         raise _error(422, "limit_exceeded",
                      f"SMILES is {len(smiles)} characters; this deployment accepts at most "
                      f"{LIMITS['maxSmilesLength']}.", field="smiles")
-    try:
-        return await asyncio.to_thread(_smiles_to_xyz, smiles)
-    except ValueError as e:
-        raise _error(400, "invalid_smiles", str(e), field="smiles")
-    except Exception as e:  # noqa: BLE001
-        raise _error(500, "smiles_failed", f"{type(e).__name__}: {e}")
+    def run(_job):
+        try:
+            return _smiles_to_xyz(smiles)
+        except ContractError:
+            raise   # already coded (smiles_embedding_timeout, refused ions, ...): keep it (D151)
+        except ValueError as e:
+            raise ContractError(str(e), code="invalid_smiles", field="smiles") from e
+
+    job = _submit(request, x_simpleatom_client_ip, run, None)
+    while True:
+        outcome = await asyncio.to_thread(_await_job, job, run_budget=60, queue_budget=60,
+                                          poll=0.5, max_wait=1.0)
+        if outcome != "pending":
+            break
+        if await request.is_disconnected():
+            JOBS.cancel(job.id)
+            raise _error(499, "cancelled", "The caller disconnected, so the conversion was cancelled.")
+    if outcome != "done":
+        JOBS.cancel(job.id)
+        raise _error(503 if outcome == "queue_timeout" else 504, "busy" if outcome == "queue_timeout" else "timeout",
+                     "The SMILES conversion did not run in time. Nothing was converted; try again shortly.")
+    if job.status == "succeeded":
+        return job.result
+    err = job.error or {"code": "smiles_failed", "message": "SMILES conversion failed.", "status": 500}
+    raise _error(err.get("status", 500), err.get("code", "smiles_failed"), err.get("message", ""),
+                 field=err.get("field"))
 
 
 @app.get("/capabilities")
@@ -308,6 +538,8 @@ async def capabilities():
         "appVersion": APP_VERSION,
         "profile": PROFILE,
         "customModels": contract.custom_models_allowed(PROFILE),
+        # Only devices that work here (ADR-0031): the UI offers exactly these.
+        "devices": device_report(PROFILE),
         "limits": {k: v for k, v in LIMITS.items() if k != "description"},
         "models": [m["id"] for m in contract.models()
                    if m["hostedEnabled"] or contract.custom_models_allowed(PROFILE)],

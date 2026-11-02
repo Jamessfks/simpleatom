@@ -15,12 +15,13 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "mace-api"))
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
-ETHANOL = str(REPO_ROOT / "public" / "demo" / "ethanol.xyz")
+ETHANOL = str(REPO_ROOT / "test" / "fixtures" / "ethanol-golden.xyz")  # D119: the strained file the goldens were measured on
 SILICON = str(REPO_ROOT / "public" / "demo" / "silicon.cif")
 OFF_SMALL = {"modelType": "MACE-OFF", "modelSize": "small"}
 
@@ -149,6 +150,151 @@ class TestDefectRegressions(unittest.TestCase):
         self.assertIn("Academic Software License", r["licenseNotice"])
         self.assertNotIn("Academic Software License", " ".join(r.get("warnings", [])))
 
+
+
+class TestDeviceFallback(unittest.TestCase):
+    """
+    ADR-0031 (D33): a local run that asks for CUDA on a machine without it runs
+    on CPU and says so in the result, end to end through the real engine.
+    """
+
+    def test_cuda_request_without_cuda_is_recorded_and_warned(self):
+        import torch
+        if torch.cuda.is_available():
+            self.skipTest("a CUDA device is present, so there is nothing to fall back from")
+        from calculate import run_calculation
+        result = run_calculation(ETHANOL, {"calculationType": "single-point", "modelType": "MACE-OFF",
+                                           "modelSize": "small", "device": "cuda"}, profile="local")
+        self.assertEqual(result["params"]["device"], "cpu")
+        self.assertEqual(result["params"]["requestedDevice"], "cuda")
+        self.assertTrue(any("CUDA was requested" in w for w in result.get("warnings", [])), result.get("warnings"))
+        self.assertEqual(result["provenance"]["runtime"]["device"], "cpu")
+
+
+class TestAutoPrecisionIsAnnounced(unittest.TestCase):
+    """
+    D51 (owner decision 2026-10-30: a visible warning). 'Auto' precision runs a
+    MACE-MP-family geometry optimisation in float64 although mace_mp() defaults
+    to float32. The override follows upstream's own advice, but CLAUDE.md says
+    an upstream dtype default is never overridden without a result warning.
+    """
+
+    def _opt(self, **extra):
+        _require_mace()
+        from calculate import run_calculation
+        return run_calculation(SILICON, {"calculationType": "geometry-opt", "modelType": "MACE-MPA-0",
+                                         "maxOptSteps": 2, **extra}, profile="local")
+
+    def test_auto_float64_override_is_warned(self):
+        result = self._opt()
+        self.assertEqual(result["params"]["precision"], "float64")
+        self.assertTrue(any("float64" in w and "float32" in w and "Auto" in w for w in result.get("warnings", [])),
+                        result.get("warnings"))
+
+    def test_explicit_float64_is_not_called_an_override(self):
+        result = self._opt(precision="float64")
+        self.assertFalse(any("Auto" in w for w in result.get("warnings", [])), result.get("warnings"))
+
+
+WATER = str(REPO_ROOT / "public" / "demo" / "water.xyz")
+
+
+class TestCustomModelOutOfMemory(unittest.TestCase):
+    """
+    D101: get_custom_calculator() wrapped every exception in a ValueError with
+    no `from e`, so a CUDA out-of-memory while loading an uploaded checkpoint
+    reached the user as "Ensure the file is a valid MACE .model checkpoint"
+    (400 locally, 500 hosted) instead of cuda_out_of_memory (507).
+    """
+
+    def _load(self, error):
+        _require_mace()
+        import calculate
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = os.path.join(tmp, "mine.model")
+            pathlib.Path(checkpoint).write_bytes(b"not loaded: MACECalculator is patched")
+            with mock.patch.dict(os.environ, {"ALLOW_CUSTOM_MODELS": "1"}), \
+                    mock.patch("mace.calculators.MACECalculator", side_effect=error):
+                return calculate.run_calculation(WATER, {"device": "cpu"}, model_path=checkpoint,
+                                                 profile="local")
+
+    def test_out_of_memory_loading_a_custom_checkpoint_is_reported_as_such(self):
+        import torch
+        from contract import ContractError
+        with self.assertRaises(ContractError) as ctx:
+            self._load(torch.OutOfMemoryError("CUDA out of memory. Tried to allocate 2.00 GiB"))
+        self.assertEqual((ctx.exception.code, ctx.exception.status), ("cuda_out_of_memory", 507))
+
+    def test_other_load_failures_keep_their_cause(self):
+        cause = RuntimeError("unpickling stack underflow")
+        with self.assertRaises(ValueError) as ctx:
+            self._load(cause)
+        self.assertIn("Failed to load custom model", str(ctx.exception))
+        self.assertIs(ctx.exception.__cause__, cause)
+
+
+class TestFallbackWarningWording(unittest.TestCase):
+    """
+    D105: the CUDA-to-CPU fallback warning said "the numbers are unaffected".
+    Float arithmetic on CPU and GPU differs at round-off, so say that instead.
+    """
+
+    def test_the_warning_says_round_off_not_unaffected(self):
+        import calculate
+        with mock.patch.object(calculate, "_cuda_available", return_value=False):
+            device, warning = calculate.resolve_device("cuda", "local")
+        self.assertEqual(device, "cpu")
+        self.assertIn("computed on CPU", warning)
+        self.assertIn("round-off", warning)
+        self.assertNotIn("unaffected", warning)
+
+    def test_the_warning_does_not_promise_an_identical_md_trajectory(self):
+        """
+        D158: round-off agreement holds for a single point or a short
+        optimisation, not for MD: a trajectory is chaotic, so CPU and GPU runs
+        decorrelate step by step while their averages agree.
+        """
+        import calculate
+        with mock.patch.object(calculate, "_cuda_available", return_value=False):
+            _, warning = calculate.resolve_device("cuda", "local")
+        self.assertNotIn("only at round-off", warning)
+        self.assertIn("single point", warning)
+        self.assertIn("MD trajectory will diverge from a GPU run", warning)
+        self.assertIn("statistics", warning)
+
+
+
+class TestCompositionAwareEnergy(unittest.TestCase):
+    """
+    D52: MACE-OFF total energies per atom are dominated by core electrons, so
+    no single eV/atom band fits: water is -693.7, CO2 -1710.5, HCl -6270.3,
+    CH2Br2 -28232.6 eV/atom, and the old bands flagged ordinary molecules. The
+    engine now reports (E - sum of the model's own isolated-atom energies) / N,
+    which spans -5.0 to -0.8 eV/atom over 22 molecules and 3 model sizes, and
+    contract.json carries the measured band for it.
+    """
+
+    def _run(self, smiles):
+        _require_mace()
+        import calculate
+        from smiles_to_xyz import smiles_to_xyz
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "m.xyz")
+            pathlib.Path(path).write_text(smiles_to_xyz(smiles)["xyz"])
+            return calculate.run_calculation(path, {**OFF_SMALL, "precision": "float64"}, profile="local")
+
+    def test_ordinary_molecules_sit_inside_the_composition_aware_band(self):
+        import contract
+        band = contract.load_contract()["energyConventions"]["off"]["relativeToIsolatedAtoms"]["typical"]
+        for smiles, expected in (("O", -3.346), ("O=C=O", -4.311), ("Cl", -2.178), ("BrCBr", -2.973)):
+            with self.subTest(smiles=smiles):
+                r = self._run(smiles)
+                value = r["properties"]["energyPerAtomVsIsolatedAtoms"]
+                self.assertAlmostEqual(value, expected, delta=0.01)
+                self.assertGreaterEqual(value, band["minEvPerAtom"])
+                self.assertLessEqual(value, band["maxEvPerAtom"])
+                n = len(r["symbols"])
+                self.assertAlmostEqual(r["properties"]["isolatedAtomsEnergy"], r["energy"] - value * n, delta=1e-6)
 
 if __name__ == "__main__":
     unittest.main()

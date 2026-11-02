@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout } from "@/components/docs/callout";
 import { DocsPager } from "@/components/docs/docs-nav";
+import { CONTRACT } from "@/lib/contract";
+import { mpTypicalBandText, offEnforcedBandText, offTypicalBandText } from "@/components/docs/energy-bands";
 
 export const metadata: Metadata = {
   title: "Validation & reproducibility",
   description:
-    "How SimpleAtom validates scientific results — the automated validation suite, its 5 tests, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
+    "How SimpleAtom validates scientific results — the validator's self-test and what each of its five tests asserts, physical-bounds checks, a manual verification checklist, citing MACE, and known limitations of foundation models.",
 };
 
 export default function ValidationPage() {
@@ -33,46 +35,78 @@ export default function ValidationPage() {
         <pre>
           <code>python test_scripts/validate_calculation.py --test</code>
         </pre>
-        <p>This runs five tests, all of which must pass:</p>
+        <p>
+          This runs five self-tests through SimpleAtom&rsquo;s own calculation
+          engine, the code the calculator calls, with real MACE calculations.
+          It loads the default MACE-MPA-0 (medium) for silicon and MACE-OFF
+          (small) for the molecules. It checks that the calculation plumbing
+          and the validator give physically plausible results, not either
+          model&rsquo;s accuracy against a reference. All five checks assert
+          something, and a run that fails or never finishes fails its check.
+          The command exits with status 1 unless every check passed.
+        </p>
         <table>
           <thead>
             <tr>
               <th>Test</th>
-              <th>What it checks</th>
+              <th>What it does</th>
+              <th>Asserted</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>MACE-MP-0 Si bulk</td>
+              <td>MACE-MPA-0 (medium) Si bulk</td>
               <td>
-                Energy/atom in the correct range (&minus;5.37 eV),
-                equilibrium forces near zero.
+                Single-point on the 8-atom conventional diamond-cubic cell
+                (a = 5.43 &Aring;).
+              </td>
+              <td>
+                The largest force must be below 0.001 eV/&Aring; (it vanishes
+                by symmetry) and the energy per atom must lie in{" "}
+                {mpTypicalBandText()} eV/atom, the MACE-MP family&rsquo;s
+                typical range.
               </td>
             </tr>
             <tr>
-              <td>MACE-OFF H&#8322;O</td>
+              <td>MACE-OFF (small) H&#8322;O</td>
               <td>
-                Energy computed correctly, force conservation (net force =
-                0).
+                Single-point on an isolated water molecule, 5 &Aring; of
+                vacuum, not periodic.
+              </td>
+              <td>
+                The result must name MACE-OFF as its model and its energy
+                must be finite.
               </td>
             </tr>
             <tr>
               <td>Ethanol geometry optimization</td>
               <td>
-                Energy decreases monotonically and converges within the
-                step limit.
+                MACE-OFF (small), up to 200 BFGS steps with fmax 0.05
+                eV/&Aring;.
+              </td>
+              <td>
+                The optimization must have converged, in float64 (read from
+                the precision the result reports). The final energy must be
+                no higher than the starting energy, to within 10&#8315;&#8313;
+                eV, and the final largest force below 0.05 eV/&Aring;. It
+                does not check that the energy fell at every step.
               </td>
             </tr>
             <tr>
               <td>Force conservation</td>
               <td>
-                Newton&rsquo;s third law: the sum of forces on an isolated
-                molecule equals zero.
+                The net force on the water result, a translation-invariance
+                check.
               </td>
+              <td>It must be below 0.01 eV/&Aring;.</td>
             </tr>
             <tr>
               <td>Result validation</td>
-              <td>All physical bounds (energy, forces, distances, volume) pass.</td>
+              <td>
+                The physical-bounds checks listed below, run on both the
+                silicon and the water results.
+              </td>
+              <td>The validator must report both results valid.</td>
             </tr>
           </tbody>
         </table>
@@ -89,32 +123,45 @@ python test_scripts/validate_calculation.py result.json`}</code>
         <ul>
           <li>
             <strong>Energy bounds (model-aware):</strong> the MACE-MP family
-            (MPA-0 and MP-0) between &minus;20 and +100 eV/atom; MACE-OFF
-            between &minus;800 and +100 eV/atom; skipped for a custom
-            checkpoint, whose reference convention is unknown. Below the
-            minimum is a warning, above the maximum an issue. These are the
-            enforced bounds; the typical ranges are narrower (below).
+            (MPA-0 and MP-0) between &minus;20 and +100 eV/atom, where below
+            the minimum is a warning and above the maximum an issue. MACE-OFF
+            has no such band, because its raw energy per atom depends on the
+            elements present, so it is judged by its energy per atom relative
+            to the model&apos;s own isolated atoms: between{" "}
+            {offEnforcedBandText()} eV/atom, and an issue outside it. The
+            check is skipped for a custom checkpoint, whose reference
+            convention is unknown, and for a MACE-OFF result that does not
+            carry the relative energy. These are the enforced bounds; the
+            typical ranges are narrower (below).
           </li>
           <li>
-            <strong>Force magnitude:</strong> max force &lt; 50 eV/Å warns,
-            &lt; 200 eV/Å errors — forces above 50 eV/Å generally indicate
-            overlapping atoms.
+            <strong>Force magnitude:</strong> a max force above 50 eV/Å warns,
+            above 200 eV/Å is an issue — forces above 50 eV/Å generally
+            indicate overlapping atoms.
           </li>
           <li>
             <strong>Force conservation:</strong> net force should be
             approximately zero for an isolated molecule.
           </li>
           <li>
-            <strong>Interatomic distances:</strong> minimum distance &gt;
-            0.4 Å (overlap detection).
+            <strong>Interatomic distances:</strong> every pair of atoms is
+            checked, at the minimum image when the result has a cell, so a
+            contact across the cell boundary counts. A distance below{" "}
+            {CONTRACT.structureChecks.minInteratomicDistanceA} Å is an issue
+            (overlapping atoms), and the calculation refuses it at the same value.
           </li>
           <li>
             <strong>Lattice:</strong> positive volume and a valid 3&times;3
             matrix for periodic systems.
           </li>
           <li>
-            <strong>Trajectory:</strong> no NaN/Inf values, bounded energy
-            fluctuation across an MD run.
+            <strong>Trajectory:</strong> no NaN/Inf values in the potential,
+            total and temperature series. NVE is judged by the total
+            energy&rsquo;s largest excursion from its start per atom (an issue
+            above 0.05 eV/atom, a warning above 5 meV/atom), and the fitted
+            drift is reported in meV/atom/ps. NVT/NPT is judged by the
+            second-half mean temperature against the target (an issue above
+            2&times;, a warning above 1.5&times;).
           </li>
           <li>
             <strong>Consistency:</strong> the number of symbols, positions,
@@ -137,14 +184,20 @@ python test_scripts/validate_calculation.py result.json`}</code>
         <ol>
           <li>
             Energy in the typical range for the model: MACE-MPA-0 or MP-0
-            &rarr; &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; &minus;100
-            to &minus;600 eV/atom (more negative with Br or I).
+            &rarr; &minus;1 to &minus;15 eV/atom; MACE-OFF &rarr; its energy
+            per atom relative to the model&apos;s own isolated atoms,{" "}
+            {offTypicalBandText()} eV/atom (the raw value depends on which
+            elements are present).
           </li>
           <li>
             Forces &lt; 10 eV/Å for a reasonable structure — forces above 50
             eV/Å usually mean overlapping atoms.
           </li>
-          <li>RMS force decreases monotonically during optimization.</li>
+          <li>
+            RMS force trends downward during optimization. BFGS does not
+            guarantee a decrease at every step; a run that ends above the{" "}
+            <code>fmax</code> target did not converge.
+          </li>
           <li>
             MD energy is conserved in NVE; it fluctuates around the target
             temperature in NVT.
@@ -174,8 +227,9 @@ python test_scripts/validate_calculation.py result.json`}</code>
 
         <h2 id="limitations">Known limitations</h2>
         <Callout type="warning" title="Foundation models are general-purpose">
-          MACE-MP-0 is trained at the PBE level of DFT and typically
-          overbinds by roughly 0.1&ndash;0.5 eV/atom relative to experiment.
+          MACE-MP-0 is trained at the PBE level of DFT, so it inherits
+          PBE&rsquo;s differences from experiment, which depend on the
+          material and the property.
           Foundation models generalize well across chemistries, but they are
           not a substitute for system-specific validation against
           higher-level reference data when the application demands it.
