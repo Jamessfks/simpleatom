@@ -48,9 +48,10 @@ DEFECTS = ROOT / "docs" / "v2" / "defects.json"
 # brought it to 15. Numbers that only ever go down.
 # Errors and warnings are counted separately (D88): with one total, a new error
 # passed whenever a warning was fixed in the same change. Measured 2026-11-01:
-# 13 errors (react-hooks compiler rules in six components) and 1 warning.
+# 13 errors and 1 warning, then 11 and 0 after the viewer fixes (D69, F27). The rest
+# are react-hooks compiler rules (setState in effects, manual memoization).
 LINT_ERROR_BASELINE = 11
-LINT_WARNING_BASELINE = 1
+LINT_WARNING_BASELINE = 0
 
 # public/demo/silicon.cif — correct nearest-neighbour is a*sqrt(3)/4. If
 # parseCIF stops converting fractional coordinates this collapses to ~0.43 A
