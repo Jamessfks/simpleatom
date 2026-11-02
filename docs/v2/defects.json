@@ -1010,10 +1010,10 @@
       "source": "parent session review of the overnight branch, 2026-10-31",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "6bc46d0 + f64acf0 + 847582a",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: d1542f7, c25f988. Signed zero fixed (f64acf0); batch 6 found extended XYZ (8 decimals) still differed, so the hash counts 8 decimals as spec v3 (847582a). Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: d1542f7, c25f988. Signed zero fixed (f64acf0); batch 6 found extended XYZ (8 decimals) still differed, so the hash counts 8 decimals as spec v3 (847582a)."
     },
     {
       "id": "D77",
@@ -2382,10 +2382,10 @@
       "source": "batch-4 science verification at 1270bf4, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch4/science.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "15c3097 + de9a70f",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 16b1553, d5e2e18. Reopened by batch 6: the autocorrelation-time error was 3-5x smaller than the 8-seed spread on real runs. No error bar now: 'single trajectory, uncertainty not estimated'. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 16b1553, d5e2e18. Reopened by batch 6: the autocorrelation-time error was 3-5x smaller than the 8-seed spread on real runs. No error bar now: 'single trajectory, uncertainty not estimated'."
     },
     {
       "id": "D175",
@@ -2439,9 +2439,9 @@
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
       "status": "fixed-unverified",
-      "fixedIn": "8b247d7",
+      "fixedIn": "8b247d7 + eaa769e",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 504bc67. Uploads carrying X-Forwarded-For, Forwarded or X-Real-IP are refused; documented beside ALLOW_CUSTOM_MODELS. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 504bc67, af80e03. Reopened by batch 7: the first value of the header was tested, while uvicorn rewrites from the last; an empty then a 127.0.0.1 X-Forwarded-For passed. Presence in the raw scope header list now refuses. Awaiting the parent session's independent verdict before it counts as fixed."
     },
     {
       "id": "D179",
@@ -2452,10 +2452,10 @@
       "source": "batch-6 backend verification at 656bc7f, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch6/backend.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "41d1979",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1dda5c6. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 1dda5c6."
     },
     {
       "id": "D180",
@@ -2466,10 +2466,52 @@
       "source": "batch-6 backend verification at 656bc7f, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch6/backend.md)",
       "evidence": "reviewer reproduction; see source",
       "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
-      "status": "fixed-unverified",
+      "status": "fixed",
       "fixedIn": "1dda5c6",
       "fixedOn": "2026-11-01",
-      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Docstring floor corrected in the test commit. Awaiting the parent session's independent verdict before it counts as fixed."
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Docstring floor corrected in the test commit."
+    },
+    {
+      "id": "D181",
+      "severity": "LOW",
+      "what": "the dashboard's 'Temperature (mean)' tile averaged all frames, warm-up included (`components/calculate/metrics-dashboard.tsx`): Si NVT over 1000 steps showed 326.1 K in the tile and 342.6 K in the message.",
+      "where": "components/calculate/metrics-dashboard.tsx",
+      "verify": true,
+      "source": "batch-7 verification at c21d7bf, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch7/report.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "fixed-unverified",
+      "fixedIn": "883b024",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: bc7797c. Awaiting the parent session's independent verdict before it counts as fixed."
+    },
+    {
+      "id": "D182",
+      "severity": "LOW",
+      "what": "the old block-error wording remained in `types/mace.ts` and `.claude/agents/science-critic.md`.",
+      "where": "types/mace.ts, .claude/agents/science-critic.md",
+      "verify": true,
+      "source": "batch-7 verification at c21d7bf, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch7/report.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "fixed-unverified",
+      "fixedIn": "e05827a",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 22a3433. Awaiting the parent session's independent verdict before it counts as fixed."
+    },
+    {
+      "id": "D183",
+      "severity": "LOW",
+      "what": "the D76 docstring overclaimed: CIF stores no cell orientation, so ASE's default primitive fcc, bcc and diamond cells come back rotated and hash differently (`mace-api/provenance.py`).",
+      "where": "mace-api/provenance.py",
+      "verify": true,
+      "source": "batch-7 verification at c21d7bf, 2026-11-01 (~/.cache/simpleatom/overnight/verify/batch7/report.md)",
+      "evidence": "reviewer reproduction; see source",
+      "howToVerify": "Run the test named in the fixing commit; it fails on the parent of the fix.",
+      "status": "fixed-unverified",
+      "fixedIn": "e05827a",
+      "fixedOn": "2026-11-01",
+      "fixNote": "On branch audit-next-feature (PR #20), not deployed. Failing test first: 22a3433. Docstring narrowed: same structure, same cell orientation, same hash; CIF re-orients cells. Awaiting the parent session's independent verdict before it counts as fixed."
     }
   ]
 }
