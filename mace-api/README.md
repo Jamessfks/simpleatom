@@ -50,8 +50,9 @@ python calculate_local.py ethanol.xyz '{"modelType":"MACE-OFF","modelSize":"smal
 
 Set `SIMPLEATOM_PROFILE=local` for local limits and custom models, and
 `MACE_API_TOKEN` to require the front end's proxy key. Bind to 127.0.0.1 for local or
-self-hosted use: the server itself has no loopback check, so ALLOW_CUSTOM_MODELS must never be
-combined with a non-loopback bind such as 0.0.0.0 (an uploaded checkpoint runs code). The
+self-hosted use. With ALLOW_CUSTOM_MODELS=1 the server accepts a checkpoint only from a
+loopback peer (`custom_models_local_only`, D173), but ALLOW_CUSTOM_MODELS must still never be
+combined with a non-loopback bind such as 0.0.0.0: an uploaded checkpoint runs code. The
 Dockerfile's 0.0.0.0 is right inside the Space's container, where uploads are refused.
 
 Units: energy eV, forces eV/Å, distances Å, time fs, temperature K, stress and
