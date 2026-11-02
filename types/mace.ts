@@ -120,10 +120,9 @@ export interface CellRotation {
 
 /**
  * MD statistics the backend computes (`md_summary()`, D53). Mean temperature
- * discards the first `warmupFraction` of the recorded frames; its standard error
- * comes from block means and is absent when too few frames were kept. The NVE
- * drift is a least-squares slope of total energy per atom against time and is
- * present for NVE only.
+ * discards the first `warmupFraction` of the recorded frames. No uncertainty is
+ * given for one trajectory (D174). The NVE drift is a least-squares slope of total
+ * energy per atom against time and is present for NVE only.
  */
 export interface MdSummary {
   warmupFraction: number;

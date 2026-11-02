@@ -72,8 +72,10 @@ in the result and the UI, and flag any unit that changes without a conversion.
   - **NVE:** energy drift per atom per ps is the slope of a linear fit of E_total(t),
     divided by N.
   - **NVT:** the mean temperature, with `T = 2·KE / (dof·k_B)` and dof taken from
-    `temperatureDegreesOfFreedom`, must lie within 2 standard errors of the target. Get
-    the standard error by block averaging, and discard the first 20 % as equilibration.
+    `temperatureDegreesOfFreedom`, must lie within 2 standard errors of the target.
+    Discard the first 20 % as equilibration and take the standard error from the
+    spread between independent seeds; one trajectory's frames are too correlated for a
+    within-run error (D174).
     `Langevin` must run with `fixcm=False` (D18).
   - **NPT:** the cell must be fully periodic, and `pfactor` must be (75 fs)² × 100 GPa.
 - **Vibrations, if under review:** float64 only; the input must be a stationary point
