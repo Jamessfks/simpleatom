@@ -128,6 +128,17 @@ class TestStructureHashAcrossFormats(unittest.TestCase):
         hashes = {self._round_trip(si, f, e) for f, e in (("extxyz", "xyz"), ("cif", "cif"), ("vasp", "vasp"))}
         self.assertEqual(len(hashes), 1)
 
+    def test_hexagonal_crystals_hash_the_same_as_poscar_and_cif(self):
+        # D76: a coordinate that rounds to zero printed as "-0.0000000000" from one
+        # format and "0.0000000000" from the other, so hcp and wurtzite cells differed.
+        from ase.build import bulk
+        crystals = {"Mg": bulk("Mg", "hcp", a=3.21, c=5.21), "Ti": bulk("Ti", "hcp", a=2.95, c=4.68),
+                    "C": bulk("C", "hcp", a=2.46, c=6.71),
+                    "ZnO": bulk("ZnO", "wurtzite", a=3.25, c=5.21, u=0.382)}
+        for name, atoms in crystals.items():
+            with self.subTest(name):
+                self.assertEqual(self._round_trip(atoms, "vasp", "vasp"), self._round_trip(atoms, "cif", "cif"))
+
     def test_pdb_matches_only_at_its_own_precision(self):
         import numpy as np
         from ase.io import read
