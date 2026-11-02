@@ -137,7 +137,10 @@ class TestStructureHashAcrossFormats(unittest.TestCase):
                     "ZnO": bulk("ZnO", "wurtzite", a=3.25, c=5.21, u=0.382)}
         for name, atoms in crystals.items():
             with self.subTest(name):
-                self.assertEqual(self._round_trip(atoms, "vasp", "vasp"), self._round_trip(atoms, "cif", "cif"))
+                hashes = {fmt: self._round_trip(atoms, fmt, ext)
+                          for fmt, ext in (("vasp", "vasp"), ("cif", "cif"), ("extxyz", "xyz"))}
+                # D76 (batch 6): extended XYZ keeps 8 decimals, so it must agree too.
+                self.assertEqual(len(set(hashes.values())), 1, hashes)
 
     def test_pdb_matches_only_at_its_own_precision(self):
         import numpy as np
@@ -254,7 +257,7 @@ class TestProvenanceUnits(unittest.TestCase):
         atoms.set_constraint(FixScaled(0, [False, False, True], atoms.cell))
         scaled, _ = provenance.structure_sha256(atoms)
         self.assertEqual(len({free, fixed01, fixed02, scaled}), 4)
-        self.assertEqual(provenance.STRUCTURE_HASH_SPEC, "simpleatom-structure-v2")
+        self.assertEqual(provenance.STRUCTURE_HASH_SPEC, "simpleatom-structure-v3")
 
     def test_structure_hash_is_insensitive_to_the_sign_of_zero(self):
         from ase import Atoms
