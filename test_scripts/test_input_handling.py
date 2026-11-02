@@ -588,5 +588,25 @@ class TestCliOutputIsStrictJson(unittest.TestCase):
         self.assertTrue(re.match(r"^[a-z_]+$", out["error"]["code"]))
 
 
+
+
+class TestPbcEcho(unittest.TestCase):
+    """D179: the result says along which axes the structure is periodic."""
+
+    def test_a_result_echoes_its_pbc(self):
+        import calculate
+        from ase.build import fcc111
+        from ase.io import write
+        slab = fcc111("Cu", size=(1, 1, 2), vacuum=6.0)
+        slab.pbc = [True, True, False]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "slab.xyz")
+            write(path, slab, format="extxyz")
+            from ase.calculators.emt import EMT
+            with mock.patch.object(calculate, "get_mace_calculator", return_value=EMT()):
+                r = calculate.run_calculation(path, {"modelType": "MACE-MPA-0", "modelSize": "medium"}, profile="local")
+        self.assertEqual(r["pbc"], [True, True, False], r.get("message"))
+
+
 if __name__ == "__main__":
     unittest.main()

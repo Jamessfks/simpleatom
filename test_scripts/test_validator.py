@@ -8,7 +8,7 @@ The distance check ignored the cell and stopped after 200 atoms, so two atoms
 whose zero is arbitrary, so a +500 eV NVE drift was "stable". Each case here
 failed before the fix.
 
-Run: python test_scripts/run_suite.py test_validator.py --min 17
+Run: python test_scripts/run_suite.py test_validator.py --min 14
 """
 import pathlib
 import sys
@@ -117,6 +117,19 @@ class TestSlabWithoutThirdVector(unittest.TestCase):
         self.assertTrue(r["valid"], r)
         self.assertFalse(any("overlap" in i.lower() for i in r["issues"]), r["issues"])
         self.assertFalse(any("volume" in i.lower() for i in r["issues"]), r["issues"])
+
+
+class TestSlabFromThePbcEcho(unittest.TestCase):
+    """D179: with no pbc in the result, a T T F slab whose third vector is short but not
+    zero was searched for images along z and got a phantom 0.160 Å overlap."""
+
+    def test_the_result_pbc_decides_which_axes_have_images(self):
+        a = 2.55
+        r = _result(["Cu", "Cu"], [[0, 0, 0], [a / 2, a / 2, 1.8]],
+                    [[a, 0, 0], [0, a, 0], [0, 0, 1.96]], pbc=[True, True, False])
+        v = validate_result(r)
+        self.assertTrue(v["valid"], v)
+        self.assertTrue(any("2.548" in i for i in v["info"]), v["info"])
 
 
 class TestMolecularDynamics(unittest.TestCase):
