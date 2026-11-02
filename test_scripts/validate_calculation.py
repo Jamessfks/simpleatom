@@ -109,10 +109,17 @@ def _min_distance(positions, lattice):
     in all three; across a slab's vacuum that changes nothing. Returns None when
     no two atoms are within NEIGHBOUR_CUTOFF.
     """
+    import numpy as np
     from ase import Atoms
+    from ase.cell import Cell
     from ase.neighborlist import neighbor_list
-    periodic = lattice is not None
-    atoms = Atoms(positions=positions, cell=lattice if periodic else None, pbc=periodic)
+    if lattice is None:
+        atoms = Atoms(positions=positions, pbc=False)
+    else:
+        # A zero lattice vector is a non-periodic axis (a slab, D137/D175): no images
+        # along it. Complete the cell there so the neighbour list has a basis.
+        pbc = [bool(np.linalg.norm(v) > 1e-8) for v in lattice]
+        atoms = Atoms(positions=positions, cell=Cell(np.array(lattice, dtype=float)).complete(), pbc=pbc)
     d = neighbor_list("d", atoms, NEIGHBOUR_CUTOFF)
     return float(d.min()) if len(d) else None
 
@@ -294,7 +301,12 @@ def validate_result(result: dict) -> dict:
             info.append(f"Min interatomic distance = {min_dist:.3f} Å — reasonable")
 
     # --- Lattice validation ---
-    if lattice is not None:
+    if lattice is not None and len(lattice) == 3 and all(len(v) == 3 for v in lattice) \
+            and sum(1 for v in lattice if math.sqrt(sum(x * x for x in v)) > 1e-8) < 3:
+        # A slab or wire: periodic along fewer than three axes, so there is no volume to
+        # check (D175). The engine refuses a degenerate periodic cell itself (D137).
+        info.append("Cell volume not checked: periodic along fewer than three axes")
+    elif lattice is not None:
         if len(lattice) == 3 and all(len(v) == 3 for v in lattice):
             # Check volume (should be positive)
             a, b, c = lattice
