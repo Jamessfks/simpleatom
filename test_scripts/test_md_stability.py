@@ -263,20 +263,18 @@ class TestMdSummary(unittest.TestCase):
         self.assertNotIn("nveDriftMeVPerAtomPerPs", r["mdSummary"])
         self.assertNotIn("drift", r["message"])
 
-    def test_mean_temperature_discards_warm_up_and_carries_an_autocorrelation_error(self):
+    def test_mean_temperature_discards_warm_up_and_claims_no_error_bar(self):
         import numpy as np
-        # 2000 steps at friction 0.05/fs: about 150 independent samples, enough for a
-        # "±" (D174); 500 steps at 0.02/fs held only about 6, and gets none.
+        # D174: even a long run states no error bar for one trajectory.
         r = _md(self.free, mdEnsemble="NVT", temperature=300, friction=0.05, mdSteps=2000)
         summary = r["mdSummary"]
         temps = np.array(r["trajectory"]["temperatures"])
         kept = temps[summary["warmupFrames"]:]
         self.assertGreater(summary["warmupFrames"], 0)
         self.assertAlmostEqual(summary["meanTemperature"], float(kept.mean()), places=6)
-        self.assertGreater(summary["temperatureStdError"], 0)
-        self.assertGreaterEqual(summary["temperatureIndependentSamples"], 10)
-        self.assertIn("autocorrelation", summary["temperatureErrorMethod"])
-        self.assertIn("±", r["message"])
+        self.assertNotIn("temperatureStdError", summary)
+        self.assertNotIn("±", r["message"])
+        self.assertIn("uncertainty not estimated", r["message"])
 
     def test_md_pressure_includes_the_kinetic_term(self):
         from ase import units
@@ -294,44 +292,28 @@ class TestMdSummary(unittest.TestCase):
 
 class TestTemperatureErrorBar(unittest.TestCase):
     """
-    D174: the '± 5-block standard error' on the mean temperature was 2-3x too small for
-    default 100-step runs (8 seeds scattered 37.5 K for Si, 52.9 K for ethanol, against a
-    median reported ~20 K): five blocks of correlated frames are not five independent
-    samples. Checked on AR(1) series whose correlation time is known exactly.
+    D174: no error bar on a single trajectory's mean temperature. A 5-block error was
+    2-3x too small; an autocorrelation-time error was 3-5x smaller than the spread
+    between 8 seeds of real SimpleAtom runs (Si and ethanol, 100 and 1000 steps), and its
+    sample count swung from 7 to 96 between seeds of one system. An honest summary says
+    the uncertainty is not estimated.
     """
-
-    @staticmethod
-    def _series(rng, n, rho=0.9, mean=300.0, sigma=40.0):
-        import numpy as np
-        x = np.empty(n)
-        x[0] = rng.normal(0, sigma)
-        for i in range(1, n):
-            x[i] = rho * x[i - 1] + rng.normal(0, sigma * (1 - rho * rho) ** 0.5)
-        return mean + x
 
     def _summary(self, temps):
         import calculate
         n = len(temps)
         return calculate.md_summary(list(range(n)), [0.0] * n, list(temps), 1.0, 9, "NVT")
 
-    def test_too_few_independent_samples_get_no_error_bar(self):
+    def test_a_single_trajectory_states_no_error_bar(self):
         import numpy as np
         rng = np.random.default_rng(7)
-        # 100 frames, 80 kept, tau_int = (1+rho)/(2(1-rho)) = 9.5: about 4 independent samples.
-        s = self._summary(self._series(rng, 100))
-        self.assertNotIn("temperatureStdError", s)
-        self.assertIn("independent", s["_text"])
+        for n in (100, 2500):
+            with self.subTest(frames=n):
+                s = self._summary(300 + rng.normal(0, 40, n))
+                self.assertNotIn("temperatureStdError", s)
+                self.assertNotIn("±", s["_text"])
+                self.assertIn("uncertainty not estimated", s["_text"])
 
-    def test_the_error_bar_matches_the_scatter_between_seeds(self):
-        import numpy as np
-        rng = np.random.default_rng(11)
-        reported, means = [], []
-        for _ in range(60):
-            s = self._summary(self._series(rng, 2500))
-            reported.append(s["temperatureStdError"])
-            means.append(s["meanTemperature"])
-        ratio = float(np.median(reported)) / float(np.std(means, ddof=1))
-        self.assertGreater(ratio, 0.7, ratio)
-        self.assertLess(ratio, 1.4, ratio)
+
 if __name__ == "__main__":
     unittest.main()
