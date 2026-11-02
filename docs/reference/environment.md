@@ -10,7 +10,7 @@
 | `NEXT_PUBLIC_SITE_URL` | Vercel | no | Canonical origin for share and citation links. |
 | `SIMPLEATOM_PROFILE` | both | no | `hosted` or `local` (see the [contract](contract.md#deployment-profiles)). Defaults: the Space and a Next.js server with `MACE_API_URL` → `hosted`; local mode → `local`. |
 | `SIMPLEATOM_PYTHON` | local | recommended | The Python local mode runs, e.g. `~/.cache/simpleatom/venv311/bin/python` built from `mace-api/requirements.lock.txt`. Default `python3` on PATH; a run on a stack that differs from the pins carries a warning. |
-| `ALLOW_CUSTOM_MODELS` | both | no | `1` allows uploaded `.model` checkpoints (they execute code from the file). Off by default on every profile. Use it only on a server bound to 127.0.0.1 (`npm run dev` / `npm start` do this): that binding is the control. The loopback-host checks read client-chosen headers and are defence in depth only (D40, D94). |
+| `ALLOW_CUSTOM_MODELS` | both | no | `1` allows uploaded `.model` checkpoints (they execute code from the file). Off by default on every profile. Use it only on a server bound to 127.0.0.1 (`npm run dev` / `npm start` do this): that binding is the control. The loopback-host checks read client-chosen headers and are defence in depth only (D40, D94). The FastAPI server accepts a checkpoint only from a loopback socket peer and refuses any upload that carries X-Forwarded-For, Forwarded or X-Real-IP (D173, D178); never run it with `--forwarded-allow-ips` and custom models together. |
 | `OMP_NUM_THREADS` | the Space | no | torch threads (image default 2). |
 | `KMP_DUPLICATE_LIB_OK` | local, macOS | yes on macOS | `TRUE`, or PyTorch aborts with OMP Error #15. The routes set it for you. |
 

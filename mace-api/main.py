@@ -289,6 +289,18 @@ def _is_loopback(host: str | None) -> bool:
     return address.is_loopback or bool(mapped and mapped.is_loopback)
 
 
+def _direct_peer(request: Request) -> str | None:
+    """
+    The socket peer, or None when the request carries forwarding headers (D178):
+    uvicorn with --forwarded-allow-ips rewrites the peer from X-Forwarded-For, so a
+    LAN client claiming 127.0.0.1 would look like loopback. A direct loopback client
+    never sends these headers.
+    """
+    if any(request.headers.get(h) for h in ("x-forwarded-for", "forwarded", "x-real-ip")):
+        return None
+    return request.client.host if request.client else None
+
+
 async def _intake(files: list[UploadFile], params: str, model: UploadFile | None,
                   peer: str | None = None):
     """
@@ -315,8 +327,8 @@ async def _intake(files: list[UploadFile], params: str, model: UploadFile | None
                      str(e), field=getattr(e, "field", None))
     # A checkpoint runs code when it is loaded. Where custom models are allowed at all
     # (local, ALLOW_CUSTOM_MODELS=1), accept one only from this machine: the socket's
-    # peer address, never a forwarded header (D173). The Next.js proxy on the same host
-    # connects from loopback.
+    # peer address, never a forwarded header (D173), and never a request that carries
+    # one (D178). The Next.js proxy on the same host connects from loopback.
     if model is not None and not _is_loopback(peer):
         raise _error(403, "custom_models_local_only",
                      "Custom checkpoints are accepted only from this machine (a loopback "
@@ -371,7 +383,7 @@ async def submit_job(
 ):
     """Queue a calculation. Returns 202 with a job id to poll."""
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model, request.client.host if request.client else None)
+    run, workdir = await _intake(files, params, model, _direct_peer(request))
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
     return JOBS.describe(job)
 
@@ -414,7 +426,7 @@ async def calculate(
     for existing callers. It goes through the same single worker as /v1/jobs.
     """
     _require_proxy_key(x_simpleatom_proxy_key)
-    run, workdir = await _intake(files, params, model, request.client.host if request.client else None)
+    run, workdir = await _intake(files, params, model, _direct_peer(request))
     job = _submit(request, x_simpleatom_client_ip, run, workdir)
     budget = LIMITS["timeBudgetSeconds"]
     while True:
