@@ -1985,11 +1985,15 @@ function buildTrajectoryRows(
 
   if (temperatures.length > 0) {
     const target = result.params?.temperature;
+    // The same warm-up-discarded mean the message states (D181); results without a
+    // summary say plainly that every frame was averaged.
+    const summaryMean = result.mdSummary?.meanTemperature;
+    const afterWarmUp = typeof summaryMean === "number" && Number.isFinite(summaryMean);
     rows.push({
-      label: "Temperature (mean)",
+      label: afterWarmUp ? "Temperature (mean after warm-up)" : "Temperature (mean, all frames)",
       value: (
         <>
-          {meanOf(temperatures).toFixed(1)} K
+          {(afterWarmUp ? summaryMean : meanOf(temperatures)).toFixed(1)} K
           <span className="text-muted-foreground">
             {" "}
             ({minOf(temperatures).toFixed(0)}–

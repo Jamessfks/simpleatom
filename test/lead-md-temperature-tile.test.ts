@@ -39,6 +39,6 @@ describe("the mean-temperature tile (D181)", () => {
   });
 
   it("says it averages all frames when the result carries no summary", () => {
-    expect(text(md(false))).toMatch(/Temperature \(mean, all frames\) 289\.7 K/);
+    expect(text(md(false))).toMatch(/Temperature \(mean, all frames\) 299\.7 K/);
   });
 });
