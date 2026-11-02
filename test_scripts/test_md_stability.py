@@ -263,15 +263,19 @@ class TestMdSummary(unittest.TestCase):
         self.assertNotIn("nveDriftMeVPerAtomPerPs", r["mdSummary"])
         self.assertNotIn("drift", r["message"])
 
-    def test_mean_temperature_discards_warm_up_and_carries_a_block_error(self):
+    def test_mean_temperature_discards_warm_up_and_carries_an_autocorrelation_error(self):
         import numpy as np
-        r = _md(self.free, mdEnsemble="NVT", temperature=300, friction=0.02, mdSteps=500)
+        # 2000 steps at friction 0.05/fs: about 150 independent samples, enough for a
+        # "±" (D174); 500 steps at 0.02/fs held only about 6, and gets none.
+        r = _md(self.free, mdEnsemble="NVT", temperature=300, friction=0.05, mdSteps=2000)
         summary = r["mdSummary"]
         temps = np.array(r["trajectory"]["temperatures"])
         kept = temps[summary["warmupFrames"]:]
         self.assertGreater(summary["warmupFrames"], 0)
         self.assertAlmostEqual(summary["meanTemperature"], float(kept.mean()), places=6)
         self.assertGreater(summary["temperatureStdError"], 0)
+        self.assertGreaterEqual(summary["temperatureIndependentSamples"], 10)
+        self.assertIn("autocorrelation", summary["temperatureErrorMethod"])
         self.assertIn("±", r["message"])
 
     def test_md_pressure_includes_the_kinetic_term(self):

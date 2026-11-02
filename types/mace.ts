@@ -130,7 +130,12 @@ export interface MdSummary {
   warmupFrames?: number;
   meanTemperature?: number;
   temperatureStdError?: number;
+  /** Results before D174 only: the old five-block error. */
   temperatureBlocks?: number;
+  /** N / (2 tau_int) of the kept frames (D174); a "±" is given only from 10. */
+  temperatureIndependentSamples?: number;
+  /** How temperatureStdError was computed (D174). */
+  temperatureErrorMethod?: string;
   nveDriftMeVPerAtomPerPs?: number;
 }
 

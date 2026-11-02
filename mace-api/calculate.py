@@ -1858,7 +1858,29 @@ def kinetic_temperature(kinetic_energy_ev: float, dof: int) -> float:
 
 
 MD_WARMUP_FRACTION = 0.2
-MD_TEMPERATURE_BLOCKS = 5
+# A "±" on the mean temperature only with at least this many independent samples (D174).
+MD_MIN_INDEPENDENT_SAMPLES = 10
+
+
+def _integrated_autocorrelation_time(x) -> float:
+    """
+    tau_int in frames, by Sokal's automatic windowing (sum the autocorrelation
+    function up to the first lag M >= 5 tau). 0.5 for uncorrelated data.
+    """
+    import numpy as np
+
+    x = np.asarray(x, dtype=float) - float(np.mean(x))
+    n = len(x)
+    var = float(x.var())
+    if n < 2 or var == 0.0:
+        return 0.5
+    acf = np.correlate(x, x, mode="full")[n - 1:] / (var * n)
+    tau = 0.5
+    for lag in range(1, n):
+        tau += float(acf[lag])
+        if lag >= 5.0 * tau:
+            break
+    return max(tau, 0.5)
 
 
 def md_summary(steps, totals, temps, dt_fs: float, n_atoms: int, ensemble: str) -> dict:
@@ -1866,9 +1888,11 @@ def md_summary(steps, totals, temps, dt_fs: float, n_atoms: int, ensemble: str) 
     The numbers an MD result states about itself (D53).
 
     Mean temperature: the first MD_WARMUP_FRACTION of the recorded frames is
-    discarded as warm-up, and the standard error comes from MD_TEMPERATURE_BLOCKS
-    block means (consecutive frames are correlated, so a per-frame standard
-    error would be far too small). Fewer than 10 kept frames: no error is given.
+    discarded as warm-up. Consecutive frames are correlated, so the standard
+    error uses the integrated autocorrelation time: SE = s * sqrt(2 tau / N), and
+    N / (2 tau) is the number of independent samples. Below
+    MD_MIN_INDEPENDENT_SAMPLES no error is given (D174): a five-block error on a
+    100-step run was 2-3x smaller than the scatter between seeds.
 
     NVE drift: the least-squares slope of total energy per atom against time,
     in meV/atom/ps. Last-minus-first, as before, is one noisy difference (it
@@ -1885,17 +1909,19 @@ def md_summary(steps, totals, temps, dt_fs: float, n_atoms: int, ensemble: str) 
     warm = int(len(temps_a) * MD_WARMUP_FRACTION)
     kept = temps_a[warm:]
     out.update({"warmupFrames": warm, "meanTemperature": float(kept.mean())})
-    if len(kept) >= 2 * MD_TEMPERATURE_BLOCKS:
-        blocks = np.array_split(kept, MD_TEMPERATURE_BLOCKS)
-        means = np.array([b.mean() for b in blocks])
-        out["temperatureStdError"] = float(means.std(ddof=1) / np.sqrt(len(means)))
-        out["temperatureBlocks"] = MD_TEMPERATURE_BLOCKS
+    tau = _integrated_autocorrelation_time(kept) if len(kept) >= 2 else 0.5
+    independent = len(kept) / (2.0 * tau)
+    out["temperatureIndependentSamples"] = round(independent, 1)
+    if independent >= MD_MIN_INDEPENDENT_SAMPLES:
+        out["temperatureStdError"] = float(kept.std(ddof=1) * np.sqrt(2.0 * tau / len(kept)))
+        out["temperatureErrorMethod"] = "integrated autocorrelation time (Sokal window, c = 5)"
         t_text = (f"mean temperature {out['meanTemperature']:.1f} ± {out['temperatureStdError']:.1f} K "
-                  f"(first {warm} of {len(temps_a)} frames discarded as warm-up; "
-                  f"{MD_TEMPERATURE_BLOCKS}-block standard error)")
+                  f"(first {warm} of {len(temps_a)} frames discarded as warm-up; about "
+                  f"{independent:.0f} independent samples)")
     else:
         t_text = (f"mean temperature {out['meanTemperature']:.1f} K (first {warm} of {len(temps_a)} "
-                  "frames discarded; too few frames for an error estimate)")
+                  f"frames discarded; about {independent:.0f} independent samples, too few for an "
+                  "error estimate)")
     if ensemble == "NVE" and len(totals) >= 3:
         t_ps = np.asarray(steps, dtype=float) * dt_fs / 1000.0
         slope = float(np.polyfit(t_ps, np.asarray(totals, dtype=float) / n_atoms, 1)[0]) * 1000.0
